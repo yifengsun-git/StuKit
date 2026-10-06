@@ -1,0 +1,20 @@
+# CMake and build output
+build/
+build-*/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+.ninja_deps
+.ninja_log
+
+# Qt Creator local settings
+*.user
+*.user.*
+
+# Generated binaries and debug files
+*.exe
+*.dll
+*.obj
+*.pdb
