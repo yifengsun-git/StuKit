@@ -13,16 +13,38 @@ qt_add_executable(StuKit
     src/app/main.cpp
 )
 
+set(STUKIT_QML_FILES
+    src/shell/qml/Main.qml
+    src/shell/qml/HomePage.qml
+    src/features/accounting/qml/AccountingHomePage.qml
+    src/features/schedule/qml/ScheduleHomePage.qml
+)
+
 set_source_files_properties(
     src/shell/qml/Main.qml
     PROPERTIES QT_RESOURCE_ALIAS Main.qml
+)
+
+set_source_files_properties(
+    src/shell/qml/HomePage.qml
+    PROPERTIES QT_RESOURCE_ALIAS HomePage.qml
+)
+
+set_source_files_properties(
+    src/features/accounting/qml/AccountingHomePage.qml
+    PROPERTIES QT_RESOURCE_ALIAS AccountingHomePage.qml
+)
+
+set_source_files_properties(
+    src/features/schedule/qml/ScheduleHomePage.qml
+    PROPERTIES QT_RESOURCE_ALIAS ScheduleHomePage.qml
 )
 
 qt_add_qml_module(StuKit
     URI StuKit
     VERSION 1.0
     QML_FILES
-        src/shell/qml/Main.qml
+        ${STUKIT_QML_FILES}
 )
 
 target_link_libraries(StuKit
