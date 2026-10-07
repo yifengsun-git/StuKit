@@ -11,8 +11,8 @@ StuKit 是一个面向大学生日常使用的个人工具包。项目首先开�
 
 ## 当前状态
 
-项目处于工程骨架阶段，已经完成 Qt Quick 应用入口和首页、记账本、课表之间的
-基础导航，尚未开始实际业务代码开发。
+项目处于工程骨架阶段，已经完成 Qt Quick 应用入口、基础导航、主题系统和通用
+占位页组件，尚未开始实际业务代码开发。
 
 当前目标是搭建 Qt 6、CMake、C++ 和 QML/Qt Quick 工程，并优先完成记账本
 MVP。开发过程中保持界面与业务分离，为 Android 迁移预留空间。
@@ -35,6 +35,8 @@ MVP。开发过程中保持界面与业务分离，为 Android 迁移预留空�
 - [第一课：准备开发环境](docs/lessons/01-environment-setup.md)
 - [第二课：创建正式工程骨架](docs/lessons/02-project-bootstrap.md)
 - [第三课：建立应用导航](docs/lessons/03-app-navigation.md)
+- [第四课：建立主题与通用组件](docs/lessons/04-theme-and-shared-components.md)
+- [第五课：Money 值对象与自动测试](docs/lessons/05-money-and-unit-tests.md)
 
 ## 开发原则
 
