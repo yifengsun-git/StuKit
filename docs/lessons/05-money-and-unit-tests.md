@@ -239,6 +239,11 @@ endif()
 
 `include(CTest)` 会创建 `BUILD_TESTING` 选项并默认开启测试。
 
+如果通过 Qt Creator 创建 C++、测试或 CMake 文件，它可能把这些文件自动追加到
+现有 `qt_add_qml_module` 的 `SOURCES` 或 `RESOURCES` 中。请删除这些自动追加
+行：Money 属于 StuKitAccountingDomain，MoneyTest 属于 StuKitMoneyTest，
+它们不能再次作为 StuKit QML 模块的资源或源码注册。
+
 ## 8. 创建测试目录入口
 
 创建 `tests/CMakeLists.txt`：
@@ -430,6 +435,16 @@ StuKitAccountingDomain。
 检查 `find_package(Qt6 ... COMPONENTS Test)` 是否位于添加 tests 子目录之前，
 并确认当前 Qt 安装包含 Qt Test。
 
+如果 QtTest 已安装但 `#include <QtTest>` 在编辑器中标红，先检查 MoneyTest.cpp
+是否只属于 StuKitMoneyTest 目标，再重新运行 CMake，让 Qt Creator 刷新代码
+模型。不要把测试文件加入 `qt_add_qml_module` 来消除红线。
+
+### Qt Creator 把测试文件加入 qt_add_qml_module
+
+从 `qt_add_qml_module` 中删除自动生成的 `SOURCES` 和 `RESOURCES` 行。该模块的
+`QML_FILES` 部分应继续只包含 `${STUKIT_QML_FILES}`。C++ 领域文件和测试文件
+分别由它们自己的子目录 CMakeLists.txt 管理。
+
 ### vtable 或 MoneyTest.moc 相关错误
 
 检查类中是否有 `Q_OBJECT`，文件末尾是否包含 `#include "MoneyTest.moc"`，并
@@ -442,16 +457,16 @@ StuKitAccountingDomain。
 
 ## 16. 本课验收清单
 
-- [ ] Money 使用 qint64 保存分，不使用 double。
-- [ ] Money 位于独立的 StuKitAccountingDomain 静态库。
-- [ ] Domain 不依赖 QML、Qt Quick 或 Qt SQL。
-- [ ] StuKitMoneyTest 能够单独构建。
-- [ ] accounting.money 已注册到 CTest。
-- [ ] 五个测试函数全部通过。
-- [ ] 临时错误期望值能够让测试失败。
-- [ ] 恢复正确期望值后测试再次通过。
-- [ ] StuKit 应用仍能正常构建和运行。
-- [ ] Git 状态中没有构建产物。
+- [x] Money 使用 qint64 保存分，不使用 double。
+- [x] Money 位于独立的 StuKitAccountingDomain 静态库。
+- [x] Domain 不依赖 QML、Qt Quick 或 Qt SQL。
+- [x] StuKitMoneyTest 能够单独构建。
+- [x] accounting.money 已注册到 CTest。
+- [x] 五个测试函数全部通过。
+- [x] 临时错误期望值能够让测试失败。
+- [x] 恢复正确期望值后测试再次通过。
+- [x] StuKit 应用仍能正常构建和运行。
+- [x] Git 状态中没有构建产物。
 
 ## 17. 完成后反馈
 
@@ -469,4 +484,23 @@ StuKit 应用：正常 / 异常
 git diff --stat 输出：
 ```
 
-暂时不要提交代码。验收通过后再分别提交第四课主题、第五课文档和 Money 后端。
+## 18. 完成记录
+
+完成日期：2026-10-07。
+
+验收结果：
+
+```text
+CMake 配置：成功
+StuKitAccountingDomain 构建：成功
+StuKitMoneyTest 构建：成功
+accounting.money：通过
+测试结果：100% tests passed, 0 tests failed out of 1
+故意修改期望值：测试按预期失败
+恢复正确期望值：测试重新通过
+StuKit 应用：正常
+```
+
+普通终端直接运行 CTest 时需要让 Qt 运行目录出现在 PATH 中；Qt Creator Tests
+面板会使用 Kit 环境。Money 领域库和测试目标已经实现 ADR 0001 规划的第一次
+CMake 目标拆分。
