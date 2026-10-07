@@ -14,6 +14,16 @@ ApplicationWindow
     minimumHeight: 480
     visible: true
     title: qsTr("StuKit")
+    color: AppTheme.backgroundColor
+
+    palette.window: AppTheme.backgroundColor
+    palette.windowText: AppTheme.textPrimaryColor
+    palette.base: AppTheme.surfaceColor
+    palette.text: AppTheme.textPrimaryColor
+    palette.button: AppTheme.surfaceVariantColor
+    palette.buttonText: AppTheme.textPrimaryColor
+    palette.highlight: AppTheme.primaryColor
+    palette.highlightedText: AppTheme.textOnPrimaryColor
 
     function navigateTo(pageIndex)
     {
@@ -23,10 +33,16 @@ ApplicationWindow
 
     header: ToolBar
     {
+        background: Rectangle {
+            color: AppTheme.surfaceColor
+            border.color: AppTheme.borderColor
+            border.width: 1
+        }
+
         RowLayout
         {
             anchors.fill: parent
-            anchors.margins: 4
+            anchors.margins: AppTheme.spacingExtraSmall
 
             ToolButton
             {
@@ -37,6 +53,7 @@ ApplicationWindow
             Label
             {
                 Layout.fillWidth: true
+                color: AppTheme.textPrimaryColor
                 text:
                 {
                     switch (window.currentPage)
@@ -60,19 +77,26 @@ ApplicationWindow
 
         width: Math.min(window.width * 0.75, 280)
         height: window.height
+        background: Rectangle {
+            color: AppTheme.surfaceColor
+        }
 
         Pane
         {
             anchors.fill: parent
+            background: Rectangle {
+                color: "transparent"
+            }
 
             ColumnLayout
             {
                 anchors.fill: parent
-                spacing: 8
+                spacing: AppTheme.spacingSmall
 
                 Label
                 {
                     text: qsTr("StuKit")
+                    color: AppTheme.textPrimaryColor
                     font.pixelSize: 24
                     font.bold: true
                 }

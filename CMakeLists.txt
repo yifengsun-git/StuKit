@@ -18,6 +18,8 @@ set(STUKIT_QML_FILES
     src/shell/qml/HomePage.qml
     src/features/accounting/qml/AccountingHomePage.qml
     src/features/schedule/qml/ScheduleHomePage.qml
+    src/shared/qml/theme/AppTheme.qml
+    src/shared/qml/components/FeaturePlaceholder.qml
 )
 
 set_source_files_properties(
@@ -38,6 +40,18 @@ set_source_files_properties(
 set_source_files_properties(
     src/features/schedule/qml/ScheduleHomePage.qml
     PROPERTIES QT_RESOURCE_ALIAS ScheduleHomePage.qml
+)
+
+set_source_files_properties(
+    src/shared/qml/theme/AppTheme.qml
+    PROPERTIES
+        QT_QML_SINGLETON_TYPE TRUE
+        QT_RESOURCE_ALIAS AppTheme.qml
+)
+
+set_source_files_properties(
+    src/shared/qml/components/FeaturePlaceholder.qml
+    PROPERTIES QT_RESOURCE_ALIAS FeaturePlaceholder.qml
 )
 
 qt_add_qml_module(StuKit
