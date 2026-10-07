@@ -37,6 +37,7 @@ MVP。开发过程中保持界面与业务分离，为 Android 迁移预留空�
 - [第三课：建立应用导航](docs/lessons/03-app-navigation.md)
 - [第四课：建立主题与通用组件](docs/lessons/04-theme-and-shared-components.md)
 - [第五课：Money 值对象与自动测试](docs/lessons/05-money-and-unit-tests.md)
+- [第六课：Transaction 实体与业务规则](docs/lessons/06-transaction-domain.md)
 
 ## 开发原则
 
