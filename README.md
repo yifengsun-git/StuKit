@@ -13,7 +13,8 @@ StuKit 是一个面向大学生日常使用的个人工具包。项目首先开�
 
 项目已经完成 Qt Quick 应用入口、基础导航、主题系统和通用占位页组件，目前
 正在开发记账领域层，已经实现 Money 值对象以及 Transaction、Account 和
-Category 实体，并建立了第一个 Account Repository 接口和内存测试替身。
+Category 实体，并建立了 Account Repository 接口、内存测试替身和第一个
+CreateAccount 应用用例。
 
 当前目标是搭建 Qt 6、CMake、C++ 和 QML/Qt Quick 工程，并优先完成记账本
 MVP。开发过程中保持界面与业务分离，为 Android 迁移预留空间。
@@ -42,6 +43,7 @@ MVP。开发过程中保持界面与业务分离，为 Android 迁移预留空�
 - [第七课：Account 账户实体](docs/lessons/07-account-domain.md)
 - [第八课：Category 分类实体与共享领域类型](docs/lessons/08-category-domain.md)
 - [第九课：Account Repository 接口与测试替身](docs/lessons/09-account-repository.md)
+- [第十课：Application 层与 CreateAccount 用例](docs/lessons/10-create-account-use-case.md)
 
 ## 开发原则
 
