@@ -57,3 +57,19 @@ add_test(
     NAME accounting.category
     COMMAND StuKitCategoryTest
 )
+
+add_executable(StuKitAccountRepositoryTest
+    AccountRepositoryTest.cpp
+    support/InMemoryAccountRepository.h
+)
+
+target_link_libraries(StuKitAccountRepositoryTest
+    PRIVATE
+        Qt6::Test
+        StuKitAccountingDomain
+)
+
+add_test(
+    NAME accounting.account_repository
+    COMMAND StuKitAccountRepositoryTest
+)

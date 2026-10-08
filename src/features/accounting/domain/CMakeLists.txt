@@ -8,6 +8,7 @@ add_library(StuKitAccountingDomain STATIC
     TransactionType.h
     Category.h
     Category.cpp
+    IAccountRepository.h
 )
 
 target_include_directories(StuKitAccountingDomain
