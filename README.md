@@ -12,9 +12,9 @@ StuKit 是一个面向大学生日常使用的个人工具包。项目首先开�
 ## 当前状态
 
 项目已经完成 Qt Quick 应用入口、基础导航、主题系统和通用占位页组件，目前
-正在开发记账领域层，已经实现 Money 值对象以及 Transaction、Account 和
-Category 实体，并建立了 Account Repository 接口、内存测试替身和第一个
-CreateAccount 应用用例。
+正在开发记账数据层，已经实现 Money 值对象以及 Transaction、Account 和
+Category 实体，并建立了 Account Repository 接口、CreateAccount 应用用例、
+SQLite 连接和数据库迁移机制。
 
 当前目标是搭建 Qt 6、CMake、C++ 和 QML/Qt Quick 工程，并优先完成记账本
 MVP。开发过程中保持界面与业务分离，为 Android 迁移预留空间。
@@ -33,6 +33,7 @@ MVP。开发过程中保持界面与业务分离，为 Android 迁移预留空�
 
 - [项目计划](docs/PROJECT_PLAN.md)
 - [架构说明](docs/ARCHITECTURE.md)
+- [C++ 代码导读](docs/CPP_CODE_GUIDE.md)
 - [开发协作方式](docs/DEVELOPMENT_GUIDE.md)
 - [第一课：准备开发环境](docs/lessons/01-environment-setup.md)
 - [第二课：创建正式工程骨架](docs/lessons/02-project-bootstrap.md)
@@ -44,6 +45,7 @@ MVP。开发过程中保持界面与业务分离，为 Android 迁移预留空�
 - [第八课：Category 分类实体与共享领域类型](docs/lessons/08-category-domain.md)
 - [第九课：Account Repository 接口与测试替身](docs/lessons/09-account-repository.md)
 - [第十课：Application 层与 CreateAccount 用例](docs/lessons/10-create-account-use-case.md)
+- [第十一课：SQLite 连接与数据库迁移](docs/lessons/11-sqlite-database-migrations.md)
 
 ## 开发原则
 
