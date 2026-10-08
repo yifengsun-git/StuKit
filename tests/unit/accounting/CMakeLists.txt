@@ -42,3 +42,18 @@ add_test(
     NAME accounting.account
     COMMAND StuKitAccountTest
 )
+
+add_executable(StuKitCategoryTest
+    CategoryTest.cpp
+)
+
+target_link_libraries(StuKitCategoryTest
+    PRIVATE
+        Qt6::Test
+        StuKitAccountingDomain
+)
+
+add_test(
+    NAME accounting.category
+    COMMAND StuKitCategoryTest
+)

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Money.h"
+#include "TransactionType.h"
 
 #include <QDateTime>
 #include <QString>
@@ -9,12 +10,6 @@
 #include <optional>
 
 namespace stukit::accounting {
-
-enum class TransactionType
-{
-    Income,
-    Expense
-};
 
 struct TransactionData
 {
