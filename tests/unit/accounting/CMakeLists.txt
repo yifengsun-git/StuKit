@@ -27,3 +27,18 @@ add_test(
     NAME accounting.transaction
     COMMAND StuKitTransactionTest
 )
+
+add_executable(StuKitAccountTest
+    AccountTest.cpp
+)
+
+target_link_libraries(StuKitAccountTest
+    PRIVATE
+        Qt6::Test
+        StuKitAccountingDomain
+)
+
+add_test(
+    NAME accounting.account
+    COMMAND StuKitAccountTest
+)
