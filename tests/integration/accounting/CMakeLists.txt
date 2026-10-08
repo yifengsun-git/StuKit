@@ -1,0 +1,14 @@
+add_executable(StuKitSqliteDatabaseTest
+    SqliteDatabaseTest.cpp
+)
+
+target_link_libraries(StuKitSqliteDatabaseTest
+    PRIVATE
+        Qt6::Test
+        StuKitAccountingInfrastructure
+)
+
+add_test(
+    NAME accounting.sqlite_database
+    COMMAND StuKitSqliteDatabaseTest
+)

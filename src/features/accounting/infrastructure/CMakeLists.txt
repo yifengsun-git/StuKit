@@ -1,0 +1,20 @@
+add_library(StuKitAccountingInfrastructure STATIC
+    database/SqliteDatabase.cpp
+    database/SqliteDatabase.h
+)
+
+target_include_directories(StuKitAccountingInfrastructure
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_link_libraries(StuKitAccountingInfrastructure
+    PUBLIC
+        Qt6::Sql
+        StuKitAccountingDomain
+)
+
+target_compile_features(StuKitAccountingInfrastructure
+    PUBLIC
+        cxx_std_20
+)
