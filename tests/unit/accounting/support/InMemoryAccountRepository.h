@@ -10,8 +10,17 @@ namespace stukit::accounting::testing {
 class InMemoryAccountRepository final : public IAccountRepository
 {
 public:
+    void setSaveShouldSucceed(bool shouldSucceed) noexcept
+    {
+        m_saveShouldSucceed = shouldSucceed;
+    }
+
     bool save(const Account &account) override
     {
+        if (!m_saveShouldSucceed) {
+            return false;
+        }
+
         const auto existing = std::find_if(
             m_accounts.begin(),
             m_accounts.end(),
@@ -50,6 +59,7 @@ public:
     }
 
 private:
+    bool m_saveShouldSucceed{true};
     std::vector<Account> m_accounts;
 };
 

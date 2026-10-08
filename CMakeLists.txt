@@ -12,6 +12,7 @@ qt_standard_project_setup(REQUIRES 6.8)
 include(CTest)
 
 add_subdirectory(src/features/accounting/domain)
+add_subdirectory(src/features/accounting/application)
 
 if(BUILD_TESTING)
     find_package(Qt6 6.8 REQUIRED COMPONENTS Test)
