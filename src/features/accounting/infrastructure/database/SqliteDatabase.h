@@ -26,6 +26,7 @@ private:
   [[nodiscard]] bool readCurrentVersion(int &version);
   [[nodiscard]] bool applyMigration1();
   [[nodiscard]] bool applyMigration2();
+  [[nodiscard]] bool applyMigration3();
 
   QString m_connectionName;
   QSqlDatabase m_database;

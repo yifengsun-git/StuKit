@@ -44,3 +44,19 @@ add_test(
     NAME accounting.sqlite_category_repository
     COMMAND StuKitSqliteCategoryRepositoryTest
 )
+
+add_executable(StuKitSqliteTransactionRepositoryTest
+    SqliteTransactionRepositoryTest.cpp
+)
+
+target_link_libraries(StuKitSqliteTransactionRepositoryTest
+    PRIVATE
+        Qt6::Test
+        StuKitAccountingApplication
+        StuKitAccountingInfrastructure
+)
+
+add_test(
+    NAME accounting.sqlite_transaction_repository
+    COMMAND StuKitSqliteTransactionRepositoryTest
+)

@@ -3,6 +3,7 @@
 #include <QDateTime>
 #include <QSqlError>
 #include <QSqlQuery>
+#include <QStringList>
 
 #include <utility>
 
@@ -62,6 +63,10 @@ bool SqliteDatabase::migrate() {
   }
 
   if (version < 2 && !applyMigration2()) {
+    return false;
+  }
+
+  if (version < 3 && !applyMigration3()) {
     return false;
   }
 
@@ -178,6 +183,64 @@ bool SqliteDatabase::applyMigration2() {
 
   if (!recordMigration.exec()) {
     m_lastError = recordMigration.lastError().text();
+    m_database.rollback();
+    return false;
+  }
+
+  if (!m_database.commit()) {
+    m_lastError = m_database.lastError().text();
+    m_database.rollback();
+    return false;
+  }
+
+  return true;
+}
+
+bool SqliteDatabase::applyMigration3() {
+  if (!m_database.transaction()) {
+    m_lastError = m_database.lastError().text();
+    return false;
+  }
+
+  QSqlQuery query(m_database);
+  const QStringList statements{
+      QStringLiteral("CREATE TABLE transactions ("
+                     "id TEXT PRIMARY KEY NOT NULL, "
+                     "type INTEGER NOT NULL CHECK (type IN (0, 1)), "
+                     "amount_cents INTEGER NOT NULL CHECK (amount_cents > 0), "
+                     "account_id TEXT NOT NULL, "
+                     "category_id TEXT NOT NULL, "
+                     "occurred_at TEXT NOT NULL, "
+                     "note TEXT NOT NULL DEFAULT '', "
+                     "FOREIGN KEY (account_id) REFERENCES accounts(id) "
+                     "ON UPDATE CASCADE ON DELETE RESTRICT, "
+                     "FOREIGN KEY (category_id) REFERENCES categories(id) "
+                     "ON UPDATE CASCADE ON DELETE RESTRICT)"),
+      QStringLiteral("CREATE INDEX idx_transactions_occurred_at "
+                     "ON transactions(occurred_at)"),
+      QStringLiteral("CREATE INDEX idx_transactions_account_id "
+                     "ON transactions(account_id)"),
+      QStringLiteral("CREATE INDEX idx_transactions_category_id "
+                     "ON transactions(category_id)"),
+  };
+
+  for (const QString &statement : statements) {
+    if (!query.exec(statement)) {
+      m_lastError = query.lastError().text();
+      m_database.rollback();
+      return false;
+    }
+  }
+
+  query.prepare(
+      QStringLiteral("INSERT INTO schema_migrations(version, applied_at) "
+                     "VALUES(:version, :appliedAt)"));
+  query.bindValue(QStringLiteral(":version"), 3);
+  query.bindValue(QStringLiteral(":appliedAt"),
+                  QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs));
+
+  if (!query.exec()) {
+    m_lastError = query.lastError().text();
     m_database.rollback();
     return false;
   }

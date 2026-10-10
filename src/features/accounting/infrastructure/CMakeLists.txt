@@ -5,6 +5,8 @@ add_library(StuKitAccountingInfrastructure STATIC
     repositories/SqliteAccountRepository.h
     repositories/SqliteCategoryRepository.cpp
     repositories/SqliteCategoryRepository.h
+    repositories/SqliteTransactionRepository.cpp
+    repositories/SqliteTransactionRepository.h
 )
 
 target_include_directories(StuKitAccountingInfrastructure
