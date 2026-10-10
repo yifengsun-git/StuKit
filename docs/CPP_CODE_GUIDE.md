@@ -44,6 +44,10 @@ SqliteDatabase
   -> schema_migrations 表
   -> accounts 表
 
+SqliteAccountRepository
+  -> IAccountRepository
+  -> QSqlDatabase / accounts 表
+
 Transaction
   -> Money
   -> TransactionType
@@ -59,8 +63,8 @@ Presentation/QML -> Application -> Domain
 Infrastructure --------------------> Domain
 ```
 
-当前 QML 尚未调用 CreateAccount。SQLite 的连接和表结构迁移已经实现，但把
-`IAccountRepository` 真正映射到 SQLite 的 Repository 实现尚未加入。
+当前 QML 尚未调用 CreateAccount。SQLite 的连接、表结构迁移以及
+`IAccountRepository` 的 SQLite 实现已经完成，后续由 Presentation 层触发用例。
 
 ## 4. 程序入口
 
@@ -288,6 +292,32 @@ Infrastructure 负责数据库、文件和平台 API 等外部技术细节。它
 
 迁移具有幂等性：同一个数据库多次调用 `migrate()` 不会重复创建表。
 
+### `repositories/SqliteAccountRepository.h`
+
+声明 `IAccountRepository` 的 SQLite 实现：
+
+- `save()` 保存或更新账户。
+- `findById()` 按 UUID 查询账户。
+- `findAll()` 返回稳定排序的全部账户。
+- `lastError()` 暴露具体数据库诊断信息。
+
+它持有的是 Qt 命名连接的轻量句柄，不拥有数据库文件，也不负责打开数据库和执行
+迁移。
+
+### `repositories/SqliteAccountRepository.cpp`
+
+负责 Account 与数据库字段之间的双向转换：
+
+- UUID 保存为无花括号文本。
+- Money 保存为整数分。
+- bool 保存为 0 或 1。
+- SQL 使用参数绑定，账户名称不会被拼进 SQL 字符串。
+- 相同 UUID 使用 SQLite UPSERT 更新原行。
+- 查询结果重新通过 `Account::create()` 验证领域规则。
+
+该文件不处理按钮、提示文案或创建 UUID；这些分别属于 Presentation 和
+Application。
+
 ## 8. 测试支持代码
 
 ### `tests/unit/accounting/support/InMemoryAccountRepository.h`
@@ -338,6 +368,12 @@ tests/unit/accounting/
 它使用 `QTEST_GUILESS_MAIN` 创建 `QCoreApplication`，让 Qt 能加载 SQL 驱动；每个
 测试都在构建工作目录创建独立临时数据库，并在结束后自动清理。
 
+### `tests/integration/accounting/SqliteAccountRepositoryTest.cpp`
+
+验证账户的保存、查询、更新、缺失结果和全部查询，并将 `CreateAccount` 与真实
+SQLite Repository 组装起来验证跨层流程。测试先销毁 Repository，再关闭数据库，
+避免 Qt 报告连接仍被使用。
+
 ## 10. CMake 文件如何组织 C++ 代码
 
 ### 根 `CMakeLists.txt`
@@ -375,8 +411,8 @@ StuKitAccountingApplication
 
 ### `src/features/accounting/infrastructure/CMakeLists.txt`
 
-创建 `StuKitAccountingInfrastructure`，编译 `SqliteDatabase`，并链接 `Qt6::Sql`
-和 `StuKitAccountingDomain`。
+创建 `StuKitAccountingInfrastructure`，编译 `SqliteDatabase` 和
+`SqliteAccountRepository`，并链接 `Qt6::Sql` 和 `StuKitAccountingDomain`。
 
 ### `tests/CMakeLists.txt`
 
@@ -388,8 +424,8 @@ StuKitAccountingApplication
 
 ### `tests/integration/accounting/CMakeLists.txt`
 
-创建 `StuKitSqliteDatabaseTest`，链接 Qt Test 和 Infrastructure，并将它注册为
-`accounting.sqlite_database` 测试。
+分别创建数据库迁移测试和账户 Repository 测试目标。Repository 集成测试额外
+链接 Application，用于验证 `CreateAccount -> SQLite` 的完整调用链。
 
 ## 11. 建议的代码阅读顺序
 
@@ -402,8 +438,9 @@ StuKitAccountingApplication
 5. `InMemoryAccountRepository.h`：理解接口的测试实现。
 6. `CreateAccountTest.cpp`：观察完整流程如何被验证。
 7. `SqliteDatabase.h/.cpp`：理解连接生命周期和数据库迁移。
-8. `SqliteDatabaseTest.cpp`：理解真实数据库集成测试。
-9. `main.cpp`：理解应用如何启动，但不要从入口文件寻找业务规则。
+8. `SqliteAccountRepository.h/.cpp`：理解实体与数据库行之间的转换。
+9. 两个 SQLite 测试：理解真实数据库集成测试和资源析构顺序。
+10. `main.cpp`：理解应用如何启动，但不要从入口文件寻找业务规则。
 
 ## 12. 修改代码时如何判断文件归属
 
@@ -420,5 +457,5 @@ StuKitAccountingApplication
 ## 13. 后续更新规则
 
 每完成一课并新增 C++ 文件，都应在本文补充它的职责、依赖和禁止承担的职责。
-下一阶段预计实现 SQLite 版 `IAccountRepository`，让 `CreateAccount` 能把账户真正
-持久化到 `accounts` 表。
+下一阶段将为 Category 增加 Repository 接口和创建用例，再用相同依赖规则扩展
+SQLite 数据层。

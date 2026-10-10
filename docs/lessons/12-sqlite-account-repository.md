@@ -687,20 +687,20 @@ Repository 不会自行迁移数据库。
 
 ## 16. 本课验收清单
 
-- [ ] `CreateAccount.h` 直接包含 `<variant>`。
-- [ ] `SqliteAccountRepository` 实现 `IAccountRepository`。
-- [ ] `save()` 使用参数绑定，没有拼接用户数据。
-- [ ] 相同 ID 再次保存会更新，而不是新增第二行。
-- [ ] UUID、名称、期初余额和归档状态可以完整往返数据库。
-- [ ] 缺失 ID 返回 `std::nullopt`，且不记录数据库错误。
-- [ ] `findAll()` 使用明确的 SQL 排序。
-- [ ] 从数据库恢复账户时仍调用 `Account::create()`。
-- [ ] `CreateAccount` 可以通过 SQLite Repository 保存账户。
-- [ ] 集成测试正确管理 Repository 和数据库析构顺序。
-- [ ] 8 组测试全部通过。
-- [ ] StuKit 应用仍能正常构建和运行。
-- [ ] `git diff --check` 没有输出。
-- [ ] Git 状态中没有数据库文件和 build 产物。
+- [x] `CreateAccount.h` 直接包含 `<variant>`。
+- [x] `SqliteAccountRepository` 实现 `IAccountRepository`。
+- [x] `save()` 使用参数绑定，没有拼接用户数据。
+- [x] 相同 ID 再次保存会更新，而不是新增第二行。
+- [x] UUID、名称、期初余额和归档状态可以完整往返数据库。
+- [x] 缺失 ID 返回 `std::nullopt`，且不记录数据库错误。
+- [x] `findAll()` 使用明确的 SQL 排序。
+- [x] 从数据库恢复账户时仍调用 `Account::create()`。
+- [x] `CreateAccount` 可以通过 SQLite Repository 保存账户。
+- [x] 集成测试正确管理 Repository 和数据库析构顺序。
+- [x] 8 组测试全部通过。
+- [x] StuKit 应用仍能正常构建和运行。
+- [x] `git diff --check` 没有输出。
+- [x] Git 状态中没有数据库文件和 build 产物。
 
 ## 17. 完成后反馈
 
