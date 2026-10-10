@@ -483,20 +483,20 @@ Income。
 
 ## 14. 验收清单
 
-- [ ] `ITransactionRepository` 位于 Domain，且不依赖数据库。
-- [ ] 内存 Transaction Repository 支持保存、查询、更新和模拟失败。
-- [ ] `CreateTransaction` 位于 Application。
-- [ ] 无效金额、UUID 或时间返回 `InvalidInput`。
-- [ ] 不存在和已归档账户分别返回不同错误。
-- [ ] 不存在和已归档分类分别返回不同错误。
-- [ ] 分类类型与账单类型必须一致。
-- [ ] 任意校验失败都不会保存账单。
-- [ ] 保存失败返回 `StorageFailure`。
-- [ ] 成功结果保留金额、关联 UUID、时间和清理后的备注。
-- [ ] 两个新测试拥有独立 CMake 目标。
-- [ ] 13 组测试全部通过。
-- [ ] StuKit 应用仍能正常构建和启动。
-- [ ] `git diff --check` 没有输出。
+- [x] `ITransactionRepository` 位于 Domain，且不依赖数据库。
+- [x] 内存 Transaction Repository 支持保存、查询、更新和模拟失败。
+- [x] `CreateTransaction` 位于 Application。
+- [x] 无效金额、UUID 或时间返回 `InvalidInput`。
+- [x] 不存在和已归档账户分别返回不同错误。
+- [x] 不存在和已归档分类分别返回不同错误。
+- [x] 分类类型与账单类型必须一致。
+- [x] 任意校验失败都不会保存账单。
+- [x] 保存失败返回 `StorageFailure`。
+- [x] 成功结果保留金额、关联 UUID、时间和清理后的备注。
+- [x] 两个新测试拥有独立 CMake 目标。
+- [x] 13 组测试全部通过。
+- [x] StuKit 应用仍能正常构建和启动。
+- [x] `git diff --check` 没有输出。
 
 ## 15. 完成后反馈
 

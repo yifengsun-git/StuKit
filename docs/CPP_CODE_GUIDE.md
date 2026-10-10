@@ -5,8 +5,8 @@
 本文说明 StuKit 中各个 C++ 头文件和源文件的职责、依赖关系以及不能承担的职责。
 它适合在阅读代码、排查编译错误或添加新功能前快速查阅。
 
-当前内容对应第十四课完成后的代码，包括两版 SQLite 迁移、账户与分类 Repository
-及其集成测试。
+当前内容对应第十五课完成后的代码，包括两版 SQLite 迁移、三个 Repository 接口、
+账户与分类持久化，以及创建账户、分类和账单用例。
 
 ## 2. `.h` 和 `.cpp` 分别做什么
 
@@ -36,6 +36,12 @@ CreateAccount
   -> IAccountRepository
   -> Account
        -> Money
+
+CreateTransaction
+  -> ITransactionRepository
+  -> IAccountRepository
+  -> ICategoryRepository
+  -> Transaction
 
 InMemoryAccountRepository（仅测试）
   -> IAccountRepository
@@ -233,6 +239,13 @@ Infrastructure 层实现这个接口。
 接口只依赖 Category 和 Qt Core 基础类型，不依赖 SQLite。单元测试使用内存实现，
 后续 Infrastructure 会提供 SQLite 实现。
 
+### `ITransactionRepository.h`
+
+声明账单的最小存储契约：保存或更新、按 UUID 查询和返回全部账单。它当前不包含
+月份筛选；查询能力会在实现流水列表时根据真实需求扩展。
+
+接口属于 Domain，不引用 Qt SQL，也不负责检查关联账户和分类是否存在。
+
 ## 6. Application：应用用例层
 
 目录：
@@ -282,6 +295,19 @@ SQLite 实现。
 
 它与 CreateAccount 遵守相同的 Application 层模式，但分别依赖各自 Repository，
 没有为了少量重复而合并成含义模糊的通用用例。
+
+### `CreateTransaction.h` 与 `CreateTransaction.cpp`
+
+实现新增账单的跨实体流程：
+
+1. 调用 `Transaction::create()` 验证金额、UUID、时间和备注。
+2. 查询账户并拒绝不存在或已归档账户。
+3. 查询分类并拒绝不存在或已归档分类。
+4. 检查分类类型与账单收入/支出类型一致。
+5. 通过 `ITransactionRepository` 保存有效账单。
+
+结果错误枚举能区分每种失败原因，后续 Presentation 可以把稳定错误类型转换为
+用户提示，而不用解析字符串。
 
 ## 7. Infrastructure：基础设施层
 
@@ -377,6 +403,11 @@ Category。
 查询和返回全部分类，也能模拟保存失败，供 CreateCategory 的 Application 测试
 使用。
 
+### `tests/unit/accounting/support/InMemoryTransactionRepository.h`
+
+实现 `ITransactionRepository` 的内存版本，支持新增、同 UUID 更新、查询和模拟保存
+失败。它与账户、分类内存 Repository 一起用于隔离数据库测试 CreateTransaction。
+
 ## 9. 自动测试文件
 
 目录：
@@ -398,6 +429,8 @@ tests/unit/accounting/
 | `CreateAccountTest.cpp` | 创建账户完整流程、无效输入、存储失败和 UUID 唯一性。 |
 | `CategoryRepositoryTest.cpp` | 分类内存 Repository 的保存、查询和更新契约。 |
 | `CreateCategoryTest.cpp` | 创建分类流程、类型保留、无效输入和存储失败。 |
+| `TransactionRepositoryTest.cpp` | 账单内存 Repository 的保存、查询和更新契约。 |
+| `CreateTransactionTest.cpp` | 跨实体校验、七类失败结果和成功保存流程。 |
 
 测试代码不是产品功能，但它定义了当前代码必须持续满足的行为。修改业务代码后，
 应运行全部测试，而不是只运行本次新增的测试。
@@ -510,5 +543,5 @@ StuKitAccountingApplication
 ## 13. 后续更新规则
 
 每完成一课并新增 C++ 文件，都应在本文补充它的职责、依赖和禁止承担的职责。
-下一阶段将定义 Transaction Repository 和 CreateTransaction 用例，为完整记账
-流程建立 Application 层入口。
+下一阶段将通过数据库迁移 3 创建 transactions 表，并实现
+`SqliteTransactionRepository`。
