@@ -5,6 +5,7 @@
 
 #include <QString>
 
+#include <variant>
 
 namespace stukit::accounting {
 
