@@ -210,21 +210,21 @@ findOccurredBetween(start, end)
 
 ## 11. 验收清单
 
-- [ ] 迁移 3 创建 transactions 表和三个索引。
-- [ ] 迁移 1、2 的历史职责不变。
-- [ ] 版本 1、2 数据库均可安全升级到版本 3。
-- [ ] 旧账户和分类数据升级后保持不变。
-- [ ] 金额使用 INTEGER 且数据库约束大于 0。
-- [ ] 时间统一保存为 UTC ISO 8601 毫秒文本。
-- [ ] 账户和分类使用外键并启用约束。
-- [ ] 收支类型使用显式稳定编码。
-- [ ] `SqliteTransactionRepository` 实现完整接口。
-- [ ] 查询结果重新经过 `Transaction::create()`。
-- [ ] `CreateTransaction -> SQLite` 集成测试通过。
-- [ ] 14 组测试全部通过。
-- [ ] StuKit 应用仍能构建并启动。
-- [ ] 文档与代码导读同步更新。
-- [ ] Git 工作区没有临时数据库或构建产物。
+- [x] 迁移 3 创建 transactions 表和三个索引。
+- [x] 迁移 1、2 的历史职责不变。
+- [x] 版本 1、2 数据库均可安全升级到版本 3。
+- [x] 旧账户和分类数据升级后保持不变。
+- [x] 金额使用 INTEGER 且数据库约束大于 0。
+- [x] 时间统一保存为 UTC ISO 8601 毫秒文本。
+- [x] 账户和分类使用外键并启用约束。
+- [x] 收支类型使用显式稳定编码。
+- [x] `SqliteTransactionRepository` 实现完整接口。
+- [x] 查询结果重新经过 `Transaction::create()`。
+- [x] `CreateTransaction -> SQLite` 集成测试通过。
+- [x] 14 组测试全部通过。
+- [x] StuKit 应用仍能构建并启动。
+- [x] 文档与代码导读同步更新。
+- [x] Git 工作区没有临时数据库或构建产物。
 
 ## 12. 实施方式
 

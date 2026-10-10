@@ -5,8 +5,8 @@
 本文说明 StuKit 中各个 C++ 头文件和源文件的职责、依赖关系以及不能承担的职责。
 它适合在阅读代码、排查编译错误或添加新功能前快速查阅。
 
-当前内容对应第十五课完成后的代码，包括两版 SQLite 迁移、三个 Repository 接口、
-账户与分类持久化，以及创建账户、分类和账单用例。
+当前内容对应第十六课完成后的代码，包括三版 SQLite 迁移、三个 Repository 接口、
+账户、分类与账单持久化，以及创建账户、分类和账单用例。
 
 ## 2. `.h` 和 `.cpp` 分别做什么
 
@@ -50,6 +50,8 @@ SqliteDatabase
   -> Qt SQL / QSQLITE
   -> schema_migrations 表
   -> accounts 表
+  -> categories 表
+  -> transactions 表与索引
 
 SqliteAccountRepository
   -> IAccountRepository
@@ -58,6 +60,10 @@ SqliteAccountRepository
 SqliteCategoryRepository
   -> ICategoryRepository
   -> QSqlDatabase / categories 表
+
+SqliteTransactionRepository
+  -> ITransactionRepository
+  -> QSqlDatabase / transactions 表
 
 Transaction
   -> Money
@@ -74,7 +80,7 @@ Presentation/QML -> Application -> Domain
 Infrastructure --------------------> Domain
 ```
 
-当前 QML 尚未调用创建用例。账户和分类的 SQLite 存储已经完成，后续由
+当前 QML 尚未调用创建用例。账户、分类和账单的 SQLite 存储已经完成，后续由
 Presentation 层触发用例。
 
 ## 4. 程序入口
@@ -237,7 +243,7 @@ Infrastructure 层实现这个接口。
 `IAccountRepository` 分开，使两个业务概念以后可以独立增加查询方法。
 
 接口只依赖 Category 和 Qt Core 基础类型，不依赖 SQLite。单元测试使用内存实现，
-后续 Infrastructure 会提供 SQLite 实现。
+正式持久化由 Infrastructure 中的 `SqliteCategoryRepository` 提供。
 
 ### `ITransactionRepository.h`
 
@@ -342,8 +348,9 @@ Infrastructure 负责数据库、文件和平台 API 等外部技术细节。它
 4. 成功后记录版本 1，失败则回滚。
 5. 析构时关闭连接并从 Qt 连接池移除连接名。
 
-迁移 2 在独立事务中创建 `categories` 表并记录版本 2。版本 1 数据库升级时只执行
-迁移 2；全新数据库会依次执行迁移 1 和迁移 2。
+迁移 2 在独立事务中创建 `categories` 表并记录版本 2。迁移 3 创建
+`transactions` 表、三个查询索引和两个外键，并记录版本 3。每版迁移都在独立事务
+中完成；全新数据库会依次执行迁移 1、2、3，旧数据库只执行缺失版本。
 
 迁移具有幂等性：同一个数据库多次调用 `migrate()` 不会重复创建表。
 
@@ -381,6 +388,20 @@ Application。
 
 如果数据库出现 0 和 1 以外的类型编码，Repository 会记录错误并拒绝创建无效
 Category。
+
+### `repositories/SqliteTransactionRepository.h/.cpp`
+
+实现 `ITransactionRepository`，负责账单的 UPSERT、按 ID 查询和按发生时间倒序查询：
+
+- 金额以整数分保存，不使用浮点数。
+- 收入和支出使用显式的 0、1 编码。
+- 时间转为 UTC 后使用带毫秒的 ISO 8601 文本保存。
+- 空备注保存为数据库空文本，而不是 SQL `NULL`。
+- 账户与分类 UUID 由数据库外键进行最后一道一致性保护。
+- 查询行重新通过 `Transaction::create()` 验证后才返回上层。
+
+它不检查账户是否归档、分类是否归档或分类类型是否匹配；这些用户操作规则由
+`CreateTransaction` 负责。Repository 和数据库只保证数据映射与引用完整性。
 
 ## 8. 测试支持代码
 
@@ -440,9 +461,10 @@ tests/unit/accounting/
 这是 SQLite 集成测试，验证：
 
 - Qt 可以加载 `QSQLITE` 驱动。
-- 首次迁移能创建 `accounts`、`categories` 表和预期字段。
+- 首次迁移能创建 `accounts`、`categories`、`transactions` 表和预期字段。
+- transactions 的三个查询索引已经创建。
 - 重复迁移不会重复写入版本记录。
-- 版本 1 数据库能升级到版本 2，且原有账户数据保持不变。
+- 版本 1 和版本 2 数据库都能升级到版本 3，且旧数据保持不变。
 - 每条 SQLite 连接都启用了外键约束。
 
 它使用 `QTEST_GUILESS_MAIN` 创建 `QCoreApplication`，让 Qt 能加载 SQL 驱动；每个
@@ -458,6 +480,12 @@ SQLite Repository 组装起来验证跨层流程。测试先销毁 Repository，
 
 验证收入与支出分类的保存、查询、同 UUID 更新、稳定排序和缺失结果，并将
 `CreateCategory` 与真实 SQLite Repository 组装起来验证完整调用链。
+
+### `tests/integration/accounting/SqliteTransactionRepositoryTest.cpp`
+
+验证账单所有字段的保存与恢复、整数分金额、UTC 时间文本、空备注、UPSERT、倒序
+查询和缺失结果；同时验证无效外键写入失败、被账单引用的账户和分类不能删除，
+以及 `CreateTransaction` 能通过三个真实 Repository 完成持久化。
 
 ## 10. CMake 文件如何组织 C++ 代码
 
@@ -496,8 +524,8 @@ StuKitAccountingApplication
 
 ### `src/features/accounting/infrastructure/CMakeLists.txt`
 
-创建 `StuKitAccountingInfrastructure`，编译 `SqliteDatabase` 和
-`SqliteAccountRepository`，并链接 `Qt6::Sql` 和 `StuKitAccountingDomain`。
+创建 `StuKitAccountingInfrastructure`，编译 `SqliteDatabase` 和三个 SQLite
+Repository，并链接 `Qt6::Sql` 和 `StuKitAccountingDomain`。
 
 ### `tests/CMakeLists.txt`
 
@@ -509,7 +537,7 @@ StuKitAccountingApplication
 
 ### `tests/integration/accounting/CMakeLists.txt`
 
-分别创建数据库迁移、账户 Repository 和分类 Repository 测试目标。两个 Repository
+分别创建数据库迁移、账户、分类和账单 Repository 测试目标。三个 Repository
 集成测试额外链接 Application，用于验证创建用例到 SQLite 的完整调用链。
 
 ## 11. 建议的代码阅读顺序
@@ -525,8 +553,9 @@ StuKitAccountingApplication
 7. `SqliteDatabase.h/.cpp`：理解连接生命周期和数据库迁移。
 8. `SqliteAccountRepository.h/.cpp`：理解实体与数据库行之间的转换。
 9. `SqliteCategoryRepository.h/.cpp`：理解枚举的稳定数据库编码。
-10. SQLite 测试：理解迁移升级、真实数据库集成测试和资源析构顺序。
-11. `main.cpp`：理解应用如何启动，但不要从入口文件寻找业务规则。
+10. `SqliteTransactionRepository.h/.cpp`：理解外键、UTC 时间和账单字段映射。
+11. SQLite 测试：理解迁移升级、真实数据库集成测试和资源析构顺序。
+12. `main.cpp`：理解应用如何启动，但不要从入口文件寻找业务规则。
 
 ## 12. 修改代码时如何判断文件归属
 
@@ -543,5 +572,5 @@ StuKitAccountingApplication
 ## 13. 后续更新规则
 
 每完成一课并新增 C++ 文件，都应在本文补充它的职责、依赖和禁止承担的职责。
-下一阶段将通过数据库迁移 3 创建 transactions 表，并实现
-`SqliteTransactionRepository`。
+下一阶段将扩展账单 Repository 的时间范围查询，并实现按用户本地月份汇总收支的
+Application 用例。

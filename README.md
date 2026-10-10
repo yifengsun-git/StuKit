@@ -14,11 +14,12 @@ StuKit 是一个面向大学生日常使用的个人工具包。项目首先开�
 项目已经完成 Qt Quick 应用入口、基础导航、主题系统和通用占位页组件，目前
 正在开发记账数据层，已经实现 Money 值对象以及 Transaction、Account 和
 Category 实体，并建立了 Account 与 Category 的 Repository 接口和创建用例，
-同时完成 Transaction Repository 接口和 CreateTransaction 用例，以及两版 SQLite
-数据库迁移和 Account、Category 的 SQLite Repository。
+同时完成 Transaction Repository 接口和 CreateTransaction 用例，以及三版 SQLite
+数据库迁移和 Account、Category、Transaction 的 SQLite Repository。账单金额、
+关联账户与分类、UTC 发生时间均已可以可靠持久化。
 
-当前目标是搭建 Qt 6、CMake、C++ 和 QML/Qt Quick 工程，并优先完成记账本
-MVP。开发过程中保持界面与业务分离，为 Android 迁移预留空间。
+当前进入按月份查询流水与月度汇总阶段，为记账首页准备真实数据。开发过程中保持
+界面与业务分离，并让时间、数据库和业务代码可在后续 Android 版本继续复用。
 
 ## 技术方向
 
@@ -52,6 +53,7 @@ MVP。开发过程中保持界面与业务分离，为 Android 迁移预留空�
 - [第十四课：SQLite Category Repository 与迁移版本 2](docs/lessons/14-sqlite-category-repository.md)
 - [第十五课：Transaction Repository 与 CreateTransaction 用例](docs/lessons/15-transaction-repository-and-create-use-case.md)
 - [第十六课：SQLite Transaction Repository 与迁移版本 3](docs/lessons/16-sqlite-transaction-repository.md)
+- [第十七课：按月查询流水与月度汇总](docs/lessons/17-monthly-transaction-overview.md)
 
 ## 开发原则
 
