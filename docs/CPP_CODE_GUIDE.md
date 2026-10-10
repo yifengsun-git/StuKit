@@ -220,6 +220,14 @@ findAll()       返回全部账户
 该文件不能包含 `QSqlDatabase` 或 SQL 语句。SQLite Repository 将在
 Infrastructure 层实现这个接口。
 
+### `ICategoryRepository.h`
+
+声明分类存储契约，提供保存、按 UUID 查找和返回全部分类的能力。它与
+`IAccountRepository` 分开，使两个业务概念以后可以独立增加查询方法。
+
+接口只依赖 Category 和 Qt Core 基础类型，不依赖 SQLite。单元测试使用内存实现，
+后续 Infrastructure 会提供 SQLite 实现。
+
 ## 6. Application：应用用例层
 
 目录：
@@ -256,6 +264,19 @@ Application 负责组织一次完整的用户目标。它可以调用实体和 R
 
 它只依赖 `IAccountRepository`，所以测试可以传入内存实现，正式应用以后可以传入
 SQLite 实现。
+
+### `CreateCategory.h` 与 `CreateCategory.cpp`
+
+定义并实现创建分类用例：
+
+1. 接收分类名称和收入/支出类型。
+2. 生成 UUID 并调用 `Category::create()`。
+3. 将无效输入转换为 `InvalidInput`。
+4. 通过 `ICategoryRepository` 保存分类。
+5. 将保存失败转换为 `StorageFailure`。
+
+它与 CreateAccount 遵守相同的 Application 层模式，但分别依赖各自 Repository，
+没有为了少量重复而合并成含义模糊的通用用例。
 
 ## 7. Infrastructure：基础设施层
 
@@ -333,6 +354,12 @@ Application。
 该文件只能用于测试，不是正式存储方案。程序退出后数据会消失，因此不能把它
 连接到最终用户界面代替 SQLite。
 
+### `tests/unit/accounting/support/InMemoryCategoryRepository.h`
+
+这是 `ICategoryRepository` 的内存测试实现。它支持新增、同 UUID 更新、按 ID
+查询和返回全部分类，也能模拟保存失败，供 CreateCategory 的 Application 测试
+使用。
+
 ## 9. 自动测试文件
 
 目录：
@@ -352,6 +379,8 @@ tests/unit/accounting/
 | `CategoryTest.cpp` | 收入/支出分类、名称边界和归档状态。 |
 | `AccountRepositoryTest.cpp` | 内存 Repository 的新增、查找、替换和全部查询契约。 |
 | `CreateAccountTest.cpp` | 创建账户完整流程、无效输入、存储失败和 UUID 唯一性。 |
+| `CategoryRepositoryTest.cpp` | 分类内存 Repository 的保存、查询和更新契约。 |
+| `CreateCategoryTest.cpp` | 创建分类流程、类型保留、无效输入和存储失败。 |
 
 测试代码不是产品功能，但它定义了当前代码必须持续满足的行为。修改业务代码后，
 应运行全部测试，而不是只运行本次新增的测试。
@@ -457,5 +486,5 @@ StuKitAccountingApplication
 ## 13. 后续更新规则
 
 每完成一课并新增 C++ 文件，都应在本文补充它的职责、依赖和禁止承担的职责。
-下一阶段将为 Category 增加 Repository 接口和创建用例，再用相同依赖规则扩展
-SQLite 数据层。
+下一阶段将通过数据库迁移 2 创建 categories 表，并实现
+`SqliteCategoryRepository`。

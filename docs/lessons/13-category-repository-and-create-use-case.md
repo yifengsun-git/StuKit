@@ -561,6 +561,12 @@ accounting.create_category
 
 ## 12. 常见错误
 
+### CMake 报告找不到 `CreateCategory`
+
+Application 目标中只能加入实际存在的 `CreateCategory.cpp` 和
+`CreateCategory.h`。如果 Qt Creator 自动加入了一个没有扩展名的
+`CreateCategory`，请将该行删除。
+
 ### `ICategoryRepository.h` 找不到
 
 确认文件已经加入 Domain 的 CMake 目标，并且 Application 继续公开链接
@@ -578,7 +584,8 @@ accounting.create_category
 ### 链接错误：main 已经定义
 
 不要把 `CategoryRepositoryTest.cpp` 和 `CreateCategoryTest.cpp` 放入同一个
-`add_executable()`。每个 Qt Test 类都需要独立目标。
+`add_executable()`，也不要把它们加入已有的 `StuKitAccountRepositoryTest`。
+每个 Qt Test 类都需要独立目标。
 
 ### 测试找不到新目标
 
@@ -591,18 +598,18 @@ accounting.create_category
 
 ## 13. 验收清单
 
-- [ ] `ICategoryRepository` 位于 Domain，且没有 Qt SQL 依赖。
-- [ ] 内存 Repository 能新增、按 ID 查询、更新和返回全部分类。
-- [ ] 内存 Repository 可以模拟保存失败。
-- [ ] `CreateCategory` 位于 Application。
-- [ ] CreateCategory 生成 UUID 并调用 `Category::create()`。
-- [ ] 无效名称不会调用保存。
-- [ ] 保存失败返回 `StorageFailure`。
-- [ ] 收入/支出类型能正确保留。
-- [ ] 两个测试文件拥有独立 CMake 目标。
-- [ ] 10 组测试全部通过。
-- [ ] StuKit 应用仍能正常构建和运行。
-- [ ] `git diff --check` 没有输出。
+- [x] `ICategoryRepository` 位于 Domain，且没有 Qt SQL 依赖。
+- [x] 内存 Repository 能新增、按 ID 查询、更新和返回全部分类。
+- [x] 内存 Repository 可以模拟保存失败。
+- [x] `CreateCategory` 位于 Application。
+- [x] CreateCategory 生成 UUID 并调用 `Category::create()`。
+- [x] 无效名称不会调用保存。
+- [x] 保存失败返回 `StorageFailure`。
+- [x] 收入/支出类型能正确保留。
+- [x] 两个测试文件拥有独立 CMake 目标。
+- [x] 10 组测试全部通过。
+- [x] StuKit 应用仍能正常构建和运行。
+- [x] `git diff --check` 没有输出。
 
 ## 14. 完成后反馈
 
