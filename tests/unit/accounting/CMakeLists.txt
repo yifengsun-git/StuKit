@@ -121,3 +121,37 @@ add_test(
     NAME accounting.create_category
     COMMAND StuKitCreateCategoryTest
 )
+
+add_executable(StuKitTransactionRepositoryTest
+    TransactionRepositoryTest.cpp
+    support/InMemoryTransactionRepository.h
+)
+
+target_link_libraries(StuKitTransactionRepositoryTest
+    PRIVATE
+        Qt6::Test
+        StuKitAccountingDomain
+)
+
+add_test(
+    NAME accounting.transaction_repository
+    COMMAND StuKitTransactionRepositoryTest
+)
+
+add_executable(StuKitCreateTransactionTest
+    CreateTransactionTest.cpp
+    support/InMemoryAccountRepository.h
+    support/InMemoryCategoryRepository.h
+    support/InMemoryTransactionRepository.h
+)
+
+target_link_libraries(StuKitCreateTransactionTest
+    PRIVATE
+        Qt6::Test
+        StuKitAccountingApplication
+)
+
+add_test(
+    NAME accounting.create_transaction
+    COMMAND StuKitCreateTransactionTest
+)
