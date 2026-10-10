@@ -16,10 +16,12 @@ StuKit 是一个面向大学生日常使用的个人工具包。项目首先开�
 Category 实体，并建立了 Account 与 Category 的 Repository 接口和创建用例，
 同时完成 Transaction Repository 接口和 CreateTransaction 用例，以及三版 SQLite
 数据库迁移和 Account、Category、Transaction 的 SQLite Repository。账单金额、
-关联账户与分类、UTC 发生时间均已可以可靠持久化。
+关联账户与分类、UTC 发生时间均已可以可靠持久化。月度查询与汇总用例也已完成，
+月份边界使用用户自定义时区计算，不依赖设备系统时区。
 
-当前进入按月份查询流水与月度汇总阶段，为记账首页准备真实数据。开发过程中保持
-界面与业务分离，并让时间、数据库和业务代码可在后续 Android 版本继续复用。
+当前将进入记账 Presentation/ViewModel 阶段，把已经完成的创建账单和月度汇总能力
+暴露给 QML。开发过程中保持界面与业务分离，并让时间、数据库和业务代码可在后续
+Android 版本继续复用。
 
 ## 技术方向
 

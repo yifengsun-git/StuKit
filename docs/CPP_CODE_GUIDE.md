@@ -5,8 +5,8 @@
 本文说明 StuKit 中各个 C++ 头文件和源文件的职责、依赖关系以及不能承担的职责。
 它适合在阅读代码、排查编译错误或添加新功能前快速查阅。
 
-当前内容对应第十六课完成后的代码，包括三版 SQLite 迁移、三个 Repository 接口、
-账户、分类与账单持久化，以及创建账户、分类和账单用例。
+当前内容对应第十七课完成后的代码，包括三版 SQLite 迁移、三个 Repository 接口、
+账户、分类与账单持久化，以及创建账户、分类、账单和月度汇总用例。
 
 ## 2. `.h` 和 `.cpp` 分别做什么
 
@@ -42,6 +42,11 @@ CreateTransaction
   -> IAccountRepository
   -> ICategoryRepository
   -> Transaction
+
+GetMonthlyOverview
+  -> ITransactionRepository::findOccurredBetween
+  -> 用户自定义 QTimeZone
+  -> MonthlyOverview
 
 InMemoryAccountRepository（仅测试）
   -> IAccountRepository
@@ -80,7 +85,7 @@ Presentation/QML -> Application -> Domain
 Infrastructure --------------------> Domain
 ```
 
-当前 QML 尚未调用创建用例。账户、分类和账单的 SQLite 存储已经完成，后续由
+当前 QML 尚未调用记账用例。账户、分类、账单存储及月度查询汇总已经完成，后续由
 Presentation 层触发用例。
 
 ## 4. 程序入口
@@ -247,8 +252,9 @@ Infrastructure 层实现这个接口。
 
 ### `ITransactionRepository.h`
 
-声明账单的最小存储契约：保存或更新、按 UUID 查询和返回全部账单。它当前不包含
-月份筛选；查询能力会在实现流水列表时根据真实需求扩展。
+声明账单的存储契约：保存或更新、按 UUID 查询、返回全部账单，以及查询一个左闭
+右开时间范围内的账单。`findOccurredBetween()` 使用 optional 包裹 vector：空 vector
+表示查询成功但没有流水，`std::nullopt` 表示存储失败或数据无效。
 
 接口属于 Domain，不引用 Qt SQL，也不负责检查关联账户和分类是否存在。
 
@@ -314,6 +320,19 @@ SQLite 实现。
 
 结果错误枚举能区分每种失败原因，后续 Presentation 可以把稳定错误类型转换为
 用户提示，而不用解析字符串。
+
+### `GetMonthlyOverview.h` 与 `GetMonthlyOverview.cpp`
+
+实现指定年月的流水查询和收支汇总：
+
+1. 接收年份、月份和用户自定义 `QTimeZone`。
+2. 使用自定义时区计算当月和下月第一天的起始时刻。
+3. 转换为 UTC 后查询左闭右开范围。
+4. 分别累加收入与支出，并计算收入减支出的结余。
+5. 区分无效请求、存储失败和成功的空月份。
+
+用例不读取设备系统时区。固定偏移或地区时区由调用者显式传入，因此 Windows 和
+Android 可以使用同一用户设置。
 
 ## 7. Infrastructure：基础设施层
 
@@ -391,7 +410,8 @@ Category。
 
 ### `repositories/SqliteTransactionRepository.h/.cpp`
 
-实现 `ITransactionRepository`，负责账单的 UPSERT、按 ID 查询和按发生时间倒序查询：
+实现 `ITransactionRepository`，负责账单的 UPSERT、按 ID 查询、全部查询和 UTC
+时间范围查询：
 
 - 金额以整数分保存，不使用浮点数。
 - 收入和支出使用显式的 0、1 编码。
@@ -399,6 +419,7 @@ Category。
 - 空备注保存为数据库空文本，而不是 SQL `NULL`。
 - 账户与分类 UUID 由数据库外键进行最后一道一致性保护。
 - 查询行重新通过 `Transaction::create()` 验证后才返回上层。
+- 时间范围查询使用参数绑定、左闭右开条件和稳定倒序。
 
 它不检查账户是否归档、分类是否归档或分类类型是否匹配；这些用户操作规则由
 `CreateTransaction` 负责。Repository 和数据库只保证数据映射与引用完整性。
@@ -426,8 +447,9 @@ Category。
 
 ### `tests/unit/accounting/support/InMemoryTransactionRepository.h`
 
-实现 `ITransactionRepository` 的内存版本，支持新增、同 UUID 更新、查询和模拟保存
-失败。它与账户、分类内存 Repository 一起用于隔离数据库测试 CreateTransaction。
+实现 `ITransactionRepository` 的内存版本，支持新增、同 UUID 更新、时间范围查询，
+并能分别模拟保存和范围查询失败。它与账户、分类内存 Repository 一起用于隔离
+数据库测试 Application 用例。
 
 ## 9. 自动测试文件
 
@@ -450,8 +472,9 @@ tests/unit/accounting/
 | `CreateAccountTest.cpp` | 创建账户完整流程、无效输入、存储失败和 UUID 唯一性。 |
 | `CategoryRepositoryTest.cpp` | 分类内存 Repository 的保存、查询和更新契约。 |
 | `CreateCategoryTest.cpp` | 创建分类流程、类型保留、无效输入和存储失败。 |
-| `TransactionRepositoryTest.cpp` | 账单内存 Repository 的保存、查询和更新契约。 |
+| `TransactionRepositoryTest.cpp` | 账单保存、更新及左闭右开时间范围查询契约。 |
 | `CreateTransactionTest.cpp` | 跨实体校验、七类失败结果和成功保存流程。 |
+| `GetMonthlyOverviewTest.cpp` | 自定义时区边界、跨年、空月份和收支汇总。 |
 
 测试代码不是产品功能，但它定义了当前代码必须持续满足的行为。修改业务代码后，
 应运行全部测试，而不是只运行本次新增的测试。
@@ -484,8 +507,9 @@ SQLite Repository 组装起来验证跨层流程。测试先销毁 Repository，
 ### `tests/integration/accounting/SqliteTransactionRepositoryTest.cpp`
 
 验证账单所有字段的保存与恢复、整数分金额、UTC 时间文本、空备注、UPSERT、倒序
-查询和缺失结果；同时验证无效外键写入失败、被账单引用的账户和分类不能删除，
-以及 `CreateTransaction` 能通过三个真实 Repository 完成持久化。
+查询和缺失结果；同时验证时间范围的左闭右开边界、无效外键写入失败、被账单引用
+的账户和分类不能删除，以及 `CreateTransaction` 能通过三个真实 Repository 完成
+持久化。
 
 ## 10. CMake 文件如何组织 C++ 代码
 
@@ -520,7 +544,8 @@ StuKitAccountingDomain
 StuKitAccountingApplication
 ```
 
-它编译 CreateAccount，并链接 `StuKitAccountingDomain`。依赖不能反过来。
+它编译 CreateAccount、CreateCategory、CreateTransaction 和 GetMonthlyOverview，
+并链接 `StuKitAccountingDomain`。依赖不能反过来。
 
 ### `src/features/accounting/infrastructure/CMakeLists.txt`
 
@@ -572,5 +597,5 @@ Repository，并链接 `Qt6::Sql` 和 `StuKitAccountingDomain`。
 ## 13. 后续更新规则
 
 每完成一课并新增 C++ 文件，都应在本文补充它的职责、依赖和禁止承担的职责。
-下一阶段将扩展账单 Repository 的时间范围查询，并实现按用户本地月份汇总收支的
-Application 用例。
+下一阶段将建立记账 Presentation/ViewModel，把创建账单和月度汇总以 Qt 属性、信号
+和列表模型暴露给 QML，同时保持 QML 不直接接触 Repository 或 SQL。
