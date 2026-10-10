@@ -5,7 +5,8 @@
 本文说明 StuKit 中各个 C++ 头文件和源文件的职责、依赖关系以及不能承担的职责。
 它适合在阅读代码、排查编译错误或添加新功能前快速查阅。
 
-当前内容对应第十一课完成后的代码，包括 SQLite 连接、数据库迁移和集成测试。
+当前内容对应第十四课完成后的代码，包括两版 SQLite 迁移、账户与分类 Repository
+及其集成测试。
 
 ## 2. `.h` 和 `.cpp` 分别做什么
 
@@ -48,6 +49,10 @@ SqliteAccountRepository
   -> IAccountRepository
   -> QSqlDatabase / accounts 表
 
+SqliteCategoryRepository
+  -> ICategoryRepository
+  -> QSqlDatabase / categories 表
+
 Transaction
   -> Money
   -> TransactionType
@@ -63,8 +68,8 @@ Presentation/QML -> Application -> Domain
 Infrastructure --------------------> Domain
 ```
 
-当前 QML 尚未调用 CreateAccount。SQLite 的连接、表结构迁移以及
-`IAccountRepository` 的 SQLite 实现已经完成，后续由 Presentation 层触发用例。
+当前 QML 尚未调用创建用例。账户和分类的 SQLite 存储已经完成，后续由
+Presentation 层触发用例。
 
 ## 4. 程序入口
 
@@ -303,13 +308,16 @@ Infrastructure 负责数据库、文件和平台 API 等外部技术细节。它
 
 ### `database/SqliteDatabase.cpp`
 
-实现数据库生命周期和第一版迁移：
+实现数据库生命周期和顺序迁移：
 
 1. 创建 `schema_migrations` 表记录已应用版本。
 2. 查询当前最高版本。
 3. 在事务中创建 `accounts` 表。
 4. 成功后记录版本 1，失败则回滚。
 5. 析构时关闭连接并从 Qt 连接池移除连接名。
+
+迁移 2 在独立事务中创建 `categories` 表并记录版本 2。版本 1 数据库升级时只执行
+迁移 2；全新数据库会依次执行迁移 1 和迁移 2。
 
 迁移具有幂等性：同一个数据库多次调用 `migrate()` 不会重复创建表。
 
@@ -338,6 +346,15 @@ Infrastructure 负责数据库、文件和平台 API 等外部技术细节。它
 
 该文件不处理按钮、提示文案或创建 UUID；这些分别属于 Presentation 和
 Application。
+
+### `repositories/SqliteCategoryRepository.h/.cpp`
+
+实现 `ICategoryRepository`，负责分类的 UPSERT、按 ID 查询和稳定排序的全部查询。
+它使用显式编码保存收支类型：Income 为 0，Expense 为 1，不依赖 C++ 枚举底层
+数值。读取数据库后仍通过 `Category::create()` 验证领域规则。
+
+如果数据库出现 0 和 1 以外的类型编码，Repository 会记录错误并拒绝创建无效
+Category。
 
 ## 8. 测试支持代码
 
@@ -390,8 +407,9 @@ tests/unit/accounting/
 这是 SQLite 集成测试，验证：
 
 - Qt 可以加载 `QSQLITE` 驱动。
-- 首次迁移能创建 `accounts` 表和预期字段。
+- 首次迁移能创建 `accounts`、`categories` 表和预期字段。
 - 重复迁移不会重复写入版本记录。
+- 版本 1 数据库能升级到版本 2，且原有账户数据保持不变。
 - 每条 SQLite 连接都启用了外键约束。
 
 它使用 `QTEST_GUILESS_MAIN` 创建 `QCoreApplication`，让 Qt 能加载 SQL 驱动；每个
@@ -402,6 +420,11 @@ tests/unit/accounting/
 验证账户的保存、查询、更新、缺失结果和全部查询，并将 `CreateAccount` 与真实
 SQLite Repository 组装起来验证跨层流程。测试先销毁 Repository，再关闭数据库，
 避免 Qt 报告连接仍被使用。
+
+### `tests/integration/accounting/SqliteCategoryRepositoryTest.cpp`
+
+验证收入与支出分类的保存、查询、同 UUID 更新、稳定排序和缺失结果，并将
+`CreateCategory` 与真实 SQLite Repository 组装起来验证完整调用链。
 
 ## 10. CMake 文件如何组织 C++ 代码
 
@@ -453,8 +476,8 @@ StuKitAccountingApplication
 
 ### `tests/integration/accounting/CMakeLists.txt`
 
-分别创建数据库迁移测试和账户 Repository 测试目标。Repository 集成测试额外
-链接 Application，用于验证 `CreateAccount -> SQLite` 的完整调用链。
+分别创建数据库迁移、账户 Repository 和分类 Repository 测试目标。两个 Repository
+集成测试额外链接 Application，用于验证创建用例到 SQLite 的完整调用链。
 
 ## 11. 建议的代码阅读顺序
 
@@ -468,8 +491,9 @@ StuKitAccountingApplication
 6. `CreateAccountTest.cpp`：观察完整流程如何被验证。
 7. `SqliteDatabase.h/.cpp`：理解连接生命周期和数据库迁移。
 8. `SqliteAccountRepository.h/.cpp`：理解实体与数据库行之间的转换。
-9. 两个 SQLite 测试：理解真实数据库集成测试和资源析构顺序。
-10. `main.cpp`：理解应用如何启动，但不要从入口文件寻找业务规则。
+9. `SqliteCategoryRepository.h/.cpp`：理解枚举的稳定数据库编码。
+10. SQLite 测试：理解迁移升级、真实数据库集成测试和资源析构顺序。
+11. `main.cpp`：理解应用如何启动，但不要从入口文件寻找业务规则。
 
 ## 12. 修改代码时如何判断文件归属
 
@@ -486,5 +510,5 @@ StuKitAccountingApplication
 ## 13. 后续更新规则
 
 每完成一课并新增 C++ 文件，都应在本文补充它的职责、依赖和禁止承担的职责。
-下一阶段将通过数据库迁移 2 创建 categories 表，并实现
-`SqliteCategoryRepository`。
+下一阶段将定义 Transaction Repository 和 CreateTransaction 用例，为完整记账
+流程建立 Application 层入口。

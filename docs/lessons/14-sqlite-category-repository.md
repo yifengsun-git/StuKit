@@ -206,20 +206,20 @@ accounting.sqlite_category_repository
 
 ## 10. 验收清单
 
-- [ ] `categories` 表只通过迁移 2 创建。
-- [ ] 迁移 1 保持兼容。
-- [ ] 新数据库连续记录版本 1 和版本 2。
-- [ ] 已有版本 1 数据库可以升级。
-- [ ] `type` 和 `archived` 都有 CHECK 约束。
-- [ ] 收支类型使用显式数据库编码。
-- [ ] `SqliteCategoryRepository` 实现 `ICategoryRepository`。
-- [ ] 保存使用参数绑定和 UPSERT。
-- [ ] 查询结果重新经过 `Category::create()`。
-- [ ] `CreateCategory -> SQLite` 集成测试通过。
-- [ ] 11 组测试全部通过。
-- [ ] StuKit 应用仍能构建并启动。
-- [ ] 文档与 C++ 代码导读同步更新。
-- [ ] Git 工作区没有数据库文件或构建产物。
+- [x] `categories` 表只通过迁移 2 创建。
+- [x] 迁移 1 保持兼容。
+- [x] 新数据库连续记录版本 1 和版本 2。
+- [x] 已有版本 1 数据库可以升级。
+- [x] `type` 和 `archived` 都有 CHECK 约束。
+- [x] 收支类型使用显式数据库编码。
+- [x] `SqliteCategoryRepository` 实现 `ICategoryRepository`。
+- [x] 保存使用参数绑定和 UPSERT。
+- [x] 查询结果重新经过 `Category::create()`。
+- [x] `CreateCategory -> SQLite` 集成测试通过。
+- [x] 11 组测试全部通过。
+- [x] StuKit 应用仍能构建并启动。
+- [x] 文档与 C++ 代码导读同步更新。
+- [x] Git 工作区没有数据库文件或构建产物。
 
 ## 11. 实施方式
 
