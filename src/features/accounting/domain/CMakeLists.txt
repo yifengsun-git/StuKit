@@ -9,6 +9,7 @@ add_library(StuKitAccountingDomain STATIC
     Category.h
     Category.cpp
     IAccountRepository.h
+    ICategoryRepository.h
 )
 
 target_include_directories(StuKitAccountingDomain

@@ -89,3 +89,35 @@ add_test(
     NAME accounting.create_account
     COMMAND StuKitCreateAccountTest
 )
+
+add_executable(StuKitCategoryRepositoryTest
+    CategoryRepositoryTest.cpp
+    support/InMemoryCategoryRepository.h
+)
+
+target_link_libraries(StuKitCategoryRepositoryTest
+    PRIVATE
+        Qt6::Test
+        StuKitAccountingDomain
+)
+
+add_test(
+    NAME accounting.category_repository
+    COMMAND StuKitCategoryRepositoryTest
+)
+
+add_executable(StuKitCreateCategoryTest
+    CreateCategoryTest.cpp
+    support/InMemoryCategoryRepository.h
+)
+
+target_link_libraries(StuKitCreateCategoryTest
+    PRIVATE
+        Qt6::Test
+        StuKitAccountingApplication
+)
+
+add_test(
+    NAME accounting.create_category
+    COMMAND StuKitCreateCategoryTest
+)
