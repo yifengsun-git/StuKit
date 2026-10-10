@@ -47,6 +47,7 @@ MVP。开发过程中保持界面与业务分离，为 Android 迁移预留空�
 - [第十课：Application 层与 CreateAccount 用例](docs/lessons/10-create-account-use-case.md)
 - [第十一课：SQLite 连接与数据库迁移](docs/lessons/11-sqlite-database-migrations.md)
 - [第十二课：实现 SQLite Account Repository](docs/lessons/12-sqlite-account-repository.md)
+- [第十三课：Category Repository 与 CreateCategory 用例](docs/lessons/13-category-repository-and-create-use-case.md)
 
 ## 开发原则
 
