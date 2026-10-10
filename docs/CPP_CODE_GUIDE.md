@@ -5,8 +5,8 @@
 本文说明 StuKit 中各个 C++ 头文件和源文件的职责、依赖关系以及不能承担的职责。
 它适合在阅读代码、排查编译错误或添加新功能前快速查阅。
 
-当前内容对应第十七课完成后的代码，包括三版 SQLite 迁移、三个 Repository 接口、
-账户、分类与账单持久化，以及创建账户、分类、账单和月度汇总用例。
+当前内容对应第十八课完成后的代码，包括三版 SQLite 迁移、三个 Repository 接口、
+账户、分类与账单持久化，以及创建用例、月度汇总和记账首页 Presentation 模型。
 
 ## 2. `.h` 和 `.cpp` 分别做什么
 
@@ -48,6 +48,11 @@ GetMonthlyOverview
   -> 用户自定义 QTimeZone
   -> MonthlyOverview
 
+AccountingOverviewViewModel
+  -> GetMonthlyOverview
+  -> TransactionListModel
+  -> Q_PROPERTY / signals / Q_INVOKABLE
+
 InMemoryAccountRepository（仅测试）
   -> IAccountRepository
 
@@ -85,8 +90,8 @@ Presentation/QML -> Application -> Domain
 Infrastructure --------------------> Domain
 ```
 
-当前 QML 尚未调用记账用例。账户、分类、账单存储及月度查询汇总已经完成，后续由
-Presentation 层触发用例。
+当前 QML 尚未连接记账 ViewModel。Presentation 已能触发月度用例并提供 QML 属性和
+列表角色，第十九课会在应用组合根中连接真实 SQLite 后交给 QML。
 
 ## 4. 程序入口
 
@@ -424,7 +429,50 @@ Category。
 它不检查账户是否归档、分类是否归档或分类类型是否匹配；这些用户操作规则由
 `CreateTransaction` 负责。Repository 和数据库只保证数据映射与引用完整性。
 
-## 8. 测试支持代码
+## 8. Presentation：C++ 表现层
+
+目录：
+
+```text
+src/features/accounting/presentation/
+```
+
+Presentation 把 Application 结果转换为 QML 容易消费的属性、信号和模型。它可以
+依赖 Application，但不执行 SQL，也不重新实现月度统计。
+
+### `MoneyFormatter.h/.cpp`
+
+把整数分格式化成固定两位小数文本。实现始终使用整数除法和取余，不把 Money
+转换为 `double`，并正确处理 `qint64` 最小值。当前只输出数值，不提前决定人民币
+符号、千位分隔或本地化策略。
+
+### `TransactionListModel.h/.cpp`
+
+继承 `QAbstractListModel`，把 `std::vector<Transaction>` 暴露为 QML 列表角色：
+
+```text
+transactionId, isIncome, amountText, accountId,
+categoryId, occurredAt, note
+```
+
+`replaceTransactions()` 使用模型重置通知 QML 更新。模型只转换单行展示数据，不
+查询 Repository，也不计算月度汇总。
+
+### `AccountingOverviewViewModel.h/.cpp`
+
+记账首页的页面状态桥梁，提供：
+
+- 当前年月、月份标签和自定义时区 ID。
+- 月收入、月支出、月结余文本。
+- 空数据与错误状态。
+- 流水 `QAbstractItemModel`。
+- 上一月、下一月、加载和切换时区操作。
+- 地区时区及 -14:00 到 +14:00 固定偏移选择。
+
+ViewModel 调用 `GetMonthlyOverview`，但不知道数据来自 SQLite 还是内存测试实现。
+改变月份或时区会重新执行用例。错误枚举在这里转换为面向用户的稳定中文提示。
+
+## 9. 测试支持代码
 
 ### `tests/unit/accounting/support/InMemoryAccountRepository.h`
 
@@ -451,7 +499,7 @@ Category。
 并能分别模拟保存和范围查询失败。它与账户、分类内存 Repository 一起用于隔离
 数据库测试 Application 用例。
 
-## 9. 自动测试文件
+## 10. 自动测试文件
 
 目录：
 
@@ -475,6 +523,7 @@ tests/unit/accounting/
 | `TransactionRepositoryTest.cpp` | 账单保存、更新及左闭右开时间范围查询契约。 |
 | `CreateTransactionTest.cpp` | 跨实体校验、七类失败结果和成功保存流程。 |
 | `GetMonthlyOverviewTest.cpp` | 自定义时区边界、跨年、空月份和收支汇总。 |
+| `AccountingPresentationTest.cpp` | 金额文本、模型角色、页面状态、月份导航和时区切换。 |
 
 测试代码不是产品功能，但它定义了当前代码必须持续满足的行为。修改业务代码后，
 应运行全部测试，而不是只运行本次新增的测试。
@@ -511,7 +560,7 @@ SQLite Repository 组装起来验证跨层流程。测试先销毁 Repository，
 的账户和分类不能删除，以及 `CreateTransaction` 能通过三个真实 Repository 完成
 持久化。
 
-## 10. CMake 文件如何组织 C++ 代码
+## 11. CMake 文件如何组织 C++ 代码
 
 ### 根 `CMakeLists.txt`
 
@@ -552,6 +601,11 @@ StuKitAccountingApplication
 创建 `StuKitAccountingInfrastructure`，编译 `SqliteDatabase` 和三个 SQLite
 Repository，并链接 `Qt6::Sql` 和 `StuKitAccountingDomain`。
 
+### `src/features/accounting/presentation/CMakeLists.txt`
+
+创建 `StuKitAccountingPresentation`，编译金额格式化、流水列表模型和首页 ViewModel，
+并链接 `Qt6::Core` 与 `StuKitAccountingApplication`。它不链接 Qt SQL。
+
 ### `tests/CMakeLists.txt`
 
 负责加入记账单元测试和数据库集成测试目录。
@@ -565,7 +619,7 @@ Repository，并链接 `Qt6::Sql` 和 `StuKitAccountingDomain`。
 分别创建数据库迁移、账户、分类和账单 Repository 测试目标。三个 Repository
 集成测试额外链接 Application，用于验证创建用例到 SQLite 的完整调用链。
 
-## 11. 建议的代码阅读顺序
+## 12. 建议的代码阅读顺序
 
 第一次阅读项目时，建议按照下面的顺序：
 
@@ -579,10 +633,13 @@ Repository，并链接 `Qt6::Sql` 和 `StuKitAccountingDomain`。
 8. `SqliteAccountRepository.h/.cpp`：理解实体与数据库行之间的转换。
 9. `SqliteCategoryRepository.h/.cpp`：理解枚举的稳定数据库编码。
 10. `SqliteTransactionRepository.h/.cpp`：理解外键、UTC 时间和账单字段映射。
-11. SQLite 测试：理解迁移升级、真实数据库集成测试和资源析构顺序。
-12. `main.cpp`：理解应用如何启动，但不要从入口文件寻找业务规则。
+11. `TransactionListModel.h/.cpp`：理解 C++ 数据如何成为 QML 列表角色。
+12. `AccountingOverviewViewModel.h/.cpp`：理解属性、信号和用例调用。
+13. `AccountingPresentationTest.cpp`：理解页面状态如何脱离 QML 测试。
+14. SQLite 测试：理解迁移升级、真实数据库集成测试和资源析构顺序。
+15. `main.cpp`：理解应用如何启动，但不要从入口文件寻找业务规则。
 
-## 12. 修改代码时如何判断文件归属
+## 13. 修改代码时如何判断文件归属
 
 可以依次提问：
 
@@ -594,8 +651,8 @@ Repository，并链接 `Qt6::Sql` 和 `StuKitAccountingDomain`。
 
 如果一个文件同时处理页面、SQL 和业务规则，通常说明职责需要继续拆分。
 
-## 13. 后续更新规则
+## 14. 后续更新规则
 
 每完成一课并新增 C++ 文件，都应在本文补充它的职责、依赖和禁止承担的职责。
-下一阶段将建立记账 Presentation/ViewModel，把创建账单和月度汇总以 Qt 属性、信号
-和列表模型暴露给 QML，同时保持 QML 不直接接触 Repository 或 SQL。
+下一阶段将在应用组合根中打开真实数据库、创建 Repository、用例和 ViewModel，
+保存用户自定义时区，并把 ViewModel 注入 QML 记账首页。

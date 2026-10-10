@@ -17,11 +17,12 @@ Category 实体，并建立了 Account 与 Category 的 Repository 接口和创�
 同时完成 Transaction Repository 接口和 CreateTransaction 用例，以及三版 SQLite
 数据库迁移和 Account、Category、Transaction 的 SQLite Repository。账单金额、
 关联账户与分类、UTC 发生时间均已可以可靠持久化。月度查询与汇总用例也已完成，
-月份边界使用用户自定义时区计算，不依赖设备系统时区。
+月份边界使用用户自定义时区计算，不依赖设备系统时区。记账首页的 C++ ViewModel
+和流水列表模型已经完成并通过测试，尚未连接真实数据库和 QML 页面。
 
-当前将进入记账 Presentation/ViewModel 阶段，把已经完成的创建账单和月度汇总能力
-暴露给 QML。开发过程中保持界面与业务分离，并让时间、数据库和业务代码可在后续
-Android 版本继续复用。
+当前将进入应用组合与 QML 接线阶段：在跨平台应用数据目录打开真实数据库、恢复
+自定义时区并把记账 ViewModel 注入页面。开发过程中保持界面与业务分离，并让
+时间、数据库和业务代码可在后续 Android 版本继续复用。
 
 ## 技术方向
 
@@ -56,6 +57,8 @@ Android 版本继续复用。
 - [第十五课：Transaction Repository 与 CreateTransaction 用例](docs/lessons/15-transaction-repository-and-create-use-case.md)
 - [第十六课：SQLite Transaction Repository 与迁移版本 3](docs/lessons/16-sqlite-transaction-repository.md)
 - [第十七课：按月查询流水与月度汇总](docs/lessons/17-monthly-transaction-overview.md)
+- [第十八课：记账首页 ViewModel 与流水列表模型](docs/lessons/18-accounting-overview-presentation.md)
+- [第十九课：应用组合根、真实数据库与 QML 接线](docs/lessons/19-accounting-composition-and-qml.md)
 
 ## 开发原则
 
