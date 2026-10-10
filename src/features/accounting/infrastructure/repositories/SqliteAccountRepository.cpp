@@ -77,27 +77,27 @@ std::optional<Account> SqliteAccountRepository::findById(const QUuid &id) const
     return accountFromCurrentRow(query);
 }
 
-std::vector<Account> SqliteAccountRepository::findAll() const
+std::optional<std::vector<Account>> SqliteAccountRepository::findAll() const
 {
     m_lastError.clear();
     std::vector<Account> accounts;
 
     if (!m_database.isOpen()) {
         m_lastError = QStringLiteral("Database is not open");
-        return accounts;
+        return std::nullopt;
     }
 
     QSqlQuery query(m_database);
     if (!query.exec(QStringLiteral("SELECT id, name, opening_balance_cents, archived "
                                    "FROM accounts ORDER BY name COLLATE NOCASE, id"))) {
         m_lastError = query.lastError().text();
-        return accounts;
+        return std::nullopt;
     }
 
     while (query.next()) {
         auto account = accountFromCurrentRow(query);
         if (!account.has_value()) {
-            return {};
+            return std::nullopt;
         }
 
         accounts.push_back(std::move(*account));

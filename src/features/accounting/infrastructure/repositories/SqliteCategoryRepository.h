@@ -16,7 +16,7 @@ public:
 
     [[nodiscard]] bool save(const Category &category) override;
     [[nodiscard]] std::optional<Category> findById(const QUuid &id) const override;
-    [[nodiscard]] std::vector<Category> findAll() const override;
+    [[nodiscard]] std::optional<std::vector<Category>> findAll() const override;
 
     [[nodiscard]] const QString &lastError() const noexcept;
 

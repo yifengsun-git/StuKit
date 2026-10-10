@@ -15,6 +15,11 @@ public:
         m_saveShouldSucceed = shouldSucceed;
     }
 
+    void setFindAllShouldSucceed(bool shouldSucceed) noexcept
+    {
+        m_findAllShouldSucceed = shouldSucceed;
+    }
+
     bool save(const Account &account) override
     {
         if (!m_saveShouldSucceed) {
@@ -53,13 +58,18 @@ public:
         return *account;
     }
 
-    std::vector<Account> findAll() const override
+    std::optional<std::vector<Account>> findAll() const override
     {
+        if (!m_findAllShouldSucceed) {
+            return std::nullopt;
+        }
+
         return m_accounts;
     }
 
 private:
     bool m_saveShouldSucceed{true};
+    bool m_findAllShouldSucceed{true};
     std::vector<Account> m_accounts;
 };
 

@@ -54,7 +54,7 @@ void CreateAccountTest::rejectsInvalidInputWithoutSaving()
     QVERIFY(std::holds_alternative<CreateAccountError>(result));
     QVERIFY(std::get<CreateAccountError>(result)
             == CreateAccountError::InvalidInput);
-    QVERIFY(repository.findAll().empty());
+    QVERIFY(repository.findAll()->empty());
 }
 
 void CreateAccountTest::reportsStorageFailure()
@@ -71,7 +71,7 @@ void CreateAccountTest::reportsStorageFailure()
     QVERIFY(std::holds_alternative<CreateAccountError>(result));
     QVERIFY(std::get<CreateAccountError>(result)
             == CreateAccountError::StorageFailure);
-    QVERIFY(repository.findAll().empty());
+    QVERIFY(repository.findAll()->empty());
 }
 
 void CreateAccountTest::generatesDifferentIds()
@@ -89,7 +89,7 @@ void CreateAccountTest::generatesDifferentIds()
     QVERIFY(std::holds_alternative<Account>(first));
     QVERIFY(std::holds_alternative<Account>(second));
     QVERIFY(std::get<Account>(first).id() != std::get<Account>(second).id());
-    QCOMPARE(repository.findAll().size(), std::size_t{2});
+    QCOMPARE(repository.findAll()->size(), std::size_t{2});
 }
 
 QTEST_APPLESS_MAIN(CreateAccountTest)

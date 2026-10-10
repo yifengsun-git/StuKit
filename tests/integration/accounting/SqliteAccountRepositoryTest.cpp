@@ -106,9 +106,10 @@ void SqliteAccountRepositoryTest::updatesAccountWithSameId()
 
     const auto accounts = m_repository->findAll();
     QVERIFY2(m_repository->lastError().isEmpty(), qPrintable(m_repository->lastError()));
-    QCOMPARE(accounts.size(), std::size_t{1});
-    QCOMPARE(accounts.front().name(), QStringLiteral("日常账户"));
-    QCOMPARE(accounts.front().openingBalance().cents(), qint64{5000});
+    QVERIFY(accounts.has_value());
+    QCOMPARE(accounts->size(), std::size_t{1});
+    QCOMPARE(accounts->front().name(), QStringLiteral("日常账户"));
+    QCOMPARE(accounts->front().openingBalance().cents(), qint64{5000});
 }
 
 void SqliteAccountRepositoryTest::returnsAllAccounts()
@@ -120,7 +121,8 @@ void SqliteAccountRepositoryTest::returnsAllAccounts()
     const auto accounts = m_repository->findAll();
 
     QVERIFY2(m_repository->lastError().isEmpty(), qPrintable(m_repository->lastError()));
-    QCOMPARE(accounts.size(), std::size_t{2});
+    QVERIFY(accounts.has_value());
+    QCOMPARE(accounts->size(), std::size_t{2});
 }
 
 void SqliteAccountRepositoryTest::worksWithCreateAccountUseCase()

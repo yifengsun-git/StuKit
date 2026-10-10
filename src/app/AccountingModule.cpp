@@ -1,6 +1,10 @@
 #include "AccountingModule.h"
 
 #include "AccountingOverviewViewModel.h"
+#include "AccountingSetupViewModel.h"
+#include "CreateAccount.h"
+#include "CreateCategory.h"
+#include "GetAccountingSetup.h"
 #include "GetMonthlyOverview.h"
 #include "database/SqliteDatabase.h"
 #include "repositories/SqliteAccountRepository.h"
@@ -70,11 +74,20 @@ bool AccountingModule::initialize(const QDate &selectedMonth)
         std::make_unique<accounting::SqliteTransactionRepository>(connection);
     m_getMonthlyOverview = std::make_unique<accounting::GetMonthlyOverview>(
         *m_transactionRepository);
+    m_createAccount = std::make_unique<accounting::CreateAccount>(
+        *m_accountRepository);
+    m_createCategory = std::make_unique<accounting::CreateCategory>(
+        *m_categoryRepository);
+    m_getAccountingSetup = std::make_unique<accounting::GetAccountingSetup>(
+        *m_accountRepository, *m_categoryRepository);
     m_overviewViewModel = std::make_unique<
         accounting::presentation::AccountingOverviewViewModel>(
         *m_getMonthlyOverview,
         m_userSettings.accountingTimeZone(),
         selectedMonth);
+    m_setupViewModel = std::make_unique<
+        accounting::presentation::AccountingSetupViewModel>(
+        *m_getAccountingSetup, *m_createAccount, *m_createCategory);
 
     QObject::connect(
         m_overviewViewModel.get(),
@@ -85,8 +98,15 @@ bool AccountingModule::initialize(const QDate &selectedMonth)
                 m_overviewViewModel->timeZone());
         });
 
+    m_setupViewModel->load();
     m_overviewViewModel->load();
     return true;
+}
+
+accounting::presentation::AccountingSetupViewModel *
+AccountingModule::setupViewModel() const noexcept
+{
+    return m_setupViewModel.get();
 }
 
 accounting::presentation::AccountingOverviewViewModel *
@@ -107,7 +127,11 @@ const QString &AccountingModule::lastError() const noexcept
 
 void AccountingModule::reset()
 {
+    m_setupViewModel.reset();
     m_overviewViewModel.reset();
+    m_getAccountingSetup.reset();
+    m_createCategory.reset();
+    m_createAccount.reset();
     m_getMonthlyOverview.reset();
     m_transactionRepository.reset();
     m_categoryRepository.reset();

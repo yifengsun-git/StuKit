@@ -187,3 +187,20 @@ add_test(
     NAME accounting.presentation
     COMMAND StuKitAccountingPresentationTest
 )
+
+add_executable(StuKitAccountingSetupTest
+    AccountingSetupTest.cpp
+    support/InMemoryAccountRepository.h
+    support/InMemoryCategoryRepository.h
+)
+
+target_link_libraries(StuKitAccountingSetupTest
+    PRIVATE
+        Qt6::Test
+        StuKitAccountingPresentation
+)
+
+add_test(
+    NAME accounting.setup
+    COMMAND StuKitAccountingSetupTest
+)

@@ -100,14 +100,14 @@ std::optional<Category> SqliteCategoryRepository::findById(const QUuid &id) cons
     return categoryFromCurrentRow(query);
 }
 
-std::vector<Category> SqliteCategoryRepository::findAll() const
+std::optional<std::vector<Category>> SqliteCategoryRepository::findAll() const
 {
     m_lastError.clear();
     std::vector<Category> categories;
 
     if (!m_database.isOpen()) {
         m_lastError = QStringLiteral("Database is not open");
-        return categories;
+        return std::nullopt;
     }
 
     QSqlQuery query(m_database);
@@ -115,13 +115,13 @@ std::vector<Category> SqliteCategoryRepository::findAll() const
                                    "FROM categories "
                                    "ORDER BY type, name COLLATE NOCASE, id"))) {
         m_lastError = query.lastError().text();
-        return categories;
+        return std::nullopt;
     }
 
     while (query.next()) {
         auto category = categoryFromCurrentRow(query);
         if (!category.has_value()) {
-            return {};
+            return std::nullopt;
         }
 
         categories.push_back(std::move(*category));

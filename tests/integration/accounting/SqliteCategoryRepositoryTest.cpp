@@ -123,9 +123,10 @@ void SqliteCategoryRepositoryTest::updatesCategoryWithSameId()
     const auto categories = m_repository->findAll();
     QVERIFY2(m_repository->lastError().isEmpty(),
              qPrintable(m_repository->lastError()));
-    QCOMPARE(categories.size(), std::size_t{1});
-    QCOMPARE(categories.front().name(), QStringLiteral("奖金"));
-    QVERIFY(categories.front().type() == TransactionType::Income);
+    QVERIFY(categories.has_value());
+    QCOMPARE(categories->size(), std::size_t{1});
+    QCOMPARE(categories->front().name(), QStringLiteral("奖金"));
+    QVERIFY(categories->front().type() == TransactionType::Income);
 }
 
 void SqliteCategoryRepositoryTest::returnsAllCategoriesInStableOrder()
@@ -139,9 +140,10 @@ void SqliteCategoryRepositoryTest::returnsAllCategoriesInStableOrder()
 
     QVERIFY2(m_repository->lastError().isEmpty(),
              qPrintable(m_repository->lastError()));
-    QCOMPARE(categories.size(), std::size_t{2});
-    QVERIFY(categories.front().type() == TransactionType::Income);
-    QVERIFY(categories.back().type() == TransactionType::Expense);
+    QVERIFY(categories.has_value());
+    QCOMPARE(categories->size(), std::size_t{2});
+    QVERIFY(categories->front().type() == TransactionType::Income);
+    QVERIFY(categories->back().type() == TransactionType::Expense);
 }
 
 void SqliteCategoryRepositoryTest::worksWithCreateCategoryUseCase()

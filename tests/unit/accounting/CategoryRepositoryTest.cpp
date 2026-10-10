@@ -67,8 +67,9 @@ void CategoryRepositoryTest::updatesCategoryWithSameId()
     QVERIFY(repository.save(makeCategory(id, QStringLiteral("日常消费"))));
 
     const auto categories = repository.findAll();
-    QCOMPARE(categories.size(), std::size_t{1});
-    QCOMPARE(categories.front().name(), QStringLiteral("日常消费"));
+    QVERIFY(categories.has_value());
+    QCOMPARE(categories->size(), std::size_t{1});
+    QCOMPARE(categories->front().name(), QStringLiteral("日常消费"));
 }
 
 void CategoryRepositoryTest::returnsAllCategories()
@@ -82,7 +83,9 @@ void CategoryRepositoryTest::returnsAllCategories()
         QStringLiteral("工资"),
         TransactionType::Income)));
 
-    QCOMPARE(repository.findAll().size(), std::size_t{2});
+    const auto categories = repository.findAll();
+    QVERIFY(categories.has_value());
+    QCOMPARE(categories->size(), std::size_t{2});
 }
 
 QTEST_APPLESS_MAIN(CategoryRepositoryTest)

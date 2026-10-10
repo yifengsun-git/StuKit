@@ -52,7 +52,7 @@ void CreateCategoryTest::rejectsInvalidInputWithoutSaving()
     QVERIFY(std::holds_alternative<CreateCategoryError>(result));
     QVERIFY(std::get<CreateCategoryError>(result)
             == CreateCategoryError::InvalidInput);
-    QVERIFY(repository.findAll().empty());
+    QVERIFY(repository.findAll()->empty());
 }
 
 void CreateCategoryTest::reportsStorageFailure()
@@ -68,7 +68,7 @@ void CreateCategoryTest::reportsStorageFailure()
     QVERIFY(std::holds_alternative<CreateCategoryError>(result));
     QVERIFY(std::get<CreateCategoryError>(result)
             == CreateCategoryError::StorageFailure);
-    QVERIFY(repository.findAll().empty());
+    QVERIFY(repository.findAll()->empty());
 }
 
 void CreateCategoryTest::generatesDifferentIds()

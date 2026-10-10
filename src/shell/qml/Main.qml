@@ -7,6 +7,7 @@ ApplicationWindow
     id: window
 
     required property var accountingOverview
+    required property var accountingSetup
     required property string accountingStartupError
 
     property int currentPage: 0
@@ -146,6 +147,7 @@ ApplicationWindow
 
         AccountingHomePage {
             viewModel: window.accountingOverview
+            setupViewModel: window.accountingSetup
             startupError: window.accountingStartupError
         }
         ScheduleHomePage {}

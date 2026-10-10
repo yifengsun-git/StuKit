@@ -65,8 +65,9 @@ void AccountRepositoryTest::updatesAccountWithSameId()
     QVERIFY(repository.save(createAccount(id, QStringLiteral("日常账户"))));
 
     const auto accounts = repository.findAll();
-    QCOMPARE(accounts.size(), std::size_t{1});
-    QCOMPARE(accounts.front().name(), QStringLiteral("日常账户"));
+    QVERIFY(accounts.has_value());
+    QCOMPARE(accounts->size(), std::size_t{1});
+    QCOMPARE(accounts->front().name(), QStringLiteral("日常账户"));
 }
 
 void AccountRepositoryTest::returnsAllAccounts()
@@ -80,7 +81,8 @@ void AccountRepositoryTest::returnsAllAccounts()
 
     const auto accounts = repository.findAll();
 
-    QCOMPARE(accounts.size(), std::size_t{2});
+    QVERIFY(accounts.has_value());
+    QCOMPARE(accounts->size(), std::size_t{2});
 }
 
 QTEST_APPLESS_MAIN(AccountRepositoryTest)

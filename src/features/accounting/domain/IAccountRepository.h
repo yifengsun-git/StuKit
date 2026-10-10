@@ -16,7 +16,7 @@ public:
 
     [[nodiscard]] virtual bool save(const Account &account) = 0;
     [[nodiscard]] virtual std::optional<Account> findById(const QUuid &id) const = 0;
-    [[nodiscard]] virtual std::vector<Account> findAll() const = 0;
+    [[nodiscard]] virtual std::optional<std::vector<Account>> findAll() const = 0;
 };
 
 } // namespace stukit::accounting

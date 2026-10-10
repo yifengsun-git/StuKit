@@ -17,7 +17,7 @@ public:
     [[nodiscard]] virtual bool save(const Category &category) = 0;
     [[nodiscard]] virtual std::optional<Category> findById(
         const QUuid &id) const = 0;
-    [[nodiscard]] virtual std::vector<Category> findAll() const = 0;
+    [[nodiscard]] virtual std::optional<std::vector<Category>> findAll() const = 0;
 };
 
 } // namespace stukit::accounting

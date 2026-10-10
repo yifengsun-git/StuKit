@@ -1,5 +1,6 @@
 #include "AccountingModule.h"
 #include "AccountingOverviewViewModel.h"
+#include "AccountingSetupViewModel.h"
 #include "UserSettings.h"
 
 #include <QDir>
@@ -31,6 +32,7 @@ class AccountingModuleTest final : public QObject
 private slots:
     void initTestCase();
     void initializesDatabaseAndViewModel();
+    void createsAndRestoresSetupData();
     void defaultsInvalidTimeZoneToUtcPlusEight();
     void persistsSelectedFixedTimeZone();
     void rejectsEmptyApplicationDataDirectory();
@@ -55,12 +57,16 @@ void AccountingModuleTest::initializesDatabaseAndViewModel()
     QVERIFY2(module.initialize(QDate(2026, 10, 1)),
              qPrintable(module.lastError()));
     QVERIFY(module.overviewViewModel() != nullptr);
+    QVERIFY(module.setupViewModel() != nullptr);
     QVERIFY(QFileInfo::exists(module.databasePath()));
     QVERIFY(module.databasePath().startsWith(directory.path()));
     QCOMPARE(module.overviewViewModel()->monthLabel(),
              QStringLiteral("2026-10"));
     QVERIFY(module.overviewViewModel()->isEmpty());
     QVERIFY(!module.overviewViewModel()->hasError());
+    QCOMPARE(module.setupViewModel()->accounts()->rowCount(), 0);
+    QCOMPARE(module.setupViewModel()->categories()->rowCount(), 0);
+    QVERIFY(!module.setupViewModel()->hasError());
 
     const QString connectionName = uniqueConnectionName();
     {
@@ -79,6 +85,46 @@ void AccountingModuleTest::initializesDatabaseAndViewModel()
         database.close();
     }
     QSqlDatabase::removeDatabase(connectionName);
+}
+
+void AccountingModuleTest::createsAndRestoresSetupData()
+{
+    QTemporaryDir directory(QDir::current().filePath(
+        QStringLiteral("stukit-module-setup-test-XXXXXX")));
+    QVERIFY(directory.isValid());
+    QSettings settings(directory.filePath(QStringLiteral("settings.ini")),
+                       QSettings::IniFormat);
+    const QString appDataDirectory = directory.filePath(
+        QStringLiteral("app-data"));
+
+    {
+        AccountingModule module(appDataDirectory, settings);
+        QVERIFY2(module.initialize(QDate(2026, 10, 1)),
+                 qPrintable(module.lastError()));
+        auto *setup = module.setupViewModel();
+        QVERIFY(setup != nullptr);
+        QVERIFY(setup->createAccount(
+            QStringLiteral("银行卡"), QStringLiteral("123.45")));
+        QVERIFY(setup->createCategory(QStringLiteral("工资"), true));
+        QVERIFY(setup->createCategory(QStringLiteral("餐饮"), false));
+        QVERIFY(setup->hasAccounts());
+        QVERIFY(setup->hasIncomeCategories());
+        QVERIFY(setup->hasExpenseCategories());
+    }
+
+    {
+        AccountingModule restored(appDataDirectory, settings);
+        QVERIFY2(restored.initialize(QDate(2026, 10, 1)),
+                 qPrintable(restored.lastError()));
+        auto *setup = restored.setupViewModel();
+        QVERIFY(setup != nullptr);
+        QCOMPARE(setup->accounts()->rowCount(), 1);
+        QCOMPARE(setup->categories()->rowCount(), 2);
+        QVERIFY(setup->hasAccounts());
+        QVERIFY(setup->hasIncomeCategories());
+        QVERIFY(setup->hasExpenseCategories());
+        QVERIFY(!setup->hasError());
+    }
 }
 
 void AccountingModuleTest::defaultsInvalidTimeZoneToUtcPlusEight()
@@ -133,6 +179,7 @@ void AccountingModuleTest::rejectsEmptyApplicationDataDirectory()
 
     QVERIFY(!module.initialize(QDate(2026, 10, 1)));
     QVERIFY(module.overviewViewModel() == nullptr);
+    QVERIFY(module.setupViewModel() == nullptr);
     QVERIFY(!module.lastError().isEmpty());
 }
 

@@ -48,8 +48,12 @@ public:
         return *category;
     }
 
-    [[nodiscard]] std::vector<Category> findAll() const override
+    [[nodiscard]] std::optional<std::vector<Category>> findAll() const override
     {
+        if (!m_findAllShouldSucceed) {
+            return std::nullopt;
+        }
+
         return m_categories;
     }
 
@@ -58,9 +62,15 @@ public:
         m_saveShouldSucceed = shouldSucceed;
     }
 
+    void setFindAllShouldSucceed(bool shouldSucceed) noexcept
+    {
+        m_findAllShouldSucceed = shouldSucceed;
+    }
+
 private:
     std::vector<Category> m_categories;
     bool m_saveShouldSucceed{true};
+    bool m_findAllShouldSucceed{true};
 };
 
 } // namespace stukit::accounting::testing
