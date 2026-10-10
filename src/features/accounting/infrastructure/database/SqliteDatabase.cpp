@@ -61,6 +61,10 @@ bool SqliteDatabase::migrate() {
     return false;
   }
 
+  if (version < 2 && !applyMigration2()) {
+    return false;
+  }
+
   return true;
 }
 
@@ -124,6 +128,50 @@ bool SqliteDatabase::applyMigration1() {
       QStringLiteral("INSERT INTO schema_migrations(version, applied_at) "
                      "VALUES(:version, :appliedAt)"));
   recordMigration.bindValue(QStringLiteral(":version"), 1);
+  recordMigration.bindValue(
+      QStringLiteral(":appliedAt"),
+      QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs));
+
+  if (!recordMigration.exec()) {
+    m_lastError = recordMigration.lastError().text();
+    m_database.rollback();
+    return false;
+  }
+
+  if (!m_database.commit()) {
+    m_lastError = m_database.lastError().text();
+    m_database.rollback();
+    return false;
+  }
+
+  return true;
+}
+
+bool SqliteDatabase::applyMigration2() {
+  if (!m_database.transaction()) {
+    m_lastError = m_database.lastError().text();
+    return false;
+  }
+
+  QSqlQuery createCategories(m_database);
+  if (!createCategories.exec(
+          QStringLiteral("CREATE TABLE categories ("
+                         "id TEXT PRIMARY KEY NOT NULL, "
+                         "name TEXT NOT NULL, "
+                         "type INTEGER NOT NULL "
+                         "CHECK (type IN (0, 1)), "
+                         "archived INTEGER NOT NULL DEFAULT 0 "
+                         "CHECK (archived IN (0, 1)))"))) {
+    m_lastError = createCategories.lastError().text();
+    m_database.rollback();
+    return false;
+  }
+
+  QSqlQuery recordMigration(m_database);
+  recordMigration.prepare(
+      QStringLiteral("INSERT INTO schema_migrations(version, applied_at) "
+                     "VALUES(:version, :appliedAt)"));
+  recordMigration.bindValue(QStringLiteral(":version"), 2);
   recordMigration.bindValue(
       QStringLiteral(":appliedAt"),
       QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs));
