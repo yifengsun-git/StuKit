@@ -1,6 +1,7 @@
 #include "AccountingModule.h"
 #include "AccountingOverviewViewModel.h"
 #include "AccountingSetupViewModel.h"
+#include "CreateTransactionViewModel.h"
 #include "UserSettings.h"
 
 #include <QDir>
@@ -33,6 +34,7 @@ private slots:
     void initTestCase();
     void initializesDatabaseAndViewModel();
     void createsAndRestoresSetupData();
+    void createsRefreshesAndRestoresTransaction();
     void defaultsInvalidTimeZoneToUtcPlusEight();
     void persistsSelectedFixedTimeZone();
     void rejectsEmptyApplicationDataDirectory();
@@ -58,6 +60,7 @@ void AccountingModuleTest::initializesDatabaseAndViewModel()
              qPrintable(module.lastError()));
     QVERIFY(module.overviewViewModel() != nullptr);
     QVERIFY(module.setupViewModel() != nullptr);
+    QVERIFY(module.transactionEditorViewModel() != nullptr);
     QVERIFY(QFileInfo::exists(module.databasePath()));
     QVERIFY(module.databasePath().startsWith(directory.path()));
     QCOMPARE(module.overviewViewModel()->monthLabel(),
@@ -67,6 +70,7 @@ void AccountingModuleTest::initializesDatabaseAndViewModel()
     QCOMPARE(module.setupViewModel()->accounts()->rowCount(), 0);
     QCOMPARE(module.setupViewModel()->categories()->rowCount(), 0);
     QVERIFY(!module.setupViewModel()->hasError());
+    QVERIFY(!module.transactionEditorViewModel()->isReady());
 
     const QString connectionName = uniqueConnectionName();
     {
@@ -85,6 +89,53 @@ void AccountingModuleTest::initializesDatabaseAndViewModel()
         database.close();
     }
     QSqlDatabase::removeDatabase(connectionName);
+}
+
+void AccountingModuleTest::createsRefreshesAndRestoresTransaction()
+{
+    QTemporaryDir directory(QDir::current().filePath(
+        QStringLiteral("stukit-module-transaction-test-XXXXXX")));
+    QVERIFY(directory.isValid());
+    QSettings settings(directory.filePath(QStringLiteral("settings.ini")),
+                       QSettings::IniFormat);
+    const QString appDataDirectory = directory.filePath(
+        QStringLiteral("app-data"));
+
+    {
+        AccountingModule module(appDataDirectory, settings);
+        QVERIFY2(module.initialize(QDate(2026, 10, 1)),
+                 qPrintable(module.lastError()));
+        auto *setup = module.setupViewModel();
+        QVERIFY(setup->createAccount(
+            QStringLiteral("银行卡"), QStringLiteral("100.00")));
+        QVERIFY(setup->createCategory(QStringLiteral("餐饮"), false));
+
+        auto *editor = module.transactionEditorViewModel();
+        QVERIFY(editor != nullptr);
+        QVERIFY(editor->isReady());
+        editor->resetForNewTransaction();
+        editor->setAmountText(QStringLiteral("25.50"));
+        editor->setOccurredDateText(QStringLiteral("2026-10-10"));
+        editor->setOccurredTimeText(QStringLiteral("12:34"));
+        editor->setNote(QStringLiteral("午饭"));
+
+        QVERIFY2(editor->submit(), qPrintable(editor->errorMessage()));
+        QCOMPARE(module.overviewViewModel()->transactions()->rowCount(), 1);
+        QCOMPARE(module.overviewViewModel()->totalExpenseText(),
+                 QStringLiteral("25.50"));
+        QCOMPARE(module.overviewViewModel()->balanceText(),
+                 QStringLiteral("-25.50"));
+    }
+
+    {
+        AccountingModule restored(appDataDirectory, settings);
+        QVERIFY2(restored.initialize(QDate(2026, 10, 1)),
+                 qPrintable(restored.lastError()));
+        QCOMPARE(restored.overviewViewModel()->transactions()->rowCount(), 1);
+        QCOMPARE(restored.overviewViewModel()->totalExpenseText(),
+                 QStringLiteral("25.50"));
+        QVERIFY(restored.transactionEditorViewModel()->isReady());
+    }
 }
 
 void AccountingModuleTest::createsAndRestoresSetupData()
@@ -160,6 +211,8 @@ void AccountingModuleTest::persistsSelectedFixedTimeZone()
         QVERIFY2(module.initialize(QDate(2026, 10, 1)),
                  qPrintable(module.lastError()));
         QVERIFY(module.overviewViewModel()->selectFixedOffsetMinutes(-5 * 60));
+        QCOMPARE(module.transactionEditorViewModel()->timeZone().id(),
+                 QByteArrayLiteral("UTC-05:00"));
         settings.sync();
     }
 
@@ -180,6 +233,7 @@ void AccountingModuleTest::rejectsEmptyApplicationDataDirectory()
     QVERIFY(!module.initialize(QDate(2026, 10, 1)));
     QVERIFY(module.overviewViewModel() == nullptr);
     QVERIFY(module.setupViewModel() == nullptr);
+    QVERIFY(module.transactionEditorViewModel() == nullptr);
     QVERIFY(!module.lastError().isEmpty());
 }
 

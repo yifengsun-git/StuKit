@@ -14,6 +14,7 @@ class GetMonthlyOverview;
 class GetAccountingSetup;
 class CreateAccount;
 class CreateCategory;
+class CreateTransaction;
 class SqliteAccountRepository;
 class SqliteCategoryRepository;
 class SqliteDatabase;
@@ -22,6 +23,7 @@ class SqliteTransactionRepository;
 namespace presentation {
 class AccountingOverviewViewModel;
 class AccountingSetupViewModel;
+class CreateTransactionViewModel;
 }
 } // namespace stukit::accounting
 
@@ -45,6 +47,8 @@ public:
     overviewViewModel() const noexcept;
     [[nodiscard]] accounting::presentation::AccountingSetupViewModel *
     setupViewModel() const noexcept;
+    [[nodiscard]] accounting::presentation::CreateTransactionViewModel *
+    transactionEditorViewModel() const noexcept;
     [[nodiscard]] const QString &databasePath() const noexcept;
     [[nodiscard]] const QString &lastError() const noexcept;
 
@@ -65,10 +69,13 @@ private:
     std::unique_ptr<accounting::GetAccountingSetup> m_getAccountingSetup;
     std::unique_ptr<accounting::CreateAccount> m_createAccount;
     std::unique_ptr<accounting::CreateCategory> m_createCategory;
+    std::unique_ptr<accounting::CreateTransaction> m_createTransaction;
     std::unique_ptr<accounting::presentation::AccountingOverviewViewModel>
         m_overviewViewModel;
     std::unique_ptr<accounting::presentation::AccountingSetupViewModel>
         m_setupViewModel;
+    std::unique_ptr<accounting::presentation::CreateTransactionViewModel>
+        m_transactionEditorViewModel;
 };
 
 } // namespace stukit::app

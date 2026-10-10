@@ -4,6 +4,8 @@
 #include "AccountingSetupViewModel.h"
 #include "CreateAccount.h"
 #include "CreateCategory.h"
+#include "CreateTransaction.h"
+#include "CreateTransactionViewModel.h"
 #include "GetAccountingSetup.h"
 #include "GetMonthlyOverview.h"
 #include "database/SqliteDatabase.h"
@@ -80,6 +82,10 @@ bool AccountingModule::initialize(const QDate &selectedMonth)
         *m_categoryRepository);
     m_getAccountingSetup = std::make_unique<accounting::GetAccountingSetup>(
         *m_accountRepository, *m_categoryRepository);
+    m_createTransaction = std::make_unique<accounting::CreateTransaction>(
+        *m_transactionRepository,
+        *m_accountRepository,
+        *m_categoryRepository);
     m_overviewViewModel = std::make_unique<
         accounting::presentation::AccountingOverviewViewModel>(
         *m_getMonthlyOverview,
@@ -88,6 +94,11 @@ bool AccountingModule::initialize(const QDate &selectedMonth)
     m_setupViewModel = std::make_unique<
         accounting::presentation::AccountingSetupViewModel>(
         *m_getAccountingSetup, *m_createAccount, *m_createCategory);
+    m_transactionEditorViewModel = std::make_unique<
+        accounting::presentation::CreateTransactionViewModel>(
+        *m_createTransaction,
+        *m_getAccountingSetup,
+        m_overviewViewModel->timeZone());
 
     QObject::connect(
         m_overviewViewModel.get(),
@@ -97,10 +108,34 @@ bool AccountingModule::initialize(const QDate &selectedMonth)
             m_userSettings.setAccountingTimeZone(
                 m_overviewViewModel->timeZone());
         });
+    QObject::connect(
+        m_overviewViewModel.get(),
+        &accounting::presentation::AccountingOverviewViewModel::timeZoneChanged,
+        m_transactionEditorViewModel.get(),
+        [this]() {
+            m_transactionEditorViewModel->setTimeZone(
+                m_overviewViewModel->timeZone());
+        });
+    QObject::connect(
+        m_setupViewModel.get(),
+        &accounting::presentation::AccountingSetupViewModel::setupChanged,
+        m_transactionEditorViewModel.get(),
+        &accounting::presentation::CreateTransactionViewModel::loadSetup);
+    QObject::connect(
+        m_transactionEditorViewModel.get(),
+        &accounting::presentation::CreateTransactionViewModel::transactionCreated,
+        m_overviewViewModel.get(),
+        &accounting::presentation::AccountingOverviewViewModel::load);
 
     m_setupViewModel->load();
     m_overviewViewModel->load();
     return true;
+}
+
+accounting::presentation::CreateTransactionViewModel *
+AccountingModule::transactionEditorViewModel() const noexcept
+{
+    return m_transactionEditorViewModel.get();
 }
 
 accounting::presentation::AccountingSetupViewModel *
@@ -127,8 +162,10 @@ const QString &AccountingModule::lastError() const noexcept
 
 void AccountingModule::reset()
 {
+    m_transactionEditorViewModel.reset();
     m_setupViewModel.reset();
     m_overviewViewModel.reset();
+    m_createTransaction.reset();
     m_getAccountingSetup.reset();
     m_createCategory.reset();
     m_createAccount.reset();

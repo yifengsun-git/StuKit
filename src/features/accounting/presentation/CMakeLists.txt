@@ -7,6 +7,8 @@ add_library(StuKitAccountingPresentation STATIC
     AccountingSetupViewModel.h
     CategoryListModel.cpp
     CategoryListModel.h
+    CreateTransactionViewModel.cpp
+    CreateTransactionViewModel.h
     MoneyFormatter.cpp
     MoneyFormatter.h
     MoneyInputParser.cpp

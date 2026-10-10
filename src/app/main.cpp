@@ -1,6 +1,7 @@
 #include "AccountingModule.h"
 #include "AccountingOverviewViewModel.h"
 #include "AccountingSetupViewModel.h"
+#include "CreateTransactionViewModel.h"
 
 #include <QCoreApplication>
 #include <QDebug>
@@ -45,6 +46,10 @@ int main(int argc, char *argv[])
         QStringLiteral("accountingSetup"),
         QVariant::fromValue(static_cast<QObject *>(
             accountingModule.setupViewModel())));
+    initialProperties.insert(
+        QStringLiteral("accountingTransactionEditor"),
+        QVariant::fromValue(static_cast<QObject *>(
+            accountingModule.transactionEditorViewModel())));
     initialProperties.insert(
         QStringLiteral("accountingStartupError"), accountingStartupError);
     engine.setInitialProperties(initialProperties);

@@ -7,6 +7,7 @@ Page {
 
     required property var viewModel
     required property var setupViewModel
+    required property var transactionViewModel
     required property string startupError
 
     function openAccountDialog() {
@@ -21,6 +22,19 @@ Page {
         categoryNameField.text = ""
         categoryDialog.open()
         categoryNameField.forceActiveFocus()
+    }
+
+    function openTransactionDialog() {
+        transactionViewModel.resetForNewTransaction()
+        if (!transactionViewModel.ready)
+            return
+
+        amountField.text = transactionViewModel.amountText
+        dateField.text = transactionViewModel.occurredDateText
+        timeField.text = transactionViewModel.occurredTimeText
+        noteField.text = transactionViewModel.note
+        transactionDialog.open()
+        amountField.forceActiveFocus()
     }
 
     readonly property string activeError: startupError.length > 0
@@ -150,6 +164,16 @@ Page {
                         }
                     }
                 }
+            }
+
+            Button {
+                Layout.alignment: Qt.AlignHCenter
+                text: qsTr("记一笔")
+                enabled: root.transactionViewModel !== null
+                    && root.transactionViewModel.ready
+                    && root.activeError.length === 0
+                highlighted: true
+                onClicked: root.openTransactionDialog()
             }
 
             RowLayout {
@@ -413,6 +437,153 @@ Page {
                                 categoryDialog.income)) {
                             categoryDialog.close()
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    Dialog {
+        id: transactionDialog
+
+        anchors.centerIn: parent
+        modal: true
+        title: qsTr("新增账单")
+
+        ColumnLayout {
+            width: Math.min(root.width - AppTheme.spacingLarge * 4, 420)
+            spacing: AppTheme.spacingMedium
+
+            RowLayout {
+                Layout.fillWidth: true
+
+                ButtonGroup {
+                    id: transactionTypeGroup
+                }
+
+                Button {
+                    Layout.fillWidth: true
+                    text: qsTr("支出")
+                    checkable: true
+                    checked: root.transactionViewModel
+                        && !root.transactionViewModel.income
+                    ButtonGroup.group: transactionTypeGroup
+                    onClicked: root.transactionViewModel.income = false
+                }
+
+                Button {
+                    Layout.fillWidth: true
+                    text: qsTr("收入")
+                    checkable: true
+                    checked: root.transactionViewModel
+                        && root.transactionViewModel.income
+                    ButtonGroup.group: transactionTypeGroup
+                    onClicked: root.transactionViewModel.income = true
+                }
+            }
+
+            TextField {
+                id: amountField
+                Layout.fillWidth: true
+                placeholderText: qsTr("金额，例如 12.34")
+                inputMethodHints: Qt.ImhFormattedNumbersOnly
+                onTextEdited: root.transactionViewModel.amountText = text
+            }
+
+            Label {
+                text: qsTr("账户")
+                color: AppTheme.textSecondaryColor
+            }
+
+            ComboBox {
+                id: accountBox
+                Layout.fillWidth: true
+                model: root.transactionViewModel
+                    ? root.transactionViewModel.availableAccounts
+                    : null
+                textRole: "name"
+                valueRole: "accountId"
+                onActivated: root.transactionViewModel.selectedAccountId
+                    = currentValue
+            }
+
+            Label {
+                text: root.transactionViewModel && root.transactionViewModel.income
+                    ? qsTr("收入分类")
+                    : qsTr("支出分类")
+                color: AppTheme.textSecondaryColor
+            }
+
+            ComboBox {
+                id: categoryBox
+                Layout.fillWidth: true
+                model: root.transactionViewModel
+                    ? root.transactionViewModel.availableCategories
+                    : null
+                textRole: "name"
+                valueRole: "categoryId"
+                onActivated: root.transactionViewModel.selectedCategoryId
+                    = currentValue
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+
+                TextField {
+                    id: dateField
+                    Layout.fillWidth: true
+                    placeholderText: qsTr("日期 YYYY-MM-DD")
+                    inputMethodHints: Qt.ImhDate
+                    onTextEdited: root.transactionViewModel.occurredDateText = text
+                }
+
+                TextField {
+                    id: timeField
+                    Layout.preferredWidth: 120
+                    placeholderText: qsTr("时间 HH:mm")
+                    inputMethodHints: Qt.ImhTime
+                    onTextEdited: root.transactionViewModel.occurredTimeText = text
+                }
+            }
+
+            TextArea {
+                id: noteField
+                Layout.fillWidth: true
+                Layout.preferredHeight: 72
+                placeholderText: qsTr("备注（可选）")
+                wrapMode: TextEdit.Wrap
+                onTextChanged: {
+                    if (activeFocus)
+                        root.transactionViewModel.note = text
+                }
+            }
+
+            Label {
+                Layout.fillWidth: true
+                visible: root.transactionViewModel
+                    && root.transactionViewModel.hasError
+                text: root.transactionViewModel
+                    ? root.transactionViewModel.errorMessage
+                    : ""
+                color: AppTheme.errorColor
+                wrapMode: Text.WordWrap
+            }
+
+            RowLayout {
+                Layout.alignment: Qt.AlignRight
+
+                Button {
+                    text: qsTr("取消")
+                    onClicked: transactionDialog.close()
+                }
+
+                Button {
+                    text: qsTr("保存")
+                    enabled: root.transactionViewModel
+                        && root.transactionViewModel.canSubmit
+                    onClicked: {
+                        if (root.transactionViewModel.submit())
+                            transactionDialog.close()
                     }
                 }
             }
