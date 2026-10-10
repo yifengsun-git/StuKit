@@ -5,8 +5,8 @@
 本文说明 StuKit 中各个 C++ 头文件和源文件的职责、依赖关系以及不能承担的职责。
 它适合在阅读代码、排查编译错误或添加新功能前快速查阅。
 
-当前内容对应第十八课完成后的代码，包括三版 SQLite 迁移、三个 Repository 接口、
-账户、分类与账单持久化，以及创建用例、月度汇总和记账首页 Presentation 模型。
+当前内容对应第十九课完成后的代码，包括三版 SQLite 迁移、三个 Repository 接口、
+创建与月度汇总用例、记账 Presentation，以及真实 SQLite 到 QML 的端到端读取链路。
 
 ## 2. `.h` 和 `.cpp` 分别做什么
 
@@ -30,7 +30,14 @@ Example.cpp  实现“这些能力具体怎么工作”
 
 ```text
 main.cpp
+  -> AccountingModule
   -> QML 应用外壳
+
+AccountingModule
+  -> UserSettings
+  -> SqliteDatabase / 三个 SQLite Repository
+  -> GetMonthlyOverview
+  -> AccountingOverviewViewModel
 
 CreateAccount
   -> IAccountRepository
@@ -90,8 +97,8 @@ Presentation/QML -> Application -> Domain
 Infrastructure --------------------> Domain
 ```
 
-当前 QML 尚未连接记账 ViewModel。Presentation 已能触发月度用例并提供 QML 属性和
-列表角色，第十九课会在应用组合根中连接真实 SQLite 后交给 QML。
+记账 QML 已通过根属性连接 `AccountingOverviewViewModel`，可以读取真实 SQLite 的
+月度汇总和流水。全新数据库会显示空状态，不会自动写入演示数据。
 
 ## 4. 程序入口
 
@@ -102,6 +109,9 @@ Infrastructure --------------------> Domain
 - 创建 `QGuiApplication`，启动 Qt GUI 事件循环。
 - 设置组织名和应用名，供设置、路径等 Qt API 使用。
 - 创建 `QQmlApplicationEngine`。
+- 使用 `QStandardPaths` 获取正式应用数据目录。
+- 创建 `QSettings` 和 `AccountingModule`。
+- 通过根初始属性把 ViewModel 与启动错误传给 QML。
 - 从 QML 模块 `StuKit` 加载 `Main.qml`。
 - 在 QML 根对象创建失败时，以错误码退出。
 
@@ -112,8 +122,28 @@ Infrastructure --------------------> Domain
 - 页面布局。
 - 金额计算。
 
-以后需要组装 Repository、用例和 ViewModel 时，会把对象创建集中到应用组合入口，
-但仍不会把业务规则直接写进 `main.cpp`。
+对象的具体创建集中在 `AccountingModule`；`main.cpp` 只安排应用启动，不包含业务
+规则或 SQL。`STUKIT_APP_DATA_DIR` 只用于开发测试显式覆盖数据目录，默认仍使用
+跨平台标准路径。
+
+### `src/app/UserSettings.h/.cpp`
+
+封装记账自定义时区设置。它通过 `QSettings` 保存 Qt 时区 ID，既能表示
+`Asia/Shanghai`，也能表示 `UTC+08:00`。缺失或无效值回退到固定 UTC+08:00，
+不会读取设备系统时区。
+
+### `src/app/AccountingModule.h/.cpp`
+
+这是记账模块的组合根，负责：
+
+1. 创建应用数据目录并打开 `stukit.sqlite`。
+2. 执行数据库迁移。
+3. 创建三个 SQLite Repository。
+4. 创建月度用例和首页 ViewModel。
+5. 加载初始月份并保存后续时区变化。
+
+成员按数据库、Repository、用例、ViewModel 顺序声明，并反向销毁，确保数据库连接
+最后关闭。其他层不能依赖这个类。
 
 ## 5. Domain：记账领域层
 
@@ -452,11 +482,12 @@ Presentation 把 Application 结果转换为 QML 容易消费的属性、信号�
 
 ```text
 transactionId, isIncome, amountText, accountId,
-categoryId, occurredAt, note
+categoryId, occurredAt, occurredAtText, note
 ```
 
-`replaceTransactions()` 使用模型重置通知 QML 更新。模型只转换单行展示数据，不
-查询 Repository，也不计算月度汇总。
+`replaceTransactions()` 使用模型重置通知 QML 更新。`occurredAtText` 按 ViewModel
+传入的自定义时区生成，防止 QML 使用设备时区。模型只转换单行展示数据，不查询
+Repository，也不计算月度汇总。
 
 ### `AccountingOverviewViewModel.h/.cpp`
 
@@ -560,6 +591,12 @@ SQLite Repository 组装起来验证跨层流程。测试先销毁 Repository，
 的账户和分类不能删除，以及 `CreateTransaction` 能通过三个真实 Repository 完成
 持久化。
 
+### `tests/integration/app/AccountingModuleTest.cpp`
+
+使用临时目录和真实 SQLite 验证应用组合根：数据库创建并迁移到版本 3、空月份
+ViewModel 可用、自定义固定时区可持久化、无效设置回退到 UTC+08:00，并拒绝空的
+应用数据目录。
+
 ## 11. CMake 文件如何组织 C++ 代码
 
 ### 根 `CMakeLists.txt`
@@ -606,6 +643,11 @@ Repository，并链接 `Qt6::Sql` 和 `StuKitAccountingDomain`。
 创建 `StuKitAccountingPresentation`，编译金额格式化、流水列表模型和首页 ViewModel，
 并链接 `Qt6::Core` 与 `StuKitAccountingApplication`。它不链接 Qt SQL。
 
+### `src/app/CMakeLists.txt`
+
+创建 `StuKitAppCore`，编译组合根和用户设置。只有这个最外层目标同时链接
+Infrastructure 与 Presentation，负责把两条依赖链组装起来。
+
 ### `tests/CMakeLists.txt`
 
 负责加入记账单元测试和数据库集成测试目录。
@@ -636,8 +678,10 @@ Repository，并链接 `Qt6::Sql` 和 `StuKitAccountingDomain`。
 11. `TransactionListModel.h/.cpp`：理解 C++ 数据如何成为 QML 列表角色。
 12. `AccountingOverviewViewModel.h/.cpp`：理解属性、信号和用例调用。
 13. `AccountingPresentationTest.cpp`：理解页面状态如何脱离 QML 测试。
-14. SQLite 测试：理解迁移升级、真实数据库集成测试和资源析构顺序。
-15. `main.cpp`：理解应用如何启动，但不要从入口文件寻找业务规则。
+14. `UserSettings.h/.cpp`：理解自定义时区如何跨启动保存。
+15. `AccountingModule.h/.cpp`：理解依赖组装和资源析构顺序。
+16. `AccountingHomePage.qml`：理解 QML 如何只绑定状态和发送操作。
+17. `main.cpp`：理解标准路径、根属性注入和应用启动。
 
 ## 13. 修改代码时如何判断文件归属
 
@@ -654,5 +698,5 @@ Repository，并链接 `Qt6::Sql` 和 `StuKitAccountingDomain`。
 ## 14. 后续更新规则
 
 每完成一课并新增 C++ 文件，都应在本文补充它的职责、依赖和禁止承担的职责。
-下一阶段将在应用组合根中打开真实数据库、创建 Repository、用例和 ViewModel，
-保存用户自定义时区，并把 ViewModel 注入 QML 记账首页。
+下一阶段将建立账户与分类首次设置用例和 ViewModel，让全新数据库的用户创建真实
+记账所需的基础数据，而不是依赖内置演示记录。
