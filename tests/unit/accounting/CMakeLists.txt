@@ -171,3 +171,19 @@ add_test(
     NAME accounting.get_monthly_overview
     COMMAND StuKitGetMonthlyOverviewTest
 )
+
+add_executable(StuKitAccountingPresentationTest
+    AccountingPresentationTest.cpp
+    support/InMemoryTransactionRepository.h
+)
+
+target_link_libraries(StuKitAccountingPresentationTest
+    PRIVATE
+        Qt6::Test
+        StuKitAccountingPresentation
+)
+
+add_test(
+    NAME accounting.presentation
+    COMMAND StuKitAccountingPresentationTest
+)
