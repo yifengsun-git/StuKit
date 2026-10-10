@@ -5,8 +5,9 @@
 本文说明 StuKit 中各个 C++ 头文件和源文件的职责、依赖关系以及不能承担的职责。
 它适合在阅读代码、排查编译错误或添加新功能前快速查阅。
 
-当前内容对应第十九课完成后的代码，包括三版 SQLite 迁移、三个 Repository 接口、
-创建与月度汇总用例、记账 Presentation，以及真实 SQLite 到 QML 的端到端读取链路。
+当前内容对应第二十课完成后的代码，包括三版 SQLite 迁移、三个 Repository 接口、
+创建与查询用例、记账 Presentation，以及从 QML 创建账户和分类并持久化到真实
+SQLite 的端到端链路。
 
 ## 2. `.h` 和 `.cpp` 分别做什么
 
@@ -36,8 +37,8 @@ main.cpp
 AccountingModule
   -> UserSettings
   -> SqliteDatabase / 三个 SQLite Repository
-  -> GetMonthlyOverview
-  -> AccountingOverviewViewModel
+  -> 创建与查询用例
+  -> AccountingOverviewViewModel / AccountingSetupViewModel
 
 CreateAccount
   -> IAccountRepository
@@ -55,10 +56,20 @@ GetMonthlyOverview
   -> 用户自定义 QTimeZone
   -> MonthlyOverview
 
+GetAccountingSetup
+  -> IAccountRepository::findAll
+  -> ICategoryRepository::findAll
+  -> AccountingSetup
+
 AccountingOverviewViewModel
   -> GetMonthlyOverview
   -> TransactionListModel
   -> Q_PROPERTY / signals / Q_INVOKABLE
+
+AccountingSetupViewModel
+  -> GetAccountingSetup / CreateAccount / CreateCategory
+  -> AccountListModel / CategoryListModel
+  -> MoneyInputParser
 
 InMemoryAccountRepository（仅测试）
   -> IAccountRepository
@@ -97,8 +108,9 @@ Presentation/QML -> Application -> Domain
 Infrastructure --------------------> Domain
 ```
 
-记账 QML 已通过根属性连接 `AccountingOverviewViewModel`，可以读取真实 SQLite 的
-月度汇总和流水。全新数据库会显示空状态，不会自动写入演示数据。
+记账 QML 已通过根属性连接两个 ViewModel：`AccountingOverviewViewModel` 读取月度
+汇总和流水，`AccountingSetupViewModel` 读取并创建账户与分类。全新数据库会显示
+首次设置引导，不会自动写入演示数据。
 
 ## 4. 程序入口
 
@@ -268,18 +280,20 @@ Transaction 是实体：即使字段完全相同，只要 UUID 不同，就是�
 ```text
 save(account)   保存或更新账户
 findById(id)    按 UUID 查找账户
-findAll()       返回全部账户
+findAll()       返回全部账户，或用 nullopt 表示查询失败
 ```
 
 这是纯抽象接口，不能直接创建对象。它描述 Application 需要的存储能力，但不说明
-数据存在哪里。
+数据存在哪里。`findAll()` 的有值空 vector 表示查询成功但没有账户，`nullopt` 表示
+存储失败或数据库数据无效，这两个状态不能混用。
 
 该文件不能包含 `QSqlDatabase` 或 SQL 语句。SQLite Repository 将在
 Infrastructure 层实现这个接口。
 
 ### `ICategoryRepository.h`
 
-声明分类存储契约，提供保存、按 UUID 查找和返回全部分类的能力。它与
+声明分类存储契约，提供保存、按 UUID 查找和返回全部分类的能力。全部查询与账户
+接口采用相同的 `optional<vector<...>>` 成功/失败约定。它与
 `IAccountRepository` 分开，使两个业务概念以后可以独立增加查询方法。
 
 接口只依赖 Category 和 Qt Core 基础类型，不依赖 SQLite。单元测试使用内存实现，
@@ -369,6 +383,12 @@ SQLite 实现。
 用例不读取设备系统时区。固定偏移或地区时区由调用者显式传入，因此 Windows 和
 Android 可以使用同一用户设置。
 
+### `GetAccountingSetup.h` 与 `GetAccountingSetup.cpp`
+
+统一读取账户和分类，并返回 `AccountingSetup`。任意一次 Repository 查询失败时
+返回 `StorageFailure`；两个查询都成功时，即使列表为空也返回成功。该用例让
+Presentation 不需要分别协调两次查询，也不会把首次使用误报成数据库故障。
+
 ## 7. Infrastructure：基础设施层
 
 目录：
@@ -414,7 +434,7 @@ Infrastructure 负责数据库、文件和平台 API 等外部技术细节。它
 
 - `save()` 保存或更新账户。
 - `findById()` 按 UUID 查询账户。
-- `findAll()` 返回稳定排序的全部账户。
+- `findAll()` 返回稳定排序的全部账户，并区分成功空列表与查询失败。
 - `lastError()` 暴露具体数据库诊断信息。
 
 它持有的是 Qt 命名连接的轻量句柄，不拥有数据库文件，也不负责打开数据库和执行
@@ -442,6 +462,9 @@ Application。
 
 如果数据库出现 0 和 1 以外的类型编码，Repository 会记录错误并拒绝创建无效
 Category。
+
+账户与分类 SQLite Repository 的 `findAll()` 在连接未打开、SQL 执行失败或某行无法
+恢复为有效实体时返回 `nullopt`。只有查询真正成功且没有行时才返回空 vector。
 
 ### `repositories/SqliteTransactionRepository.h/.cpp`
 
@@ -476,6 +499,18 @@ Presentation 把 Application 结果转换为 QML 容易消费的属性、信号�
 转换为 `double`，并正确处理 `qint64` 最小值。当前只输出数值，不提前决定人民币
 符号、千位分隔或本地化策略。
 
+### `MoneyInputParser.h/.cpp`
+
+把 QML 金额文本逐字符转换为整数分，支持可选正负号和最多两位小数。解析过程不
+使用浮点数，并对 `qint64` 最大值和最小值分别进行溢出检查。它只判断文本格式和
+数值范围；账户允许负期初余额，而账单必须为正数的规则仍由领域实体判断。
+
+### `AccountListModel.h/.cpp` 与 `CategoryListModel.h/.cpp`
+
+把 Account、Category 暴露为 QML 可读取的列表角色。账户模型提供 UUID、名称、
+期初余额文本和归档状态；分类模型提供 UUID、名称、收入标记和归档状态。模型不
+查询数据库，数据只能由 ViewModel 整体替换。
+
 ### `TransactionListModel.h/.cpp`
 
 继承 `QAbstractListModel`，把 `std::vector<Transaction>` 暴露为 QML 列表角色：
@@ -503,6 +538,13 @@ Repository，也不计算月度汇总。
 ViewModel 调用 `GetMonthlyOverview`，但不知道数据来自 SQLite 还是内存测试实现。
 改变月份或时区会重新执行用例。错误枚举在这里转换为面向用户的稳定中文提示。
 
+### `AccountingSetupViewModel.h/.cpp`
+
+负责首次设置页面状态：账户与分类模型、是否存在未归档账户、是否存在收入/支出
+分类，以及错误提示。它调用 `GetAccountingSetup` 加载数据，调用 CreateAccount、
+CreateCategory 保存输入，创建成功后重新查询真实 Repository。它不直接执行 SQL，
+也不在 QML 中解析金额。
+
 ## 9. 测试支持代码
 
 ### `tests/unit/accounting/support/InMemoryAccountRepository.h`
@@ -514,6 +556,7 @@ ViewModel 调用 `GetMonthlyOverview`，但不知道数据来自 SQLite 还是�
 - 相同 UUID 会替换已有账户。
 - 可以按 ID 查询或返回全部账户。
 - 可以通过 `setSaveShouldSucceed(false)` 模拟存储失败。
+- 可以通过 `setFindAllShouldSucceed(false)` 单独模拟全部查询失败。
 
 该文件只能用于测试，不是正式存储方案。程序退出后数据会消失，因此不能把它
 连接到最终用户界面代替 SQLite。
@@ -521,8 +564,8 @@ ViewModel 调用 `GetMonthlyOverview`，但不知道数据来自 SQLite 还是�
 ### `tests/unit/accounting/support/InMemoryCategoryRepository.h`
 
 这是 `ICategoryRepository` 的内存测试实现。它支持新增、同 UUID 更新、按 ID
-查询和返回全部分类，也能模拟保存失败，供 CreateCategory 的 Application 测试
-使用。
+查询和返回全部分类，也能分别模拟保存失败和全部查询失败，供 Application 与
+Presentation 测试使用。
 
 ### `tests/unit/accounting/support/InMemoryTransactionRepository.h`
 
@@ -555,6 +598,7 @@ tests/unit/accounting/
 | `CreateTransactionTest.cpp` | 跨实体校验、七类失败结果和成功保存流程。 |
 | `GetMonthlyOverviewTest.cpp` | 自定义时区边界、跨年、空月份和收支汇总。 |
 | `AccountingPresentationTest.cpp` | 金额文本、模型角色、页面状态、月份导航和时区切换。 |
+| `AccountingSetupTest.cpp` | 金额输入边界、基础数据查询、列表模型、创建刷新和错误映射。 |
 
 测试代码不是产品功能，但它定义了当前代码必须持续满足的行为。修改业务代码后，
 应运行全部测试，而不是只运行本次新增的测试。
@@ -595,7 +639,8 @@ SQLite Repository 组装起来验证跨层流程。测试先销毁 Repository，
 
 使用临时目录和真实 SQLite 验证应用组合根：数据库创建并迁移到版本 3、空月份
 ViewModel 可用、自定义固定时区可持久化、无效设置回退到 UTC+08:00，并拒绝空的
-应用数据目录。
+应用数据目录。它还通过组合根创建账户和两类分类，销毁并重建模块后确认 SQLite
+数据仍然存在，同时确认空库不会自动产生默认记录。
 
 ## 11. CMake 文件如何组织 C++ 代码
 
@@ -630,8 +675,8 @@ StuKitAccountingDomain
 StuKitAccountingApplication
 ```
 
-它编译 CreateAccount、CreateCategory、CreateTransaction 和 GetMonthlyOverview，
-并链接 `StuKitAccountingDomain`。依赖不能反过来。
+它编译 CreateAccount、CreateCategory、CreateTransaction、GetMonthlyOverview 和
+GetAccountingSetup，并链接 `StuKitAccountingDomain`。依赖不能反过来。
 
 ### `src/features/accounting/infrastructure/CMakeLists.txt`
 
@@ -640,8 +685,8 @@ Repository，并链接 `Qt6::Sql` 和 `StuKitAccountingDomain`。
 
 ### `src/features/accounting/presentation/CMakeLists.txt`
 
-创建 `StuKitAccountingPresentation`，编译金额格式化、流水列表模型和首页 ViewModel，
-并链接 `Qt6::Core` 与 `StuKitAccountingApplication`。它不链接 Qt SQL。
+创建 `StuKitAccountingPresentation`，编译金额格式化与解析、三个列表模型和两个
+ViewModel，并链接 `Qt6::Core` 与 `StuKitAccountingApplication`。它不链接 Qt SQL。
 
 ### `src/app/CMakeLists.txt`
 
@@ -675,13 +720,17 @@ Infrastructure 与 Presentation，负责把两条依赖链组装起来。
 8. `SqliteAccountRepository.h/.cpp`：理解实体与数据库行之间的转换。
 9. `SqliteCategoryRepository.h/.cpp`：理解枚举的稳定数据库编码。
 10. `SqliteTransactionRepository.h/.cpp`：理解外键、UTC 时间和账单字段映射。
-11. `TransactionListModel.h/.cpp`：理解 C++ 数据如何成为 QML 列表角色。
-12. `AccountingOverviewViewModel.h/.cpp`：理解属性、信号和用例调用。
-13. `AccountingPresentationTest.cpp`：理解页面状态如何脱离 QML 测试。
-14. `UserSettings.h/.cpp`：理解自定义时区如何跨启动保存。
-15. `AccountingModule.h/.cpp`：理解依赖组装和资源析构顺序。
-16. `AccountingHomePage.qml`：理解 QML 如何只绑定状态和发送操作。
-17. `main.cpp`：理解标准路径、根属性注入和应用启动。
+11. `GetAccountingSetup.h/.cpp`：理解成功空列表与存储失败如何分开。
+12. `MoneyInputParser.h/.cpp`：理解金额文本如何精确转换为整数分。
+13. `AccountListModel` 与 `CategoryListModel`：理解实体如何成为 QML 列表角色。
+14. `AccountingSetupViewModel.h/.cpp`：理解首次设置状态与创建流程。
+15. `TransactionListModel.h/.cpp`：理解流水如何成为 QML 列表角色。
+16. `AccountingOverviewViewModel.h/.cpp`：理解月份、时区与汇总状态。
+17. `AccountingSetupTest.cpp`：理解输入、查询、模型和错误如何脱离 QML 测试。
+18. `UserSettings.h/.cpp`：理解自定义时区如何跨启动保存。
+19. `AccountingModule.h/.cpp`：理解依赖组装和资源析构顺序。
+20. `AccountingHomePage.qml`：理解 QML 如何只绑定状态和发送操作。
+21. `main.cpp`：理解标准路径、根属性注入和应用启动。
 
 ## 13. 修改代码时如何判断文件归属
 
@@ -698,5 +747,5 @@ Infrastructure 与 Presentation，负责把两条依赖链组装起来。
 ## 14. 后续更新规则
 
 每完成一课并新增 C++ 文件，都应在本文补充它的职责、依赖和禁止承担的职责。
-下一阶段将建立账户与分类首次设置用例和 ViewModel，让全新数据库的用户创建真实
-记账所需的基础数据，而不是依赖内置演示记录。
+下一阶段将建立新增账单表单 ViewModel，复用现有账户、分类和自定义时区创建真实
+流水，并在保存成功后刷新月度首页。

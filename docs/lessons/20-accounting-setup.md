@@ -3,7 +3,7 @@
 ## 本课定位
 
 第十九课已经让记账首页读取真实数据库，但全新用户没有账户和分类，暂时无法创建
-第一笔账单。本课计划完成记账基础数据的首次设置流程：
+第一笔账单。本课完成记账基础数据的首次设置流程：
 
 ```text
 AccountingHomePage / Setup Dialog
@@ -40,7 +40,7 @@ AccountingHomePage / Setup Dialog
 ## 3. 改进查询失败语义
 
 当前 `IAccountRepository::findAll()` 和 `ICategoryRepository::findAll()` 只返回
-vector，无法区分“查询成功但为空”和“数据库失败”。本课计划将返回值调整为：
+vector，无法区分“查询成功但为空”和“数据库失败”。本课将返回值调整为：
 
 ```cpp
 std::optional<std::vector<Account>>
@@ -78,7 +78,7 @@ struct AccountingSetup
 text.toDouble() * 100
 ```
 
-计划新增整数解析器，支持：
+新增整数解析器，支持：
 
 ```text
 0       -> 0 分
@@ -100,7 +100,7 @@ text.toDouble() * 100
 
 ## 6. 列表模型
 
-计划新增：
+新增：
 
 ```text
 AccountListModel
@@ -175,7 +175,7 @@ createCategory(name, isIncome)
 QML 根对象增加第二个明确依赖，例如 `accountingSetup`，再传给记账页面。创建基础
 数据成功后，后续账单表单可以直接复用相同 ViewModel 的列表模型。
 
-## 10. 测试计划
+## 10. 测试覆盖
 
 ### Application
 
@@ -199,15 +199,15 @@ QML 根对象增加第二个明确依赖，例如 `accountingSetup`，再传给�
 - 重启模块后数据仍然存在。
 - 不向空数据库插入未授权默认记录。
 
-预计新增一个测试目标：
+新增一个测试目标：
 
 ```text
 18/18 tests passed
 ```
 
-## 11. 计划文件变化
+## 11. 文件变化
 
-可能新增：
+新增：
 
 ```text
 src/features/accounting/application/GetAccountingSetup.h/.cpp
@@ -233,20 +233,39 @@ AccountingHomePage.qml
 
 ## 12. 验收清单
 
-- [ ] 空列表和存储失败具有不同语义。
-- [ ] 金额文本解析全程不使用浮点数。
-- [ ] 用户可以创建资金账户。
-- [ ] 用户可以创建收入与支出分类。
-- [ ] 创建成功后模型立即刷新。
-- [ ] 数据保存在真实 SQLite，重启后仍存在。
-- [ ] 不自动插入演示账户或分类。
-- [ ] QML 不直接调用 Repository。
-- [ ] 全量测试通过。
-- [ ] 应用可启动并显示首次设置引导。
-- [ ] 源码目录没有数据库或设置临时文件。
-- [ ] 文档与代码导读同步更新。
+- [x] 空列表和存储失败具有不同语义。
+- [x] 金额文本解析全程不使用浮点数。
+- [x] 用户可以创建资金账户。
+- [x] 用户可以创建收入与支出分类。
+- [x] 创建成功后模型立即刷新。
+- [x] 数据保存在真实 SQLite，重启后仍存在。
+- [x] 不自动插入演示账户或分类。
+- [x] QML 不直接调用 Repository。
+- [x] 全量测试通过。
+- [x] 应用可启动并显示首次设置引导。
+- [x] 源码目录没有数据库或设置临时文件。
+- [x] 文档与代码导读同步更新。
 
-## 13. 后续方向
+## 13. 实现与验证结果
+
+实际实现与计划一致，并补充了以下边界保护：
+
+- Account、Category 的全部查询使用 `optional<vector<...>>`，成功空列表和失败不再
+  混为一谈。
+- `MoneyInputParser` 支持正负号、0 到 2 位小数及 `qint64` 的完整正负边界。
+- 列表模型保留归档角色，首次设置状态只统计未归档数据。
+- 创建操作成功后重新执行 `GetAccountingSetup`，避免 ViewModel 手工猜测数据库状态。
+- 组合根测试会销毁并重建模块，确认账户和分类确实来自 SQLite，而不是内存残留。
+
+验证结果：
+
+```text
+MSVC 2022 Release build: passed
+CTest: 18/18 passed
+Windows QML startup smoke test: passed
+```
+
+## 14. 后续方向
 
 完成第二十课后，用户将能从全新数据库建立真实账户和分类。第二十一课再制作新增
 账单表单，复用这些列表完成第一笔真实收入或支出记录，并刷新月度首页。

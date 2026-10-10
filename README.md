@@ -19,11 +19,13 @@ Category 实体，并建立了 Account 与 Category 的 Repository 接口和创�
 关联账户与分类、UTC 发生时间均已可以可靠持久化。月度查询与汇总用例也已完成，
 月份边界使用用户自定义时区计算，不依赖设备系统时区。记账首页的 C++ ViewModel
 和流水列表模型已经连接真实 SQLite 与 QML 页面，可以显示月度汇总、流水、空状态
-和错误状态。自定义时区通过 QSettings 保存，默认固定为 UTC+08:00。
+和错误状态。自定义时区通过 QSettings 保存，默认固定为 UTC+08:00。账户与分类
+首次设置也已完成：全新用户可以创建资金账户、收入分类和支出分类，期初余额以
+整数分精确解析并保存；应用重启后会从真实 SQLite 恢复这些基础数据。
 
-当前将进入账户与分类首次设置阶段，让全新数据库的用户能够创建真实记账所需的
-基础数据。开发过程中保持界面与业务分离，并让时间、数据库和业务代码可在后续
-Android 版本继续复用。
+当前将进入新增账单表单阶段，复用现有账户、分类和自定义时区创建第一笔真实流水。
+开发过程中保持界面与业务分离，并让时间、数据库和业务代码可在后续 Android
+版本继续复用。
 
 ## 技术方向
 
@@ -61,6 +63,7 @@ Android 版本继续复用。
 - [第十八课：记账首页 ViewModel 与流水列表模型](docs/lessons/18-accounting-overview-presentation.md)
 - [第十九课：应用组合根、真实数据库与 QML 接线](docs/lessons/19-accounting-composition-and-qml.md)
 - [第二十课：账户与分类首次设置](docs/lessons/20-accounting-setup.md)
+- [第二十一课：新增账单表单](docs/lessons/21-create-transaction-presentation.md)
 
 ## 开发原则
 
