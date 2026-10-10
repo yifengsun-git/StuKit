@@ -84,6 +84,8 @@ private slots:
     void returnsNulloptForMissingTransaction();
     void updatesTransactionWithSameId();
     void returnsAllTransactionsNewestFirst();
+    void findsTransactionsInHalfOpenTimeRange();
+    void rejectsInvalidTimeRange();
     void rejectsMissingAccountForeignKey();
     void rejectsMissingCategoryForeignKey();
     void restrictsDeletingReferencedAccountAndCategory();
@@ -240,6 +242,47 @@ void SqliteTransactionRepositoryTest::returnsAllTransactionsNewestFirst()
     QCOMPARE(transactions.size(), std::size_t{2});
     QCOMPARE(transactions.front().amount(), Money::fromCents(200));
     QCOMPARE(transactions.back().amount(), Money::fromCents(100));
+}
+
+void SqliteTransactionRepositoryTest::findsTransactionsInHalfOpenTimeRange()
+{
+    const auto accountId = QUuid::createUuid();
+    const auto categoryId = QUuid::createUuid();
+    seedReferences(accountId, categoryId, TransactionType::Expense);
+    const auto start = QDateTime::fromString(
+        QStringLiteral("2026-10-01T00:00:00.000Z"), Qt::ISODateWithMs);
+    const auto end = QDateTime::fromString(
+        QStringLiteral("2026-11-01T00:00:00.000Z"), Qt::ISODateWithMs);
+
+    QVERIFY(m_transactions->save(makeTransaction(
+        QUuid::createUuid(), TransactionType::Expense, 100, accountId,
+        categoryId, start.addMSecs(-1))));
+    QVERIFY(m_transactions->save(makeTransaction(
+        QUuid::createUuid(), TransactionType::Expense, 200, accountId,
+        categoryId, start)));
+    QVERIFY(m_transactions->save(makeTransaction(
+        QUuid::createUuid(), TransactionType::Expense, 300, accountId,
+        categoryId, end.addMSecs(-1))));
+    QVERIFY(m_transactions->save(makeTransaction(
+        QUuid::createUuid(), TransactionType::Expense, 400, accountId,
+        categoryId, end)));
+
+    const auto result = m_transactions->findOccurredBetween(start, end);
+    QVERIFY2(result.has_value(), qPrintable(m_transactions->lastError()));
+    QCOMPARE(result->size(), std::size_t{2});
+    QCOMPARE(result->front().amount(), Money::fromCents(300));
+    QCOMPARE(result->back().amount(), Money::fromCents(200));
+}
+
+void SqliteTransactionRepositoryTest::rejectsInvalidTimeRange()
+{
+    const auto time = QDateTime::currentDateTimeUtc();
+
+    QVERIFY(!m_transactions->findOccurredBetween(time, time).has_value());
+    QVERIFY(!m_transactions->lastError().isEmpty());
+    QVERIFY(!m_transactions->findOccurredBetween(
+        time, time.addSecs(-1)).has_value());
+    QVERIFY(!m_transactions->lastError().isEmpty());
 }
 
 void SqliteTransactionRepositoryTest::rejectsMissingAccountForeignKey()

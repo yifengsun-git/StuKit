@@ -148,6 +148,55 @@ std::vector<Transaction> SqliteTransactionRepository::findAll() const
     return transactions;
 }
 
+std::optional<std::vector<Transaction>>
+SqliteTransactionRepository::findOccurredBetween(
+    const QDateTime &startInclusive,
+    const QDateTime &endExclusive) const
+{
+    m_lastError.clear();
+
+    if (!m_database.isOpen()) {
+        m_lastError = QStringLiteral("Database is not open");
+        return std::nullopt;
+    }
+    if (!startInclusive.isValid()
+        || !endExclusive.isValid()
+        || startInclusive >= endExclusive) {
+        m_lastError = QStringLiteral("Invalid transaction time range");
+        return std::nullopt;
+    }
+
+    QSqlQuery query(m_database);
+    query.prepare(QStringLiteral(
+        "SELECT id, type, amount_cents, account_id, category_id, "
+        "occurred_at, note FROM transactions "
+        "WHERE occurred_at >= :startInclusive "
+        "AND occurred_at < :endExclusive "
+        "ORDER BY occurred_at DESC, id"));
+    query.bindValue(
+        QStringLiteral(":startInclusive"),
+        startInclusive.toUTC().toString(Qt::ISODateWithMs));
+    query.bindValue(
+        QStringLiteral(":endExclusive"),
+        endExclusive.toUTC().toString(Qt::ISODateWithMs));
+
+    if (!query.exec()) {
+        m_lastError = query.lastError().text();
+        return std::nullopt;
+    }
+
+    std::vector<Transaction> transactions;
+    while (query.next()) {
+        auto transaction = transactionFromCurrentRow(query);
+        if (!transaction.has_value()) {
+            return std::nullopt;
+        }
+        transactions.push_back(std::move(*transaction));
+    }
+
+    return transactions;
+}
+
 const QString &SqliteTransactionRepository::lastError() const noexcept
 {
     return m_lastError;

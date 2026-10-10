@@ -9,7 +9,9 @@ namespace {
 
 Transaction makeTransaction(
     const QUuid &id,
-    Money amount = Money::fromCents(1000))
+    Money amount = Money::fromCents(1000),
+    QDateTime occurredAt = QDateTime::fromString(
+        QStringLiteral("2026-10-10T12:00:00Z"), Qt::ISODate))
 {
     const auto transaction = Transaction::create(TransactionData{
         .id = id,
@@ -17,8 +19,7 @@ Transaction makeTransaction(
         .amount = amount,
         .accountId = QUuid::createUuid(),
         .categoryId = QUuid::createUuid(),
-        .occurredAt = QDateTime::fromString(
-            QStringLiteral("2026-10-10T12:00:00Z"), Qt::ISODate),
+        .occurredAt = occurredAt,
         .note = QStringLiteral("测试"),
     });
 
@@ -37,6 +38,9 @@ private slots:
     void returnsNulloptForMissingTransaction();
     void updatesTransactionWithSameId();
     void returnsAllTransactions();
+    void findsTransactionsInHalfOpenRange();
+    void returnsEmptyVectorForEmptyRange();
+    void rejectsInvalidRange();
 };
 
 void TransactionRepositoryTest::savesAndFindsTransaction()
@@ -80,6 +84,51 @@ void TransactionRepositoryTest::returnsAllTransactions()
     QVERIFY(repository.save(makeTransaction(QUuid::createUuid())));
 
     QCOMPARE(repository.findAll().size(), std::size_t{2});
+}
+
+void TransactionRepositoryTest::findsTransactionsInHalfOpenRange()
+{
+    InMemoryTransactionRepository repository;
+    const auto start = QDateTime::fromString(
+        QStringLiteral("2026-10-01T00:00:00.000Z"), Qt::ISODateWithMs);
+    const auto end = QDateTime::fromString(
+        QStringLiteral("2026-11-01T00:00:00.000Z"), Qt::ISODateWithMs);
+
+    QVERIFY(repository.save(makeTransaction(
+        QUuid::createUuid(), Money::fromCents(100), start.addMSecs(-1))));
+    QVERIFY(repository.save(makeTransaction(
+        QUuid::createUuid(), Money::fromCents(200), start)));
+    QVERIFY(repository.save(makeTransaction(
+        QUuid::createUuid(), Money::fromCents(300), end.addMSecs(-1))));
+    QVERIFY(repository.save(makeTransaction(
+        QUuid::createUuid(), Money::fromCents(400), end)));
+
+    const auto result = repository.findOccurredBetween(start, end);
+    QVERIFY(result.has_value());
+    QCOMPARE(result->size(), std::size_t{2});
+    QCOMPARE(result->front().amount(), Money::fromCents(300));
+    QCOMPARE(result->back().amount(), Money::fromCents(200));
+}
+
+void TransactionRepositoryTest::returnsEmptyVectorForEmptyRange()
+{
+    const InMemoryTransactionRepository repository;
+    const auto start = QDateTime::fromString(
+        QStringLiteral("2026-10-01T00:00:00.000Z"), Qt::ISODateWithMs);
+    const auto result = repository.findOccurredBetween(start, start.addMonths(1));
+
+    QVERIFY(result.has_value());
+    QVERIFY(result->empty());
+}
+
+void TransactionRepositoryTest::rejectsInvalidRange()
+{
+    const InMemoryTransactionRepository repository;
+    const auto time = QDateTime::currentDateTimeUtc();
+
+    QVERIFY(!repository.findOccurredBetween(time, time).has_value());
+    QVERIFY(!repository.findOccurredBetween(time, time.addSecs(-1)).has_value());
+    QVERIFY(!repository.findOccurredBetween(QDateTime{}, time).has_value());
 }
 
 QTEST_APPLESS_MAIN(TransactionRepositoryTest)

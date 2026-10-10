@@ -18,6 +18,9 @@ public:
     [[nodiscard]] std::optional<Transaction> findById(
         const QUuid &id) const override;
     [[nodiscard]] std::vector<Transaction> findAll() const override;
+    [[nodiscard]] std::optional<std::vector<Transaction>> findOccurredBetween(
+        const QDateTime &startInclusive,
+        const QDateTime &endExclusive) const override;
 
     [[nodiscard]] const QString &lastError() const noexcept;
 

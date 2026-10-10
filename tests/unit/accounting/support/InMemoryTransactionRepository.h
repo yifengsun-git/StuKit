@@ -3,6 +3,7 @@
 #include "ITransactionRepository.h"
 
 #include <algorithm>
+#include <iterator>
 
 namespace stukit::accounting::testing {
 
@@ -53,14 +54,53 @@ public:
         return m_transactions;
     }
 
+    [[nodiscard]] std::optional<std::vector<Transaction>> findOccurredBetween(
+        const QDateTime &startInclusive,
+        const QDateTime &endExclusive) const override
+    {
+        if (!m_findOccurredBetweenShouldSucceed
+            || !startInclusive.isValid()
+            || !endExclusive.isValid()
+            || startInclusive >= endExclusive) {
+            return std::nullopt;
+        }
+
+        std::vector<Transaction> transactions;
+        std::copy_if(
+            m_transactions.cbegin(), m_transactions.cend(),
+            std::back_inserter(transactions),
+            [&startInclusive, &endExclusive](const Transaction &transaction) {
+                return transaction.occurredAt() >= startInclusive
+                    && transaction.occurredAt() < endExclusive;
+            });
+
+        std::sort(
+            transactions.begin(), transactions.end(),
+            [](const Transaction &left, const Transaction &right) {
+                if (left.occurredAt() != right.occurredAt()) {
+                    return left.occurredAt() > right.occurredAt();
+                }
+                return left.id().toString(QUuid::WithoutBraces)
+                    < right.id().toString(QUuid::WithoutBraces);
+            });
+
+        return transactions;
+    }
+
     void setSaveShouldSucceed(bool shouldSucceed) noexcept
     {
         m_saveShouldSucceed = shouldSucceed;
     }
 
+    void setFindOccurredBetweenShouldSucceed(bool shouldSucceed) noexcept
+    {
+        m_findOccurredBetweenShouldSucceed = shouldSucceed;
+    }
+
 private:
     std::vector<Transaction> m_transactions;
     bool m_saveShouldSucceed{true};
+    bool m_findOccurredBetweenShouldSucceed{true};
 };
 
 } // namespace stukit::accounting::testing
