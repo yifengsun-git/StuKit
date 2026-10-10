@@ -49,6 +49,7 @@ MVP。开发过程中保持界面与业务分离，为 Android 迁移预留空�
 - [第十二课：实现 SQLite Account Repository](docs/lessons/12-sqlite-account-repository.md)
 - [第十三课：Category Repository 与 CreateCategory 用例](docs/lessons/13-category-repository-and-create-use-case.md)
 - [第十四课：SQLite Category Repository 与迁移版本 2](docs/lessons/14-sqlite-category-repository.md)
+- [第十五课：Transaction Repository 与 CreateTransaction 用例](docs/lessons/15-transaction-repository-and-create-use-case.md)
 
 ## 开发原则
 
