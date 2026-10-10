@@ -19,6 +19,7 @@ AccountingOverviewViewModel::AccountingOverviewViewModel(
     , m_selectedMonth(selectedMonth.year(), selectedMonth.month(), 1)
     , m_transactions(this)
 {
+    m_transactions.setTimeZone(m_timeZone);
 }
 
 int AccountingOverviewViewModel::selectedYear() const noexcept
@@ -41,6 +42,11 @@ QString AccountingOverviewViewModel::monthLabel() const
 QString AccountingOverviewViewModel::timeZoneId() const
 {
     return QString::fromUtf8(m_timeZone.id());
+}
+
+const QTimeZone &AccountingOverviewViewModel::timeZone() const noexcept
+{
+    return m_timeZone;
 }
 
 const QString &AccountingOverviewViewModel::totalIncomeText() const noexcept
@@ -160,6 +166,7 @@ bool AccountingOverviewViewModel::applyTimeZone(const QTimeZone &timeZone)
     }
 
     m_timeZone = timeZone;
+    m_transactions.setTimeZone(m_timeZone);
     emit timeZoneChanged();
     load();
     return true;

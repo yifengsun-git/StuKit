@@ -37,6 +37,7 @@ public:
     [[nodiscard]] int selectedMonth() const noexcept;
     [[nodiscard]] QString monthLabel() const;
     [[nodiscard]] QString timeZoneId() const;
+    [[nodiscard]] const QTimeZone &timeZone() const noexcept;
     [[nodiscard]] const QString &totalIncomeText() const noexcept;
     [[nodiscard]] const QString &totalExpenseText() const noexcept;
     [[nodiscard]] const QString &balanceText() const noexcept;

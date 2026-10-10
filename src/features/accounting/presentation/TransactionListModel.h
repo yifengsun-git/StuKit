@@ -3,6 +3,7 @@
 #include "Transaction.h"
 
 #include <QAbstractListModel>
+#include <QTimeZone>
 
 #include <vector>
 
@@ -21,6 +22,7 @@ public:
         AccountIdRole,
         CategoryIdRole,
         OccurredAtRole,
+        OccurredAtTextRole,
         NoteRole
     };
     Q_ENUM(Role)
@@ -35,9 +37,11 @@ public:
 
     void replaceTransactions(std::vector<Transaction> transactions);
     void clear();
+    void setTimeZone(QTimeZone timeZone);
 
 private:
     std::vector<Transaction> m_transactions;
+    QTimeZone m_timeZone{QTimeZone::UTC};
 };
 
 } // namespace stukit::accounting::presentation

@@ -79,6 +79,10 @@ void AccountingPresentationTest::exposesTransactionRoles()
              QStringLiteral("123.45"));
     QCOMPARE(model.data(index, TransactionListModel::OccurredAtRole).toDateTime(),
              transaction.occurredAt());
+    model.setTimeZone(utcPlusEight());
+    QCOMPARE(model.data(index,
+                        TransactionListModel::OccurredAtTextRole).toString(),
+             QStringLiteral("10-10 10:30"));
     QCOMPARE(model.data(index, TransactionListModel::NoteRole).toString(),
              QStringLiteral("工资"));
     QCOMPARE(model.roleNames().value(TransactionListModel::AmountTextRole),

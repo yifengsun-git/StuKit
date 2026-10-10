@@ -6,6 +6,9 @@ ApplicationWindow
 {
     id: window
 
+    required property var accountingOverview
+    required property string accountingStartupError
+
     property int currentPage: 0
 
     width: 960
@@ -141,7 +144,10 @@ ApplicationWindow
             onScheduleRequested: window.navigateTo(2)
         }
 
-        AccountingHomePage {}
+        AccountingHomePage {
+            viewModel: window.accountingOverview
+            startupError: window.accountingStartupError
+        }
         ScheduleHomePage {}
     }
 }

@@ -15,6 +15,7 @@ add_subdirectory(src/features/accounting/domain)
 add_subdirectory(src/features/accounting/application)
 add_subdirectory(src/features/accounting/infrastructure)
 add_subdirectory(src/features/accounting/presentation)
+add_subdirectory(src/app)
 
 if(BUILD_TESTING)
     find_package(Qt6 6.8 REQUIRED COMPONENTS Test)
@@ -74,5 +75,7 @@ qt_add_qml_module(StuKit
 )
 
 target_link_libraries(StuKit
-    PRIVATE Qt6::Quick
+    PRIVATE
+        Qt6::Quick
+        StuKitAppCore
 )
