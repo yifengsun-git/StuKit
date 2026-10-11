@@ -968,5 +968,5 @@ Infrastructure 与 Presentation，负责把两条依赖链组装起来。
 ## 14. 后续更新规则
 
 每完成一课并新增 C++ 文件，都应在本文补充它的职责、依赖和禁止承担的职责。
-下一阶段将建立 Windows Release 部署流程。应用安装规则和部署命令属于构建边界，
-不应进入 Domain、Application 或 Repository；部署目录属于生成产物，不提交 Git。
+下一阶段开始课表 Domain。星期、节次范围和教学周范围先作为不依赖 QML、Qt SQL
+或记账模块的值对象实现；Windows Release 部署在课表 MVP 完成后集中处理。

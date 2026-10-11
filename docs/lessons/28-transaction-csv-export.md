@@ -110,5 +110,5 @@ QML FileDialog
 
 ## 9. 下一步
 
-第二十九课建立 Windows Release 部署基础：生成干净的 Release 程序，使用
-`windeployqt` 收集运行时依赖，并在独立目录验证应用不依赖开发环境即可启动。
+第二十九课开始课表模块，先建立星期、节次范围和教学周范围等核心时间值对象。
+Windows Release 部署推迟到课表 MVP 完成后集中处理。

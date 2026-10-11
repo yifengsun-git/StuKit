@@ -41,9 +41,10 @@ UTC-14:00 到 UTC+14:00 的固定偏移，选择后会保存并同步到月度�
 保留当前数据库，失败时可回退；本地数据库和备份文件均被 Git 忽略。全部历史流水
 现在也能导出为 UTF-8 CSV，包含稳定的账户与分类名称、精确金额、UTC 时间和记账
 时区时间，逗号、引号及多行备注会按 CSV 规则转义。首页的数据维护入口已整理为
-独立卡片，统计摘要会在窄窗口下自动切换为两列。当前下一步是建立 Windows Release
-部署流程。开发过程中继续保持界面与业务分离，并让时间、数据库和业务代码可在
-后续 Android 版本复用。
+独立卡片，统计摘要会在窄窗口下自动切换为两列。记账 MVP 至此进入稳定状态，
+当前开始开发课表模块；Windows Release 部署将在课表 MVP 完成后集中处理。开发
+过程中继续保持界面与业务分离，并让时间、数据库和业务代码可在后续 Android
+版本复用。
 
 ## 技术方向
 
@@ -89,7 +90,7 @@ UTC-14:00 到 UTC+14:00 的固定偏移，选择后会保存并同步到月度�
 - [第二十六课：月度流水筛选与搜索](docs/lessons/26-transaction-filtering.md)
 - [第二十七课：SQLite 数据备份与恢复](docs/lessons/27-database-backup-and-restore.md)
 - [第二十八课：流水 CSV 导出](docs/lessons/28-transaction-csv-export.md)
-- [第二十九课：Windows Release 部署基础](docs/lessons/29-windows-release-deployment.md)
+- [第二十九课：课表需求与核心时间模型](docs/lessons/29-schedule-time-domain.md)
 
 ## 开发原则
 
