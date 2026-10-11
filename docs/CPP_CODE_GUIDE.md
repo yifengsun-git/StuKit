@@ -5,13 +5,14 @@
 本文说明 StuKit 中各个 C++ 头文件和源文件的职责、依赖关系以及不能承担的职责。
 它适合在阅读代码、排查编译错误或添加新功能前快速查阅。
 
-当前内容对应第三十四课完成后的代码，包括三版 SQLite 迁移、三个记账 Repository
+当前内容对应第三十五课完成后的代码，包括四版 SQLite 迁移、三个记账 Repository
 接口、创建与查询用例、记账 Presentation，以及从 QML 创建账户、分类和账单并
 持久化到真实 SQLite 的端到端链路、账户余额、月度流水筛选、安全备份恢复和
 全部流水 CSV 导出，以及可自定义时间、账户和分类范围的记账分析聚合、ViewModel
 和通用图表系列模型，以及柱状图、折线图、排行、环形图、自定义筛选面板和完整页面
 QML 集成测试。记账与分析 MVP 已完成；课表模块已经建立学期、课程、上课安排、
-星期和单双周 Domain 模型、三个 Repository 契约，以及课程冲突检测用例和测试。
+星期和单双周 Domain 模型、三个 Repository 契约、课程冲突检测用例，以及版本 4
+课表数据库表、约束、外键、索引和迁移测试。
 
 ## 2. `.h` 和 `.cpp` 分别做什么
 
@@ -600,6 +601,7 @@ Infrastructure。
 - 使用唯一连接名持有一条 Qt SQL 连接。
 - `open()` 打开数据库并启用外键约束。
 - `migrate()` 将旧数据库结构升级到当前版本。
+- `CurrentSchemaVersion` 为迁移器与备份验证提供唯一的当前版本常量。
 - `connection()` 为后续 Repository 提供数据库连接。
 - 禁止复制和移动，避免一个连接被多个对象错误管理。
 
@@ -616,8 +618,12 @@ Infrastructure。
 5. 析构时关闭连接并从 Qt 连接池移除连接名。
 
 迁移 2 在独立事务中创建 `categories` 表并记录版本 2。迁移 3 创建
-`transactions` 表、三个查询索引和两个外键，并记录版本 3。每版迁移都在独立事务
-中完成；全新数据库会依次执行迁移 1、2、3，旧数据库只执行缺失版本。
+`transactions` 表、三个查询索引和两个外键，并记录版本 3。迁移 4 创建
+`academic_terms`、`courses`、`course_meetings`，以及三个课表索引和两层外键。
+星期、节次、周次、单双周、颜色和归档状态都有数据库约束。
+
+每版迁移都在独立事务中完成；全新数据库会依次执行迁移 1～4，旧数据库只执行缺失
+版本。版本高于 `CurrentSchemaVersion` 时会拒绝打开，避免旧程序误读未来结构。
 
 迁移具有幂等性：同一个数据库多次调用 `migrate()` 不会重复创建表。
 
@@ -627,6 +633,7 @@ Infrastructure。
 
 - 使用 `VACUUM INTO` 从活动连接创建一致快照。
 - 验证 SQLite 完整性、连续迁移历史、关键表和受支持版本。
+- 版本 4 备份必须包含三张课表表，版本 1～3 旧备份仍可恢复后升级。
 - 拒绝活动数据库与目标文件为同一路径。
 - 先验证临时快照，再通过 `QSaveFile` 原子提交。
 - 只在数据库连接已经由组合根释放后替换正式数据库文件。
@@ -924,10 +931,12 @@ tests/unit/schedule/
 这是 SQLite 集成测试，验证：
 
 - Qt 可以加载 `QSQLITE` 驱动。
-- 首次迁移能创建 `accounts`、`categories`、`transactions` 表和预期字段。
-- transactions 的三个查询索引已经创建。
+- 首次迁移能创建三张记账表和三张课表表及预期字段。
+- 记账和课表查询索引、课表外键已经创建。
 - 重复迁移不会重复写入版本记录。
-- 版本 1 和版本 2 数据库都能升级到版本 3，且旧数据保持不变。
+- 版本 1、2、3 数据库都能升级到版本 4，且旧记账数据保持不变。
+- 非法课表字段和外键写入失败，失败迁移完整回滚。
+- 高于当前程序支持范围的数据库版本会被拒绝。
 - 每条 SQLite 连接都启用了外键约束。
 
 它使用 `QTEST_GUILESS_MAIN` 创建 `QCoreApplication`，让 Qt 能加载 SQL 驱动；每个
@@ -964,7 +973,7 @@ SQLite Repository 组装起来验证跨层流程。测试先销毁 Repository，
 
 ### `tests/integration/app/AccountingModuleTest.cpp`
 
-使用临时目录和真实 SQLite 验证应用组合根：数据库创建并迁移到版本 3、空月份
+使用临时目录和真实 SQLite 验证应用组合根：数据库创建并迁移到版本 4、空月份
 ViewModel 可用、自定义固定时区可持久化、无效设置回退到 UTC+08:00，并拒绝空的
 应用数据目录。它还通过组合根创建账户和两类分类，销毁并重建模块后确认 SQLite
 数据仍然存在，并验证账户与分类重命名、归档、恢复可跨重启持久化，同时确认空库
@@ -1142,6 +1151,8 @@ Application/Domain/Presentation，但不链接 SQLite Infrastructure。
 49. 三个 `InMemory...Repository`：理解过滤、更新和失败模拟。
 50. `DetectScheduleConflicts.h/.cpp`：理解冲突条件、固定查询和错误分类。
 51. `DetectScheduleConflictsTest.cpp`：观察单双周、编辑和跨学期边界。
+52. `SqliteDatabase::applyMigration4()`：理解课表表、约束、外键和原子迁移。
+53. `SqliteDatabaseTest.cpp` 的课表测试：理解版本升级、非法写入和事务回滚。
 
 ## 13. 修改代码时如何判断文件归属
 
@@ -1158,5 +1169,5 @@ Application/Domain/Presentation，但不链接 SQLite Infrastructure。
 ## 14. 后续更新规则
 
 每完成一课并新增 C++ 文件，都应在本文补充它的职责、依赖和禁止承担的职责。
-记账和分析 MVP 已完成，课表 Domain、Repository 契约和冲突检测也已建立。下一课
-为共享 SQLite 数据库增加课表版本 4 迁移、约束、外键和索引，仍暂不进入 QML。
+记账和分析 MVP 已完成；课表 Domain、Repository 契约、冲突检测和版本 4 数据库迁移
+也已建立。下一课实现三个课表 SQLite Repository 和实体映射，仍暂不进入 QML。

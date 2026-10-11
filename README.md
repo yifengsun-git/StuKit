@@ -14,7 +14,7 @@ StuKit 是一个面向大学生日常使用的个人工具包。项目首先开�
 项目已经完成 Qt Quick 应用入口、基础导航、主题系统和通用占位页组件，目前
 正在开发记账数据层，已经实现 Money 值对象以及 Transaction、Account 和
 Category 实体，并建立了 Account 与 Category 的 Repository 接口和创建用例，
-同时完成 Transaction Repository 接口和 CreateTransaction 用例，以及三版 SQLite
+同时完成 Transaction Repository 接口和 CreateTransaction 用例，以及四版 SQLite
 数据库迁移和 Account、Category、Transaction 的 SQLite Repository。账单金额、
 关联账户与分类、UTC 发生时间均已可以可靠持久化。月度查询与汇总用例也已完成，
 月份边界使用用户自定义时区计算，不依赖设备系统时区。记账首页的 C++ ViewModel
@@ -52,11 +52,12 @@ UTC-14:00 到 UTC+14:00 的固定偏移，选择后会保存并同步到月度�
 自动验证空状态、图表切换、6/12/24 月范围、筛选摘要、ViewModel 重绑定，以及
 640/960/1280 三档响应式布局；记账与分析 MVP 至此完成。
 
-课表模块现已启动，并建立了独立的模块开发计划。学期、课程、上课安排、星期和
-单双周领域模型已经完成；三个 Repository 契约和内存测试实现也已建立。冲突检测会
-同时判断学期、星期、节次、周次和单双周，支持编辑时排除自身，并区分无冲突、无效
-输入、缺失关联、超出学期和存储失败。全工程共 35 个测试通过。下一步为共享 SQLite
-数据库增加课表迁移。Windows Release 部署仍在课表 MVP 完成后集中处理。
+课表模块现已启动，并建立了独立的模块开发计划。领域模型、三个 Repository 契约、
+内存测试实现和课程冲突检测已经完成。共享 SQLite 数据库也已升级到版本 4，新增
+学期、课程和上课安排三张表，以及字段约束、外键和查询索引；版本 1～3 可以保留旧
+记账数据并顺序升级，备份验证和未来版本保护已同步。全工程仍保持自动测试通过。
+下一步实现三个课表 SQLite Repository。Windows Release 部署仍在课表 MVP 完成后
+集中处理。
 
 ## 技术方向
 
@@ -110,6 +111,7 @@ UTC-14:00 到 UTC+14:00 的固定偏移，选择后会保存并同步到月度�
 - [第三十三课：课表领域模型](docs/lessons/33-schedule-domain-model.md)
 - [第三十四课：课表 Repository 与冲突检测](docs/lessons/34-schedule-repositories-and-conflicts.md)
 - [第三十五课：课表 SQLite 数据库迁移](docs/lessons/35-schedule-database-migration.md)
+- [第三十六课：课表 SQLite Repository](docs/lessons/36-schedule-sqlite-repositories.md)
 
 ## 开发原则
 
