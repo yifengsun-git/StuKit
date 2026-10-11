@@ -52,10 +52,11 @@ UTC-14:00 到 UTC+14:00 的固定偏移，选择后会保存并同步到月度�
 自动验证空状态、图表切换、6/12/24 月范围、筛选摘要、ViewModel 重绑定，以及
 640/960/1280 三档响应式布局；记账与分析 MVP 至此完成。
 
-课表模块现已启动，并建立了独立的模块开发计划。第 33 课完成了学期、课程、上课
-安排、星期和单双周领域模型；课程颜色规范、节次/周次边界及实际上课周判断均已有
-自动测试。全工程共 33 个测试通过。下一步建立课表 Repository 接口和冲突检测用例。
-Windows Release 部署仍在课表 MVP 完成后集中处理。
+课表模块现已启动，并建立了独立的模块开发计划。学期、课程、上课安排、星期和
+单双周领域模型已经完成；三个 Repository 契约和内存测试实现也已建立。冲突检测会
+同时判断学期、星期、节次、周次和单双周，支持编辑时排除自身，并区分无冲突、无效
+输入、缺失关联、超出学期和存储失败。全工程共 35 个测试通过。下一步为共享 SQLite
+数据库增加课表迁移。Windows Release 部署仍在课表 MVP 完成后集中处理。
 
 ## 技术方向
 
@@ -108,6 +109,7 @@ Windows Release 部署仍在课表 MVP 完成后集中处理。
 - [第三十二课：分析页验收与记账 MVP 收尾](docs/lessons/32-accounting-analytics-acceptance.md)
 - [第三十三课：课表领域模型](docs/lessons/33-schedule-domain-model.md)
 - [第三十四课：课表 Repository 与冲突检测](docs/lessons/34-schedule-repositories-and-conflicts.md)
+- [第三十五课：课表 SQLite 数据库迁移](docs/lessons/35-schedule-database-migration.md)
 
 ## 开发原则
 

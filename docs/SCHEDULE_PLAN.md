@@ -115,14 +115,16 @@ Infrastructure --------------------------> Domain
 
 ## 6. 数据库初步设计
 
-预计新增表：
+MVP 预计新增表：
 
 ```text
 academic_terms
 courses
 course_meetings
-period_definitions
 ```
+
+可自定义每节课起止时间进入正式需求后，再通过独立迁移增加
+`period_definitions`，不提前创建暂时没有 Domain 与用例使用的表。
 
 关系：
 
@@ -171,6 +173,8 @@ AcademicTerm 1 ---- N Course 1 ---- N CourseMeeting
 - SQLite 使用标准应用数据目录，不写死 Windows 路径。
 
 ## 9. 开发阶段与课程安排
+
+当前进度：第 33～34 课已完成，下一步进入第 35 课 SQLite 迁移。
 
 | 课程 | 目标 | 主要结果 |
 | --- | --- | --- |
