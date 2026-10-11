@@ -5,14 +5,15 @@
 本文说明 StuKit 中各个 C++ 头文件和源文件的职责、依赖关系以及不能承担的职责。
 它适合在阅读代码、排查编译错误或添加新功能前快速查阅。
 
-当前内容对应第三十六课完成后的代码，包括四版 SQLite 迁移、三个记账 Repository
+当前内容对应第三十七课完成后的代码，包括四版 SQLite 迁移、三个记账 Repository
 接口、创建与查询用例、记账 Presentation，以及从 QML 创建账户、分类和账单并
 持久化到真实 SQLite 的端到端链路、账户余额、月度流水筛选、安全备份恢复和
 全部流水 CSV 导出，以及可自定义时间、账户和分类范围的记账分析聚合、ViewModel
 和通用图表系列模型，以及柱状图、折线图、排行、环形图、自定义筛选面板和完整页面
 QML 集成测试。记账与分析 MVP 已完成；课表模块已经建立学期、课程、上课安排、
 星期和单双周 Domain 模型、三个 Repository 契约、课程冲突检测用例、版本 4
-课表数据库表，以及三个课表 SQLite Repository 和集成测试。
+课表数据库表、三个课表 SQLite Repository 和集成测试，以及学期、课程、安排保存和
+指定教学周查询用例。
 
 ## 2. `.h` 和 `.cpp` 分别做什么
 
@@ -447,6 +448,30 @@ Application 负责组织一次完整的用户目标。它可以调用实体和 R
 它按同一学期、星期、节次交集及实际教学周交集生成稳定排序的 `ScheduleConflict`
 列表，并在编辑时排除相同 UUID。无冲突是成功的空列表；错误会区分无效输入、课程或
 学期缺失、超出学期周数和存储失败。
+
+### `schedule/SaveAcademicTerm.h/.cpp`
+
+用一个请求类型同时支持创建与修改学期：空 UUID 表示创建，非空 UUID 表示更新。
+更新会确认原学期存在；缩短总周数前还会检查该学期全部课程安排，拒绝产生超出新
+范围的数据。归档与恢复沿用同一条保存路径。
+
+### `schedule/SaveCourse.h/.cpp`
+
+创建或修改课程，并保证所属学期存在且未归档。更新必须保留原 UUID 和所属学期，
+不允许用普通编辑操作把已有课程移动到另一学期。课程字段仍由 `Course::create()`
+负责清理和校验。
+
+### `schedule/SaveCourseMeeting.h/.cpp`
+
+创建或修改上课安排。用例先确认被编辑安排存在，再复用 `DetectScheduleConflicts` 完成
+课程、学期、总周数和冲突检查。成功、冲突及错误是三种独立 `std::variant` 结果；
+发生冲突时返回明细但不保存。
+
+### `schedule/GetWeeklySchedule.h/.cpp`
+
+读取一次学期、课程和安排快照，验证教学周范围，使用 `occursInWeek()` 过滤单双周，
+再组装包含可读课程信息的 `WeeklyScheduleItem`。结果按星期、节次、课程名和 UUID
+稳定排序。它返回普通 C++ DTO，不依赖 QML 模型。
 
 ### `CreateAccount.h`
 
@@ -936,6 +961,10 @@ tests/unit/schedule/
 | `CourseMeetingTest.cpp` | 星期、节次、周次、单双周和实际发生判断。 |
 | `ScheduleRepositoryTest.cpp` | 三个内存 Repository 的新增、更新、筛选、空结果和失败模拟。 |
 | `DetectScheduleConflictsTest.cpp` | 冲突组合、跨学期、编辑排除、稳定顺序、错误和查询次数。 |
+| `SaveAcademicTermTest.cpp` | 学期创建、更新、归档、缩短周数保护和 Repository 失败。 |
+| `SaveCourseTest.cpp` | 课程创建、更新、学期约束、禁止跨学期移动和失败分类。 |
+| `SaveCourseMeetingTest.cpp` | 安排创建、编辑、冲突不落库、单双周错开和错误映射。 |
+| `GetWeeklyScheduleTest.cpp` | 指定周过滤、可读 DTO、稳定排序、损坏关联和固定查询次数。 |
 
 测试代码不是产品功能，但它定义了当前代码必须持续满足的行为。修改业务代码后，
 应运行全部测试，而不是只运行本次新增的测试。
@@ -1054,8 +1083,9 @@ Qt SQL 或 Qt Quick。
 
 ### `src/features/schedule/application/CMakeLists.txt`
 
-创建 `StuKitScheduleApplication`，编译 `DetectScheduleConflicts` 并公开 Application
-头文件目录。它只链接 `StuKitScheduleDomain`，不能反向依赖 SQLite 或 QML。
+创建 `StuKitScheduleApplication`，编译 `DetectScheduleConflicts`、三个保存用例和指定周
+查询用例，并公开 Application 头文件目录。它只链接 `StuKitScheduleDomain`，不能
+反向依赖 SQLite 或 QML。
 
 ### `src/features/schedule/infrastructure/CMakeLists.txt`
 
@@ -1105,8 +1135,9 @@ Infrastructure 与 Presentation，负责把两条依赖链组装起来。
 
 ### `tests/unit/schedule/CMakeLists.txt`
 
-为课表 Domain、Repository 和冲突检测建立五个独立 Qt Test 目标。Repository 测试
-链接 `StuKitScheduleDomain`，冲突测试链接 `StuKitScheduleApplication`。
+为课表 Domain、Repository、冲突检测和四个 Application 用例建立九个独立 Qt Test
+目标。Repository 测试链接 `StuKitScheduleDomain`，用例测试链接
+`StuKitScheduleApplication`。
 
 ### `tests/unit/accounting/CMakeLists.txt`
 
@@ -1190,6 +1221,10 @@ Application/Domain/Presentation，但不链接 SQLite Infrastructure。
 55. `SqliteCourseRepository.h/.cpp`：理解关联外键和可选文本的 null/空值差异。
 56. `SqliteCourseMeetingRepository.h/.cpp`：理解星期与单双周的显式稳定编码。
 57. 三个 schedule SQLite 集成测试：理解真实数据库映射与第二道 Domain 校验。
+58. `SaveAcademicTerm.h/.cpp` 与测试：理解缩短学期周数时的跨实体保护。
+59. `SaveCourse.h/.cpp` 与测试：理解创建/更新入口和所属学期不变量。
+60. `SaveCourseMeeting.h/.cpp` 与测试：理解冲突作为正常业务结果且不发生部分保存。
+61. `GetWeeklySchedule.h/.cpp` 与测试：理解单双周过滤、DTO 组装和稳定排序。
 
 ## 13. 修改代码时如何判断文件归属
 
@@ -1207,4 +1242,5 @@ Application/Domain/Presentation，但不链接 SQLite Infrastructure。
 
 每完成一课并新增 C++ 文件，都应在本文补充它的职责、依赖和禁止承担的职责。
 记账和分析 MVP 已完成；课表 Domain、冲突检测、版本 4 迁移和三个 SQLite Repository
-也已建立。下一课实现课表 Application 创建、修改和指定教学周查询，仍暂不进入 QML。
+和四个课表 Application 用例也已建立。下一课实现课表 Presentation 列表模型与
+ViewModel，仍由 Application 保持业务规则的唯一来源。

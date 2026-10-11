@@ -174,7 +174,7 @@ AcademicTerm 1 ---- N Course 1 ---- N CourseMeeting
 
 ## 9. 开发阶段与课程安排
 
-当前进度：第 33～36 课已完成，下一步进入第 37 课 Application 用例。
+当前进度：第 33～37 课已完成，下一步进入第 38 课 Presentation。
 
 | 课程 | 目标 | 主要结果 |
 | --- | --- | --- |
