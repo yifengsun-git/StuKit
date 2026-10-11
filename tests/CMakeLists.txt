@@ -1,3 +1,4 @@
+add_subdirectory(unit/schedule)
 add_subdirectory(unit/accounting)
 add_subdirectory(integration/accounting)
 add_subdirectory(integration/app)
