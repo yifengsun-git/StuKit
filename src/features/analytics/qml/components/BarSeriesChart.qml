@@ -120,6 +120,7 @@ Item {
     }
 
     Label {
+        objectName: "barChartEmptyState"
         anchors.centerIn: parent
         visible: !root.hasValues
         text: root.emptyText

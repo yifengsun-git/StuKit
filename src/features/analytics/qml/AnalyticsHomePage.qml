@@ -13,6 +13,7 @@ Page {
     property int trendChartMode: 0
     property int expenseChartMode: 0
     property int incomeChartMode: 0
+    readonly property int accountFlowColumns: root.width >= 760 ? 4 : 1
     readonly property var trendData: root.viewModel && root.viewModel.trendSeries ? root.viewModel.trendSeries.items : []
 
     background: Rectangle {
@@ -48,6 +49,7 @@ Page {
             }
 
             AnalyticsFilterPanel {
+                objectName: "analyticsFilterPanel"
                 Layout.fillWidth: true
                 Layout.leftMargin: AppTheme.spacingLarge
                 Layout.rightMargin: AppTheme.spacingLarge
@@ -72,6 +74,7 @@ Page {
             }
 
             GridLayout {
+                objectName: "analyticsSummaryGrid"
                 Layout.fillWidth: true
                 Layout.leftMargin: AppTheme.spacingLarge
                 Layout.rightMargin: AppTheme.spacingLarge
@@ -127,6 +130,7 @@ Page {
             }
 
             GridLayout {
+                objectName: "analyticsTrendGrid"
                 Layout.fillWidth: true
                 Layout.leftMargin: AppTheme.spacingLarge
                 Layout.rightMargin: AppTheme.spacingLarge
@@ -148,17 +152,20 @@ Page {
                     }
 
                     StackLayout {
+                        objectName: "trendChartStack"
                         Layout.fillWidth: true
                         Layout.preferredHeight: 340
                         currentIndex: root.trendChartMode
 
                         BarSeriesChart {
+                            objectName: "monthlyBarChart"
                             seriesData: root.trendData
                             firstSeriesId: "income"
                             secondSeriesId: "expense"
                         }
 
                         LineSeriesChart {
+                            objectName: "monthlyLineChart"
                             seriesData: root.trendData
                             seriesId: "income"
                             secondSeriesId: "expense"
@@ -172,6 +179,7 @@ Page {
                     description: qsTr("结余低于零时折线会进入零线下方。")
 
                     LineSeriesChart {
+                        objectName: "balanceLineChart"
                         Layout.fillWidth: true
                         Layout.preferredHeight: 340
                         seriesData: root.trendData
@@ -181,6 +189,7 @@ Page {
             }
 
             GridLayout {
+                objectName: "analyticsCategoryGrid"
                 Layout.fillWidth: true
                 Layout.leftMargin: AppTheme.spacingLarge
                 Layout.rightMargin: AppTheme.spacingLarge
@@ -202,12 +211,14 @@ Page {
                     }
 
                     StackLayout {
+                        objectName: "expenseChartStack"
                         Layout.fillWidth: true
                         Layout.preferredHeight: root.expenseChartMode === 0 ? Math.max(150, expenseRanking.implicitHeight) : 330
                         currentIndex: root.expenseChartMode
 
                         RankingBars {
                             id: expenseRanking
+                            objectName: "expenseRankingBars"
 
                             model: root.viewModel ? root.viewModel.expenseCategories : null
                             barColor: "#C62828"
@@ -215,6 +226,7 @@ Page {
                         }
 
                         DonutBreakdown {
+                            objectName: "expenseDonutChart"
                             model: root.viewModel ? root.viewModel.expenseCategories : null
                             emptyText: qsTr("本月暂无支出分类数据")
                         }
@@ -235,12 +247,14 @@ Page {
                     }
 
                     StackLayout {
+                        objectName: "incomeChartStack"
                         Layout.fillWidth: true
                         Layout.preferredHeight: root.incomeChartMode === 0 ? Math.max(150, incomeRanking.implicitHeight) : 330
                         currentIndex: root.incomeChartMode
 
                         RankingBars {
                             id: incomeRanking
+                            objectName: "incomeRankingBars"
 
                             model: root.viewModel ? root.viewModel.incomeCategories : null
                             barColor: "#2E7D32"
@@ -248,6 +262,7 @@ Page {
                         }
 
                         DonutBreakdown {
+                            objectName: "incomeDonutChart"
                             model: root.viewModel ? root.viewModel.incomeCategories : null
                             emptyText: qsTr("本月暂无收入分类数据")
                         }
@@ -269,6 +284,7 @@ Page {
 
                     delegate: GridLayout {
                         id: accountRow
+                        objectName: "accountFlowRow"
 
                         required property string name
                         required property string incomeText
@@ -278,7 +294,7 @@ Page {
                         required property bool archived
 
                         Layout.fillWidth: true
-                        columns: root.width >= 760 ? 4 : 1
+                        columns: root.accountFlowColumns
                         columnSpacing: AppTheme.spacingMedium
                         rowSpacing: AppTheme.spacingSmall
 

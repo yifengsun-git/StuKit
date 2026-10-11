@@ -179,6 +179,7 @@ Item {
     }
 
     Label {
+        objectName: "lineChartEmptyState"
         anchors.centerIn: parent
         visible: !root.hasValues
         text: root.emptyText

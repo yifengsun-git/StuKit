@@ -74,6 +74,7 @@ Item {
         }
 
         Label {
+            objectName: "rankingEmptyState"
             Layout.fillWidth: true
             visible: rows.count === 0
             text: root.emptyText

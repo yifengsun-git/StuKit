@@ -18,11 +18,6 @@ add_subdirectory(src/features/analytics/presentation)
 add_subdirectory(src/features/accounting/presentation)
 add_subdirectory(src/app)
 
-if(BUILD_TESTING)
-    find_package(Qt6 6.8 REQUIRED COMPONENTS Test)
-    add_subdirectory(tests)
-endif()
-
 qt_add_executable(StuKit
     src/app/main.cpp
 )
@@ -124,3 +119,8 @@ target_link_libraries(StuKit
         Qt6::Widgets
         StuKitAppCore
 )
+
+if(BUILD_TESTING)
+    find_package(Qt6 6.8 REQUIRED COMPONENTS Test)
+    add_subdirectory(tests)
+endif()

@@ -39,6 +39,7 @@ Rectangle {
                 }
 
                 Label {
+                    objectName: "analyticsFilterSummary"
                     Layout.fillWidth: true
                     text: root.viewModel ? qsTr("%1 · 账户 %2 项 · 分类 %3 项 · %4").arg(root.viewModel.monthLabel).arg(root.viewModel.selectedAccountIds.length === 0 ? qsTr("不限") : root.viewModel.selectedAccountIds.length).arg(root.viewModel.selectedCategoryIds.length === 0 ? qsTr("不限") : root.viewModel.selectedCategoryIds.length).arg(root.viewModel.timeZoneId) : ""
                     color: AppTheme.textSecondaryColor
@@ -47,6 +48,8 @@ Rectangle {
             }
 
             Button {
+                objectName: "analyticsFilterToggle"
+                Layout.minimumHeight: AppTheme.controlHeight
                 text: root.expanded ? qsTr("收起") : qsTr("展开")
                 onClicked: root.expanded = !root.expanded
             }
@@ -63,6 +66,7 @@ Rectangle {
                 spacing: AppTheme.spacingSmall
 
                 Button {
+                    height: AppTheme.controlHeight
                     text: qsTr("上一月")
                     onClicked: root.viewModel.showPreviousMonth()
                 }
@@ -78,11 +82,13 @@ Rectangle {
                 }
 
                 Button {
+                    height: AppTheme.controlHeight
                     text: qsTr("下一月")
                     onClicked: root.viewModel.showNextMonth()
                 }
 
                 ComboBox {
+                    objectName: "analyticsRangeBox"
                     width: 120
                     height: AppTheme.controlHeight
                     textRole: "label"
@@ -110,6 +116,7 @@ Rectangle {
                 }
 
                 Button {
+                    height: AppTheme.controlHeight
                     text: qsTr("恢复默认")
                     onClicked: root.viewModel.resetFilters()
                 }
@@ -132,12 +139,14 @@ Rectangle {
                 }
 
                 Button {
+                    Layout.minimumHeight: AppTheme.controlHeight
                     text: qsTr("全选")
                     flat: true
                     onClicked: root.viewModel.selectAllAccounts()
                 }
 
                 Button {
+                    Layout.minimumHeight: AppTheme.controlHeight
                     text: qsTr("不限")
                     flat: true
                     onClicked: root.viewModel.clearAccountSelection()
@@ -156,6 +165,7 @@ Rectangle {
 
                         required property var modelData
 
+                        height: AppTheme.controlHeight
                         text: accountOption.modelData.archived ? qsTr("%1（已归档）").arg(accountOption.modelData.label) : accountOption.modelData.label
                         checked: accountOption.modelData.selected
                         onToggled: root.viewModel.setAccountSelected(accountOption.modelData.value, checked)
@@ -174,12 +184,14 @@ Rectangle {
                 }
 
                 Button {
+                    Layout.minimumHeight: AppTheme.controlHeight
                     text: qsTr("全选")
                     flat: true
                     onClicked: root.viewModel.selectAllCategories()
                 }
 
                 Button {
+                    Layout.minimumHeight: AppTheme.controlHeight
                     text: qsTr("不限")
                     flat: true
                     onClicked: root.viewModel.clearCategorySelection()
@@ -198,6 +210,7 @@ Rectangle {
 
                         required property var modelData
 
+                        height: AppTheme.controlHeight
                         text: qsTr("%1 · %2%3").arg(categoryOption.modelData.isIncome ? qsTr("收入") : qsTr("支出")).arg(categoryOption.modelData.label).arg(categoryOption.modelData.archived ? qsTr("（已归档）") : "")
                         checked: categoryOption.modelData.selected
                         onToggled: root.viewModel.setCategorySelected(categoryOption.modelData.value, checked)

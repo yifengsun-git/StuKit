@@ -13,6 +13,7 @@ Item {
 
     property var model: null
     property string emptyText: qsTr("本月暂无分类数据")
+    readonly property bool hasData: sliceItems.count > 0
     readonly property var palette: ["#2563EB", "#7C3AED", "#DB2777", "#EA580C", "#CA8A04", "#16A34A", "#0891B2", "#4F46E5"]
 
     function clearSlices() {
@@ -115,6 +116,7 @@ Item {
     }
 
     Label {
+        objectName: "donutEmptyState"
         anchors.centerIn: parent
         visible: sliceItems.count === 0
         text: root.emptyText
