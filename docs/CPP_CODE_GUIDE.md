@@ -5,11 +5,12 @@
 本文说明 StuKit 中各个 C++ 头文件和源文件的职责、依赖关系以及不能承担的职责。
 它适合在阅读代码、排查编译错误或添加新功能前快速查阅。
 
-当前内容对应第三十一课完成后的代码，包括三版 SQLite 迁移、三个 Repository
+当前内容对应第三十二课完成后的代码，包括三版 SQLite 迁移、三个 Repository
 接口、创建与查询用例、记账 Presentation，以及从 QML 创建账户、分类和账单并
 持久化到真实 SQLite 的端到端链路、账户余额、月度流水筛选、安全备份恢复和
 全部流水 CSV 导出，以及可自定义时间、账户和分类范围的记账分析聚合、ViewModel
-和通用图表系列模型，以及柱状图、折线图、排行、环形图和自定义筛选面板。
+和通用图表系列模型，以及柱状图、折线图、排行、环形图、自定义筛选面板和完整页面
+QML 集成测试。记账与分析 MVP 已完成。
 
 ## 2. `.h` 和 `.cpp` 分别做什么
 
@@ -915,6 +916,16 @@ ViewModel 可用、自定义固定时区可持久化、无效设置回退到 UTC
 候选文件不会触碰当前数据；同时验证 QML 使用的数据维护 ViewModel 能通过组合根把
 真实 SQLite 流水导出为 CSV。
 
+### `tests/integration/qml/AnalyticsQmlIntegrationTest.cpp`
+
+使用 `QQmlEngine` 实例化正式分析页面和组件，并连接真实
+`AccountingAnalyticsViewModel`。Repository 使用内存测试实现，因此测试能够精确准备
+空数据、负结余、小额、跨年、归档关联和多账户/分类场景，同时不会访问正式数据库。
+
+它验证图表与分类展示切换、6/12/24 月点数、筛选摘要、恢复默认、ViewModel 重绑定，
+以及 640/960/1280 三档响应式列数。测试在 offscreen 软件渲染环境运行，Qt Charts
+仍由 `QApplication` 提供样式服务。
+
 ## 11. CMake 文件如何组织 C++ 代码
 
 ### 根 `CMakeLists.txt`
@@ -993,6 +1004,12 @@ Infrastructure 与 Presentation，负责把两条依赖链组装起来。
 分别创建数据库迁移、备份服务、CSV 写入器、账户、分类和账单 Repository 测试目标。
 三个 Repository 集成测试额外链接 Application，用于验证创建用例到 SQLite 的完整调用链。
 
+### `tests/integration/qml/CMakeLists.txt`
+
+创建 `StuKitAnalyticsQmlIntegrationTest`，把正式分析 QML 源文件编译进测试专用 URI，
+并将 `app.analytics_qml` 注册给 CTest。它链接 Qt Quick、Charts、Widgets、Test 和记账
+Application/Domain/Presentation，但不链接 SQLite Infrastructure。
+
 ## 12. 建议的代码阅读顺序
 
 第一次阅读项目时，建议按照下面的顺序：
@@ -1037,7 +1054,8 @@ Infrastructure 与 Presentation，负责把两条依赖链组装起来。
 38. `BarSeriesChart.qml` 与 `LineSeriesChart.qml`：理解通用系列如何进入 Qt Charts。
 39. `RankingBars.qml` 与 `DonutBreakdown.qml`：理解同一分类模型的两种展示方式。
 40. `AnalyticsHomePage.qml`：理解图表切换、响应式卡片和空状态如何组成独立板块。
-41. `main.cpp`：理解标准路径、根属性注入、恢复后重绑定和应用启动。
+41. `AnalyticsQmlIntegrationTest.cpp`：理解完整 QML 页面如何在隔离环境中自动验收。
+42. `main.cpp`：理解标准路径、根属性注入、恢复后重绑定和应用启动。
 
 ## 13. 修改代码时如何判断文件归属
 
@@ -1054,5 +1072,5 @@ Infrastructure 与 Presentation，负责把两条依赖链组装起来。
 ## 14. 后续更新规则
 
 每完成一课并新增 C++ 文件，都应在本文补充它的职责、依赖和禁止承担的职责。
-下一课将为分析页面补充 QML 集成测试和真实数据验收，重点检查图表切换、筛选重置、
-归档历史、数据库恢复后的重绑定及窄窗口布局。记账 MVP 收尾后开始课表 Domain。
+记账和分析 MVP 已完成。下一课开始课表 Domain，先建立学期、课程、上课安排与周次
+模式，并用纯 C++ 自动测试固定核心规则，暂不进入 SQLite 或 QML。
