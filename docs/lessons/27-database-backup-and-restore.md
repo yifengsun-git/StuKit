@@ -26,7 +26,7 @@ SQLite 可能正在执行事务，数据库也可能启用辅助日志文件。�
 
 ```text
 QML FileDialog
-  -> DataMaintenanceViewModel
+  -> app/DataMaintenanceViewModel
   -> DatabaseBackupService
   -> SQLite / filesystem
 ```
@@ -68,7 +68,7 @@ Windows 与 Android 的主要差异是用户如何选择和授权访问文件。
 
 ```text
 src/features/accounting/infrastructure/backup/DatabaseBackupService.h/.cpp
-src/features/accounting/presentation/DataMaintenanceViewModel.h/.cpp
+src/app/DataMaintenanceViewModel.h/.cpp
 src/features/accounting/qml/AccountingHomePage.qml
 src/app/AccountingModule.h/.cpp
 相关单元测试、集成测试与文档
@@ -88,11 +88,68 @@ src/app/AccountingModule.h/.cpp
 
 ## 8. 验收清单
 
-- [ ] 可以创建并验证一致的数据库备份。
-- [ ] 可以从有效备份恢复并重新加载页面。
-- [ ] 恢复前存在二次确认与自动回退副本。
-- [ ] 所有失败路径不会破坏当前数据库。
-- [ ] QML 不直接操作 SQLite 或复制数据库文件。
-- [ ] 文件选择与核心恢复流程保持跨平台边界。
-- [ ] 全量测试、QML lint 和启动检查通过。
-- [ ] 文档与代码导读同步更新。
+- [x] 可以创建并验证一致的数据库备份。
+- [x] 可以从有效备份恢复并重新加载页面。
+- [x] 恢复前存在二次确认与自动回退副本。
+- [x] 所有已验证失败路径不会破坏当前数据库。
+- [x] QML 不直接操作 SQLite 或复制数据库文件。
+- [x] 文件选择与核心恢复流程保持跨平台边界。
+- [x] 全量测试、QML lint 和启动检查通过。
+- [x] 文档与代码导读同步更新。
+
+## 9. 实现说明
+
+### 一致性备份
+
+`SqliteBackupService` 使用 SQLite 的 `VACUUM INTO` 创建一致快照，先写入目标目录的
+临时文件，再执行 `PRAGMA quick_check`、迁移历史和关键表验证。验证通过后使用
+`QSaveFile` 原子提交到用户选择的目标，避免中途失败留下半个备份文件。
+
+服务会拒绝把活动数据库备份到自身。目标已存在时，底层默认拒绝覆盖；界面使用
+系统保存对话框完成覆盖确认后才显式允许替换。
+
+### 恢复与回退
+
+恢复候选文件必须满足以下条件：
+
+- 是结构完整的 SQLite 数据库。
+- 包含连续的 StuKit 迁移历史。
+- 包含对应版本需要的业务表。
+- 数据库版本不高于当前程序支持的版本 3。
+
+候选文件通过验证后，`AccountingModule` 先在应用数据目录的 `backups/` 中创建
+`pre-restore-*.sqlite` 安全快照，然后按依赖顺序销毁 ViewModel、用例、Repository
+和数据库连接。替换使用 `QSaveFile` 原子提交；重新初始化失败时，会用安全快照回退
+并再次打开原数据。
+
+恢复会重建四个记账 ViewModel。`DataMaintenanceViewModel` 通知 `main.cpp` 把新对象
+重新设置到 QML 根属性，避免界面继续引用已经销毁的对象。
+
+### Git 数据保护
+
+正式数据库默认位于 `QStandardPaths::AppDataLocation`，不在 Git 仓库。`.gitignore`
+同时新增 `*.sqlite`、`*.db` 及 SQLite WAL/SHM 文件规则，即使以后把数据库复制到
+项目目录，也不会被普通 `git add` 意外提交。
+
+## 10. 实现与验证结果
+
+- 首页增加“备份数据”和“恢复数据”入口。
+- 备份使用系统保存文件对话框，默认补全 `.sqlite` 后缀。
+- 恢复使用系统打开文件对话框，并在替换当前数据前二次确认。
+- 损坏文件、普通非 StuKit 数据库和未来版本数据库会在关闭当前连接前被拒绝。
+- 恢复成功后账户、分类、流水、余额和当前月份页面状态重新加载。
+- 恢复前安全快照会保留在应用数据目录，便于额外人工找回。
+
+验证结果：
+
+```text
+MSVC 2022 Release build: passed
+CTest: 25/25 passed
+QML lint: passed with no warnings
+Windows QML startup smoke test: passed (no stderr output)
+```
+
+## 11. 后续方向
+
+第二十八课实现 CSV 流水导出。数据库备份面向“完整恢复”，CSV 导出则面向用户
+查看和数据可携带性；两者用途不同，CSV 不会被当作可恢复的完整数据库。

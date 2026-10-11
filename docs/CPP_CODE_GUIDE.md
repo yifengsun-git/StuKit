@@ -5,9 +5,9 @@
 本文说明 StuKit 中各个 C++ 头文件和源文件的职责、依赖关系以及不能承担的职责。
 它适合在阅读代码、排查编译错误或添加新功能前快速查阅。
 
-当前内容对应第二十六课完成后的代码，包括三版 SQLite 迁移、三个 Repository
+当前内容对应第二十七课完成后的代码，包括三版 SQLite 迁移、三个 Repository
 接口、创建与查询用例、记账 Presentation，以及从 QML 创建账户、分类和账单并
-持久化到真实 SQLite 的端到端链路、账户余额和月度流水组合筛选。
+持久化到真实 SQLite 的端到端链路、账户余额、月度流水筛选和安全备份恢复。
 
 ## 2. `.h` 和 `.cpp` 分别做什么
 
@@ -36,10 +36,14 @@ main.cpp
 
 AccountingModule
   -> UserSettings
-  -> SqliteDatabase / 三个 SQLite Repository
+  -> SqliteDatabase / SqliteBackupService / 三个 SQLite Repository
   -> 创建与查询用例
   -> AccountingOverviewViewModel / AccountingSetupViewModel
   -> CreateTransactionViewModel / AccountBalancesViewModel
+
+DataMaintenanceViewModel
+  -> AccountingModule::backupDatabase / restoreDatabase
+  -> QML 文件选择与状态提示
 
 CreateAccount
   -> IAccountRepository
@@ -101,6 +105,10 @@ SqliteDatabase
   -> categories 表
   -> transactions 表与索引
 
+SqliteBackupService
+  -> SQLite VACUUM INTO / PRAGMA quick_check
+  -> QSaveFile 原子替换
+
 SqliteAccountRepository
   -> IAccountRepository
   -> QSqlDatabase / accounts 表
@@ -128,10 +136,11 @@ Presentation/QML -> Application -> Domain
 Infrastructure --------------------> Domain
 ```
 
-记账 QML 已通过根属性连接四个 ViewModel：`AccountingOverviewViewModel` 读取月度
+记账 QML 已通过根属性连接五个 ViewModel：`AccountingOverviewViewModel` 读取月度
 汇总和流水，`AccountingSetupViewModel` 读取并创建账户与分类，
 `CreateTransactionViewModel` 收集并提交新增或编辑账单表单并编排删除操作，
-`AccountBalancesViewModel` 提供账户当前余额与活动账户总资产。全新数据库会显示首次设置引导，
+`AccountBalancesViewModel` 提供账户当前余额与活动账户总资产，
+`DataMaintenanceViewModel` 编排备份、恢复和界面重绑定。全新数据库会显示首次设置引导，
 不会自动写入演示数据。账户与分类创建入口保持常驻，首次设置完成后仍可继续添加。
 
 ## 4. 程序入口
@@ -144,8 +153,9 @@ Infrastructure --------------------> Domain
 - 设置组织名和应用名，供设置、路径等 Qt API 使用。
 - 创建 `QQmlApplicationEngine`。
 - 使用 `QStandardPaths` 获取正式应用数据目录。
-- 创建 `QSettings` 和 `AccountingModule`。
+- 创建 `QSettings`、`AccountingModule` 和 `DataMaintenanceViewModel`。
 - 通过根初始属性把 ViewModel 与启动错误传给 QML。
+- 恢复数据库后把重建的记账 ViewModel 重新设置到 QML 根属性。
 - 从 QML 模块 `StuKit` 加载 `Main.qml`。
 - 在 QML 根对象创建失败时，以错误码退出。
 
@@ -172,13 +182,26 @@ Infrastructure --------------------> Domain
 
 1. 创建应用数据目录并打开 `stukit.sqlite`。
 2. 执行数据库迁移。
-3. 创建三个 SQLite Repository。
+3. 创建备份服务和三个 SQLite Repository。
 4. 创建账户、分类、账单 CRUD 与月度查询用例。
-5. 创建三个 ViewModel 并连接基础数据、时区和账单变更信号。
+5. 创建四个记账 ViewModel 并连接基础数据、时区和账单变更信号。
 6. 加载初始数据并保存后续时区变化。
+7. 编排数据库备份、恢复前安全快照、连接释放、替换、重新初始化和失败回退。
 
 成员按数据库、Repository、用例、ViewModel 顺序声明，并反向销毁，确保数据库连接
 最后关闭。其他层不能依赖这个类。
+
+### `src/app/DataMaintenanceViewModel.h/.cpp`
+
+这是数据维护操作与 QML 之间的桥梁：
+
+- 将 `FileDialog` 返回的本地 `QUrl` 转换为路径。
+- 调用 `AccountingModule` 执行备份或恢复。
+- 提供忙碌、成功和错误状态。
+- 恢复尝试后通知 `main.cpp` 重新绑定组合根中的记账 ViewModel。
+
+它不直接运行 SQL 或复制文件。以后 Android 返回内容 URI 时，应在平台适配边界先
+取得可读写的本地临时文件，再复用相同的数据库维护流程。
 
 ## 5. Domain：记账领域层
 
@@ -487,6 +510,19 @@ Infrastructure 负责数据库、文件和平台 API 等外部技术细节。它
 
 迁移具有幂等性：同一个数据库多次调用 `migrate()` 不会重复创建表。
 
+### `backup/SqliteBackupService.h/.cpp`
+
+封装 SQLite 与文件系统相关的备份恢复原语：
+
+- 使用 `VACUUM INTO` 从活动连接创建一致快照。
+- 验证 SQLite 完整性、连续迁移历史、关键表和受支持版本。
+- 拒绝活动数据库与目标文件为同一路径。
+- 先验证临时快照，再通过 `QSaveFile` 原子提交。
+- 只在数据库连接已经由组合根释放后替换正式数据库文件。
+
+它不知道页面、当前月份或确认对话框，也不负责重建 Repository 和 ViewModel；这些
+跨对象生命周期操作由 `AccountingModule` 编排。
+
 ### `repositories/SqliteAccountRepository.h`
 
 声明 `IAccountRepository` 的 SQLite 实现：
@@ -737,6 +773,11 @@ tests/unit/accounting/
 SQLite Repository 组装起来验证跨层流程。测试先销毁 Repository，再关闭数据库，
 避免 Qt 报告连接仍被使用。
 
+### `tests/integration/accounting/SqliteBackupServiceTest.cpp`
+
+验证一致快照包含真实数据、已有目标默认受保护、明确覆盖后可原子替换、损坏文件
+会被拒绝、未来迁移版本会被拒绝，以及关闭连接后能用有效备份替换数据库。
+
 ### `tests/integration/accounting/SqliteCategoryRepositoryTest.cpp`
 
 验证收入与支出分类的保存、查询、同 UUID 更新、稳定排序和缺失结果，并将
@@ -758,7 +799,9 @@ ViewModel 可用、自定义固定时区可持久化、无效设置回退到 UTC
 不会自动产生默认记录。测试还通过表单 ViewModel 写入真实账单，验证创建、编辑和
 删除后月度首页立即刷新，归档项的历史关联名称仍可读，以及每次重启后 SQLite
 保持最新状态；并验证余额随期初值及账单新增、编辑、删除同步变化，重启后仍可从
-真实 SQLite 流水重新推导，归档账户不会计入活动总资产。
+真实 SQLite 流水重新推导，归档账户不会计入活动总资产。它还验证真实数据库可以
+备份、修改后恢复，恢复前安全快照存在，旧 ViewModel 被销毁并重新创建，以及无效
+候选文件不会触碰当前数据。
 
 ## 11. CMake 文件如何组织 C++ 代码
 
@@ -798,8 +841,8 @@ GetAccountingSetup 和 GetAccountBalances，并链接 `StuKitAccountingDomain`�
 
 ### `src/features/accounting/infrastructure/CMakeLists.txt`
 
-创建 `StuKitAccountingInfrastructure`，编译 `SqliteDatabase` 和三个 SQLite
-Repository，并链接 `Qt6::Sql` 和 `StuKitAccountingDomain`。
+创建 `StuKitAccountingInfrastructure`，编译 `SqliteDatabase`、`SqliteBackupService`
+和三个 SQLite Repository，并链接 `Qt6::Sql` 和 `StuKitAccountingDomain`。
 
 ### `src/features/accounting/presentation/CMakeLists.txt`
 
@@ -809,7 +852,7 @@ Repository，并链接 `Qt6::Sql` 和 `StuKitAccountingDomain`。
 
 ### `src/app/CMakeLists.txt`
 
-创建 `StuKitAppCore`，编译组合根和用户设置。只有这个最外层目标同时链接
+创建 `StuKitAppCore`，编译组合根、用户设置和数据维护 ViewModel。只有这个最外层目标同时链接
 Infrastructure 与 Presentation，负责把两条依赖链组装起来。
 
 ### `tests/CMakeLists.txt`
@@ -822,7 +865,7 @@ Infrastructure 与 Presentation，负责把两条依赖链组装起来。
 
 ### `tests/integration/accounting/CMakeLists.txt`
 
-分别创建数据库迁移、账户、分类和账单 Repository 测试目标。三个 Repository
+分别创建数据库迁移、备份服务、账户、分类和账单 Repository 测试目标。三个 Repository
 集成测试额外链接 Application，用于验证创建用例到 SQLite 的完整调用链。
 
 ## 12. 建议的代码阅读顺序
@@ -853,9 +896,11 @@ Infrastructure 与 Presentation，负责把两条依赖链组装起来。
 22. `CreateTransactionPresentationTest.cpp`：理解表单状态如何脱离 QML 测试。
 23. `AccountingSetupTest.cpp`：理解基础数据输入、查询、模型和错误映射。
 24. `UserSettings.h/.cpp`：理解自定义时区如何跨启动保存。
-25. `AccountingModule.h/.cpp`：理解信号连接、依赖组装和资源析构顺序。
-26. `AccountingHomePage.qml`：理解 QML 如何只绑定状态和发送操作。
-27. `main.cpp`：理解标准路径、根属性注入和应用启动。
+25. `SqliteBackupService.h/.cpp`：理解一致快照、验证和原子文件替换。
+26. `AccountingModule.h/.cpp`：理解信号连接、依赖组装、恢复回退和资源析构顺序。
+27. `DataMaintenanceViewModel.h/.cpp`：理解文件 URL、操作状态和 QML 对象重绑定通知。
+28. `AccountingHomePage.qml`：理解 QML 如何只绑定状态、选择文件和发送操作。
+29. `main.cpp`：理解标准路径、根属性注入、恢复后重绑定和应用启动。
 
 ## 13. 修改代码时如何判断文件归属
 
@@ -872,6 +917,6 @@ Infrastructure 与 Presentation，负责把两条依赖链组装起来。
 ## 14. 后续更新规则
 
 每完成一课并新增 C++ 文件，都应在本文补充它的职责、依赖和禁止承担的职责。
-下一阶段将进入数据可靠性建设，设计 SQLite 一致性备份、候选文件验证、恢复回退
-和模块重新初始化流程。文件选择留在界面及平台边界，数据库操作放在 Infrastructure，
-避免 Windows 或 Android 的文件 API 进入 Domain 和 Application。
+下一阶段将实现全量流水 CSV 导出。查询和关联名称组装放在 Application，CSV 编码、
+转义与原子文件提交放在 Infrastructure，文件选择继续留在 QML 和应用边界。CSV 只
+用于查看与分析，不替代可完整恢复的 SQLite 备份。
