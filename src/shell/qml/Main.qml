@@ -8,6 +8,7 @@ ApplicationWindow
 
     required property var accountingOverview
     required property var accountingBalances
+    required property var accountingAnalytics
     required property var accountingSetup
     required property var accountingTransactionEditor
     required property var dataMaintenance
@@ -166,7 +167,10 @@ ApplicationWindow
             maintenanceViewModel: window.dataMaintenance
             startupError: window.accountingStartupError
         }
-        AnalyticsHomePage {}
+        AnalyticsHomePage {
+            viewModel: window.accountingAnalytics
+            startupError: window.accountingStartupError
+        }
         ScheduleHomePage {}
     }
 }

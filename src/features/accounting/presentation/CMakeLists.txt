@@ -1,4 +1,6 @@
 add_library(StuKitAccountingPresentation STATIC
+    AccountAnalyticsListModel.cpp
+    AccountAnalyticsListModel.h
     AccountBalanceListModel.cpp
     AccountBalanceListModel.h
     AccountBalancesViewModel.cpp
@@ -9,6 +11,10 @@ add_library(StuKitAccountingPresentation STATIC
     AccountingOverviewViewModel.h
     AccountingSetupViewModel.cpp
     AccountingSetupViewModel.h
+    AccountingAnalyticsViewModel.cpp
+    AccountingAnalyticsViewModel.h
+    CategoryAnalyticsListModel.cpp
+    CategoryAnalyticsListModel.h
     CategoryListModel.cpp
     CategoryListModel.h
     CreateTransactionViewModel.cpp
@@ -17,6 +23,8 @@ add_library(StuKitAccountingPresentation STATIC
     MoneyFormatter.h
     MoneyInputParser.cpp
     MoneyInputParser.h
+    MonthlyAnalyticsListModel.cpp
+    MonthlyAnalyticsListModel.h
     TransactionListModel.cpp
     TransactionListModel.h
     TransactionFilterProxyModel.cpp
@@ -32,6 +40,7 @@ target_link_libraries(StuKitAccountingPresentation
     PUBLIC
         Qt6::Core
         StuKitAccountingApplication
+        StuKitAnalyticsPresentation
 )
 
 target_compile_features(StuKitAccountingPresentation

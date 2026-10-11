@@ -1,5 +1,6 @@
 #include "AccountingModule.h"
 #include "AccountBalancesViewModel.h"
+#include "AccountingAnalyticsViewModel.h"
 #include "AccountingOverviewViewModel.h"
 #include "AccountingSetupViewModel.h"
 #include "CreateTransactionViewModel.h"
@@ -50,6 +51,10 @@ int main(int argc, char *argv[])
         QVariant::fromValue(static_cast<QObject *>(
             accountingModule.balancesViewModel())));
     initialProperties.insert(
+        QStringLiteral("accountingAnalytics"),
+        QVariant::fromValue(static_cast<QObject *>(
+            accountingModule.analyticsViewModel())));
+    initialProperties.insert(
         QStringLiteral("accountingSetup"),
         QVariant::fromValue(static_cast<QObject *>(
             accountingModule.setupViewModel())));
@@ -88,6 +93,10 @@ int main(int argc, char *argv[])
                     "accountingBalances",
                     QVariant::fromValue(static_cast<QObject *>(
                         accountingModule.balancesViewModel())));
+                rootObject->setProperty(
+                    "accountingAnalytics",
+                    QVariant::fromValue(static_cast<QObject *>(
+                        accountingModule.analyticsViewModel())));
                 rootObject->setProperty(
                     "accountingSetup",
                     QVariant::fromValue(static_cast<QObject *>(

@@ -297,6 +297,24 @@ add_test(
     COMMAND StuKitAccountBalancesPresentationTest
 )
 
+add_executable(StuKitAccountingAnalyticsPresentationTest
+    AccountingAnalyticsPresentationTest.cpp
+    support/InMemoryAccountRepository.h
+    support/InMemoryCategoryRepository.h
+    support/InMemoryTransactionRepository.h
+)
+
+target_link_libraries(StuKitAccountingAnalyticsPresentationTest
+    PRIVATE
+        Qt6::Test
+        StuKitAccountingPresentation
+)
+
+add_test(
+    NAME accounting.analytics_presentation
+    COMMAND StuKitAccountingAnalyticsPresentationTest
+)
+
 add_executable(StuKitTransactionFilterProxyModelTest
     TransactionFilterProxyModelTest.cpp
 )

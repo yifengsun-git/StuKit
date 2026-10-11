@@ -1,6 +1,7 @@
 #include "AccountingModule.h"
 
 #include "AccountBalancesViewModel.h"
+#include "AccountingAnalyticsViewModel.h"
 #include "AccountingOverviewViewModel.h"
 #include "AccountingSetupViewModel.h"
 #include "CreateAccount.h"
@@ -9,6 +10,7 @@
 #include "CreateTransactionViewModel.h"
 #include "DeleteTransaction.h"
 #include "GetAccountingSetup.h"
+#include "GetAccountingAnalytics.h"
 #include "GetAccountBalances.h"
 #include "GetMonthlyOverview.h"
 #include "GetTransaction.h"
@@ -93,6 +95,11 @@ bool AccountingModule::initialize(const QDate &selectedMonth)
         *m_categoryRepository);
     m_getAccountBalances = std::make_unique<accounting::GetAccountBalances>(
         *m_accountRepository, *m_transactionRepository);
+    m_getAccountingAnalytics =
+        std::make_unique<accounting::GetAccountingAnalytics>(
+            *m_transactionRepository,
+            *m_accountRepository,
+            *m_categoryRepository);
     m_createAccount = std::make_unique<accounting::CreateAccount>(
         *m_accountRepository);
     m_createCategory = std::make_unique<accounting::CreateCategory>(
@@ -128,6 +135,12 @@ bool AccountingModule::initialize(const QDate &selectedMonth)
     m_balancesViewModel = std::make_unique<
         accounting::presentation::AccountBalancesViewModel>(
         *m_getAccountBalances);
+    m_analyticsViewModel = std::make_unique<
+        accounting::presentation::AccountingAnalyticsViewModel>(
+        *m_getAccountingAnalytics,
+        *m_getAccountingSetup,
+        m_userSettings.accountingTimeZone(),
+        selectedMonth);
     m_setupViewModel = std::make_unique<
         accounting::presentation::AccountingSetupViewModel>(
         *m_getAccountingSetup,
@@ -161,6 +174,14 @@ bool AccountingModule::initialize(const QDate &selectedMonth)
                 m_overviewViewModel->timeZone());
         });
     QObject::connect(
+        m_overviewViewModel.get(),
+        &accounting::presentation::AccountingOverviewViewModel::timeZoneChanged,
+        m_analyticsViewModel.get(),
+        [this]() {
+            m_analyticsViewModel->setTimeZone(
+                m_overviewViewModel->timeZone());
+        });
+    QObject::connect(
         m_setupViewModel.get(),
         &accounting::presentation::AccountingSetupViewModel::setupChanged,
         m_transactionEditorViewModel.get(),
@@ -176,6 +197,11 @@ bool AccountingModule::initialize(const QDate &selectedMonth)
         m_balancesViewModel.get(),
         &accounting::presentation::AccountBalancesViewModel::load);
     QObject::connect(
+        m_setupViewModel.get(),
+        &accounting::presentation::AccountingSetupViewModel::setupChanged,
+        m_analyticsViewModel.get(),
+        &accounting::presentation::AccountingAnalyticsViewModel::load);
+    QObject::connect(
         m_transactionEditorViewModel.get(),
         &accounting::presentation::CreateTransactionViewModel::transactionCreated,
         m_overviewViewModel.get(),
@@ -185,6 +211,11 @@ bool AccountingModule::initialize(const QDate &selectedMonth)
         &accounting::presentation::CreateTransactionViewModel::transactionCreated,
         m_balancesViewModel.get(),
         &accounting::presentation::AccountBalancesViewModel::load);
+    QObject::connect(
+        m_transactionEditorViewModel.get(),
+        &accounting::presentation::CreateTransactionViewModel::transactionCreated,
+        m_analyticsViewModel.get(),
+        &accounting::presentation::AccountingAnalyticsViewModel::load);
     QObject::connect(
         m_transactionEditorViewModel.get(),
         &accounting::presentation::CreateTransactionViewModel::transactionUpdated,
@@ -197,6 +228,11 @@ bool AccountingModule::initialize(const QDate &selectedMonth)
         &accounting::presentation::AccountBalancesViewModel::load);
     QObject::connect(
         m_transactionEditorViewModel.get(),
+        &accounting::presentation::CreateTransactionViewModel::transactionUpdated,
+        m_analyticsViewModel.get(),
+        &accounting::presentation::AccountingAnalyticsViewModel::load);
+    QObject::connect(
+        m_transactionEditorViewModel.get(),
         &accounting::presentation::CreateTransactionViewModel::transactionDeleted,
         m_overviewViewModel.get(),
         &accounting::presentation::AccountingOverviewViewModel::load);
@@ -205,6 +241,11 @@ bool AccountingModule::initialize(const QDate &selectedMonth)
         &accounting::presentation::CreateTransactionViewModel::transactionDeleted,
         m_balancesViewModel.get(),
         &accounting::presentation::AccountBalancesViewModel::load);
+    QObject::connect(
+        m_transactionEditorViewModel.get(),
+        &accounting::presentation::CreateTransactionViewModel::transactionDeleted,
+        m_analyticsViewModel.get(),
+        &accounting::presentation::AccountingAnalyticsViewModel::load);
 
     m_setupViewModel->load();
     return true;
@@ -370,6 +411,12 @@ AccountingModule::balancesViewModel() const noexcept
     return m_balancesViewModel.get();
 }
 
+accounting::presentation::AccountingAnalyticsViewModel *
+AccountingModule::analyticsViewModel() const noexcept
+{
+    return m_analyticsViewModel.get();
+}
+
 const QString &AccountingModule::databasePath() const noexcept
 {
     return m_databasePath;
@@ -388,6 +435,7 @@ const QString &AccountingModule::lastError() const noexcept
 void AccountingModule::reset()
 {
     m_transactionEditorViewModel.reset();
+    m_analyticsViewModel.reset();
     m_setupViewModel.reset();
     m_balancesViewModel.reset();
     m_overviewViewModel.reset();
@@ -397,6 +445,7 @@ void AccountingModule::reset()
     m_updateTransaction.reset();
     m_createTransaction.reset();
     m_getAccountingSetup.reset();
+    m_getAccountingAnalytics.reset();
     m_getAccountBalances.reset();
     m_updateCategory.reset();
     m_updateAccount.reset();

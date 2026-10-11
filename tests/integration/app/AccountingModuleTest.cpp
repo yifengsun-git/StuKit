@@ -1,6 +1,7 @@
 #include "AccountingModule.h"
 #include "AccountBalanceListModel.h"
 #include "AccountBalancesViewModel.h"
+#include "AccountingAnalyticsViewModel.h"
 #include "AccountingOverviewViewModel.h"
 #include "AccountingSetupViewModel.h"
 #include "AccountListModel.h"
@@ -71,6 +72,7 @@ void AccountingModuleTest::initializesDatabaseAndViewModel()
              qPrintable(module.lastError()));
     QVERIFY(module.overviewViewModel() != nullptr);
     QVERIFY(module.balancesViewModel() != nullptr);
+    QVERIFY(module.analyticsViewModel() != nullptr);
     QVERIFY(module.setupViewModel() != nullptr);
     QVERIFY(module.transactionEditorViewModel() != nullptr);
     QVERIFY(QFileInfo::exists(module.databasePath()));
@@ -81,6 +83,9 @@ void AccountingModuleTest::initializesDatabaseAndViewModel()
     QVERIFY(!module.overviewViewModel()->hasError());
     QCOMPARE(module.balancesViewModel()->activeTotalText(),
              QStringLiteral("0.00"));
+    QCOMPARE(module.analyticsViewModel()->monthCount(), 12);
+    QCOMPARE(module.analyticsViewModel()->months()->rowCount(), 12);
+    QVERIFY(!module.analyticsViewModel()->hasError());
     QVERIFY(!module.balancesViewModel()->hasError());
     QCOMPARE(module.setupViewModel()->accounts()->rowCount(), 0);
     QCOMPARE(module.setupViewModel()->categories()->rowCount(), 0);
@@ -161,6 +166,10 @@ void AccountingModuleTest::createsEditsDeletesAndRestoresTransaction()
         QCOMPARE(module.overviewViewModel()->totalExpenseText(),
                  QStringLiteral("25.50"));
         QCOMPARE(module.overviewViewModel()->balanceText(),
+                 QStringLiteral("-25.50"));
+        QCOMPARE(module.analyticsViewModel()->selectedExpenseText(),
+                 QStringLiteral("25.50"));
+        QCOMPARE(module.analyticsViewModel()->selectedBalanceText(),
                  QStringLiteral("-25.50"));
         QCOMPARE(module.balancesViewModel()->activeTotalText(),
                  QStringLiteral("74.50"));
@@ -467,6 +476,8 @@ void AccountingModuleTest::persistsSelectedFixedTimeZone()
         QVERIFY(module.overviewViewModel()->selectFixedOffsetMinutes(-5 * 60));
         QCOMPARE(module.transactionEditorViewModel()->timeZone().id(),
                  QByteArrayLiteral("UTC-05:00"));
+        QCOMPARE(module.analyticsViewModel()->timeZone().id(),
+                 QByteArrayLiteral("UTC-05:00"));
         settings.sync();
     }
 
@@ -487,6 +498,7 @@ void AccountingModuleTest::rejectsEmptyApplicationDataDirectory()
     QVERIFY(!module.initialize(QDate(2026, 10, 1)));
     QVERIFY(module.overviewViewModel() == nullptr);
     QVERIFY(module.balancesViewModel() == nullptr);
+    QVERIFY(module.analyticsViewModel() == nullptr);
     QVERIFY(module.setupViewModel() == nullptr);
     QVERIFY(module.transactionEditorViewModel() == nullptr);
     QVERIFY(!module.lastError().isEmpty());

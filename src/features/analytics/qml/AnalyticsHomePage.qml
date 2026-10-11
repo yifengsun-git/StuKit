@@ -5,6 +5,9 @@ import QtQuick.Layouts
 Page {
     id: root
 
+    required property var viewModel
+    required property string startupError
+
     background: Rectangle {
         color: AppTheme.backgroundColor
     }
@@ -32,8 +35,101 @@ Page {
                 Layout.fillWidth: true
                 Layout.leftMargin: AppTheme.spacingLarge
                 Layout.rightMargin: AppTheme.spacingLarge
-                text: qsTr("集中查看默认洞察，也可以按时间、账户、分类和指标创建自定义分析。")
+                text: qsTr("默认展示最近 12 个月，也可以调整月份范围并按账户、分类筛选。")
                 color: AppTheme.textSecondaryColor
+                wrapMode: Text.WordWrap
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.leftMargin: AppTheme.spacingLarge
+                Layout.rightMargin: AppTheme.spacingLarge
+                Layout.preferredHeight: controlsLayout.implicitHeight
+                    + AppTheme.spacingMedium * 2
+                radius: AppTheme.radiusMedium
+                color: AppTheme.surfaceColor
+                border.color: AppTheme.borderColor
+
+                RowLayout {
+                    id: controlsLayout
+
+                    anchors.fill: parent
+                    anchors.margins: AppTheme.spacingMedium
+                    spacing: AppTheme.spacingSmall
+
+                    Button {
+                        text: qsTr("上一月")
+                        enabled: root.viewModel !== null
+                        onClicked: root.viewModel.showPreviousMonth()
+                    }
+
+                    Label {
+                        Layout.preferredWidth: 90
+                        horizontalAlignment: Text.AlignHCenter
+                        text: root.viewModel ? root.viewModel.monthLabel : "--"
+                        color: AppTheme.textPrimaryColor
+                        font.bold: true
+                    }
+
+                    Button {
+                        text: qsTr("下一月")
+                        enabled: root.viewModel !== null
+                        onClicked: root.viewModel.showNextMonth()
+                    }
+
+                    Label {
+                        Layout.leftMargin: AppTheme.spacingSmall
+                        text: qsTr("统计范围")
+                        color: AppTheme.textSecondaryColor
+                    }
+
+                    ComboBox {
+                        id: rangeBox
+
+                        Layout.preferredWidth: 110
+                        enabled: root.viewModel !== null
+                        textRole: "label"
+                        valueRole: "value"
+                        model: [
+                            { label: qsTr("近 6 个月"), value: 6 },
+                            { label: qsTr("近 12 个月"), value: 12 },
+                            { label: qsTr("近 24 个月"), value: 24 }
+                        ]
+                        currentIndex: {
+                            if (!root.viewModel)
+                                return 1
+                            if (root.viewModel.monthCount === 6)
+                                return 0
+                            if (root.viewModel.monthCount === 24)
+                                return 2
+                            return 1
+                        }
+                        onActivated: root.viewModel.monthCount = currentValue
+                    }
+
+                    Item {
+                        Layout.fillWidth: true
+                    }
+
+                    Button {
+                        text: qsTr("恢复默认")
+                        enabled: root.viewModel !== null
+                        onClicked: root.viewModel.resetFilters()
+                    }
+                }
+            }
+
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: AppTheme.spacingLarge
+                Layout.rightMargin: AppTheme.spacingLarge
+                visible: text.length > 0
+                text: root.startupError.length > 0
+                    ? root.startupError
+                    : root.viewModel && root.viewModel.hasError
+                        ? root.viewModel.errorMessage
+                        : ""
+                color: AppTheme.errorColor
                 wrapMode: Text.WordWrap
             }
 
@@ -41,73 +137,171 @@ Page {
                 Layout.fillWidth: true
                 Layout.leftMargin: AppTheme.spacingLarge
                 Layout.rightMargin: AppTheme.spacingLarge
-                columns: root.width >= 760 ? 2 : 1
+                columns: root.width >= 760 ? 3 : 1
                 columnSpacing: AppTheme.spacingMedium
                 rowSpacing: AppTheme.spacingMedium
 
                 Repeater {
                     model: [
                         {
-                            title: qsTr("默认记账分析"),
-                            description: qsTr("收支趋势、上月对比、分类排行和账户资金流。"),
-                            detail: qsTr("柱状图 · 折线图 · 排行图")
+                            title: qsTr("本月收入"),
+                            value: root.viewModel
+                                ? root.viewModel.selectedIncomeText : "0.00",
+                            change: root.viewModel
+                                ? root.viewModel.incomeChangeText : "0.00"
                         },
                         {
-                            title: qsTr("自定义分析"),
-                            description: qsTr("选择月份范围、账户、分类、指标和图表形式。"),
-                            detail: qsTr("将在后续课程接入可交互图表")
+                            title: qsTr("本月支出"),
+                            value: root.viewModel
+                                ? root.viewModel.selectedExpenseText : "0.00",
+                            change: root.viewModel
+                                ? root.viewModel.expenseChangeText : "0.00"
+                        },
+                        {
+                            title: qsTr("本月结余"),
+                            value: root.viewModel
+                                ? root.viewModel.selectedBalanceText : "0.00",
+                            change: root.viewModel
+                                ? root.viewModel.balanceChangeText : "0.00"
                         }
                     ]
 
                     delegate: Rectangle {
-                        id: analysisCard
+                        id: summaryCard
 
                         required property var modelData
 
                         Layout.fillWidth: true
-                        Layout.preferredHeight: cardLayout.implicitHeight
+                        Layout.preferredHeight: summaryLayout.implicitHeight
                             + AppTheme.spacingLarge * 2
                         radius: AppTheme.radiusMedium
                         color: AppTheme.surfaceColor
                         border.color: AppTheme.borderColor
 
                         ColumnLayout {
-                            id: cardLayout
+                            id: summaryLayout
 
                             anchors.fill: parent
                             anchors.margins: AppTheme.spacingLarge
-                            spacing: AppTheme.spacingSmall
 
                             Label {
-                                Layout.fillWidth: true
-                                text: analysisCard.modelData.title
+                                text: summaryCard.modelData.title
+                                color: AppTheme.textSecondaryColor
+                            }
+
+                            Label {
+                                text: summaryCard.modelData.value
                                 color: AppTheme.textPrimaryColor
                                 font.pixelSize: AppTheme.fontSizeHeading
                                 font.bold: true
                             }
 
                             Label {
-                                Layout.fillWidth: true
-                                text: analysisCard.modelData.description
-                                color: AppTheme.textSecondaryColor
-                                wrapMode: Text.WordWrap
-                            }
-
-                            Label {
-                                Layout.fillWidth: true
-                                text: analysisCard.modelData.detail
+                                text: qsTr("较上月 %1")
+                                    .arg(summaryCard.modelData.change)
                                 color: AppTheme.primaryColor
-                                wrapMode: Text.WordWrap
                             }
                         }
                     }
                 }
             }
 
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.leftMargin: AppTheme.spacingLarge
+                Layout.rightMargin: AppTheme.spacingLarge
+                Layout.preferredHeight: trendPreview.implicitHeight
+                    + AppTheme.spacingLarge * 2
+                radius: AppTheme.radiusMedium
+                color: AppTheme.surfaceColor
+                border.color: AppTheme.borderColor
+
+                ColumnLayout {
+                    id: trendPreview
+
+                    anchors.fill: parent
+                    anchors.margins: AppTheme.spacingLarge
+                    spacing: AppTheme.spacingSmall
+
+                    Label {
+                        text: qsTr("月度趋势数据")
+                        color: AppTheme.textPrimaryColor
+                        font.pixelSize: AppTheme.fontSizeHeading
+                        font.bold: true
+                    }
+
+                    Label {
+                        Layout.fillWidth: true
+                        text: qsTr("收入、支出和结余已经转换为通用图表系列；下一课在这里绘制柱状图和折线图。")
+                        color: AppTheme.textSecondaryColor
+                        wrapMode: Text.WordWrap
+                    }
+
+                    Repeater {
+                        model: root.viewModel ? root.viewModel.months : null
+
+                        delegate: RowLayout {
+                            id: monthlyRow
+
+                            required property string monthLabel
+                            required property string incomeText
+                            required property string expenseText
+                            required property string balanceText
+
+                            Layout.fillWidth: true
+
+                            Label {
+                                Layout.preferredWidth: 80
+                                text: monthlyRow.monthLabel
+                                color: AppTheme.textSecondaryColor
+                            }
+                            Label {
+                                Layout.fillWidth: true
+                                text: qsTr("收入 %1").arg(monthlyRow.incomeText)
+                                color: AppTheme.textPrimaryColor
+                            }
+                            Label {
+                                Layout.fillWidth: true
+                                text: qsTr("支出 %1").arg(monthlyRow.expenseText)
+                                color: AppTheme.textPrimaryColor
+                            }
+                            Label {
+                                Layout.fillWidth: true
+                                text: qsTr("结余 %1").arg(monthlyRow.balanceText)
+                                color: AppTheme.primaryColor
+                            }
+                        }
+                    }
+
+                    Label {
+                        Layout.fillWidth: true
+                        visible: root.viewModel && !root.viewModel.hasData
+                        text: qsTr("当前分析范围还没有账单数据。")
+                        color: AppTheme.textSecondaryColor
+                    }
+                }
+            }
+
             Label {
                 Layout.fillWidth: true
-                Layout.margins: AppTheme.spacingLarge
-                text: qsTr("分析外壳和图表组件将保持通用，未来饮食、学习等模块可以在这里增加自己的数据源。")
+                Layout.leftMargin: AppTheme.spacingLarge
+                Layout.rightMargin: AppTheme.spacingLarge
+                text: root.viewModel
+                    ? qsTr("账户筛选 %1 项 · 分类筛选 %2 项 · 记账时区 %3")
+                        .arg(root.viewModel.selectedAccountIds.length)
+                        .arg(root.viewModel.selectedCategoryIds.length)
+                        .arg(root.viewModel.timeZoneId)
+                    : ""
+                color: AppTheme.textSecondaryColor
+                wrapMode: Text.WordWrap
+            }
+
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: AppTheme.spacingLarge
+                Layout.rightMargin: AppTheme.spacingLarge
+                Layout.bottomMargin: AppTheme.spacingLarge
+                text: qsTr("图表系列模型保持通用，未来饮食、学习等模块可以提供自己的数据系列。")
                 color: AppTheme.textSecondaryColor
                 wrapMode: Text.WordWrap
             }

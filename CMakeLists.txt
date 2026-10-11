@@ -14,6 +14,7 @@ include(CTest)
 add_subdirectory(src/features/accounting/domain)
 add_subdirectory(src/features/accounting/application)
 add_subdirectory(src/features/accounting/infrastructure)
+add_subdirectory(src/features/analytics/presentation)
 add_subdirectory(src/features/accounting/presentation)
 add_subdirectory(src/app)
 
