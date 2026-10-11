@@ -5,9 +5,9 @@
 本文说明 StuKit 中各个 C++ 头文件和源文件的职责、依赖关系以及不能承担的职责。
 它适合在阅读代码、排查编译错误或添加新功能前快速查阅。
 
-当前内容对应第二十五课完成后的代码，包括三版 SQLite 迁移、三个 Repository
+当前内容对应第二十六课完成后的代码，包括三版 SQLite 迁移、三个 Repository
 接口、创建与查询用例、记账 Presentation，以及从 QML 创建账户、分类和账单并
-持久化到真实 SQLite 的端到端链路、带关联名称的流水列表和由历史数据推导的账户余额。
+持久化到真实 SQLite 的端到端链路、账户余额和月度流水组合筛选。
 
 ## 2. `.h` 和 `.cpp` 分别做什么
 
@@ -71,6 +71,7 @@ GetAccountBalances
 AccountingOverviewViewModel
   -> GetMonthlyOverview
   -> TransactionListModel
+  -> TransactionFilterProxyModel
   -> Q_PROPERTY / signals / Q_INVOKABLE
 
 AccountingSetupViewModel
@@ -585,6 +586,18 @@ accountName, categoryName, typeText, fullOccurredAtText
 防止 QML 使用设备时区。模型只转换单行展示数据，不查询
 Repository，也不计算月度汇总。
 
+### `TransactionFilterProxyModel.h/.cpp`
+
+继承 `QSortFilterProxyModel`，在不复制源数据的情况下筛选 `TransactionListModel`：
+
+- 类型条件支持全部、收入和支出。
+- 账户与分类使用 UUID 精确匹配。
+- 关键字对备注、账户名和分类名执行不区分大小写的包含匹配。
+- 多个非空条件同时存在时取交集。
+
+代理模型只决定哪些行对 QML 可见，不查询 Repository、不修改账单，也不重新计算
+月收入、月支出或月结余。
+
 ### `AccountBalanceListModel.h/.cpp`
 
 把 `std::vector<AccountBalanceItem>` 暴露为账户 ID、名称、期初余额文本、当前余额文本和
@@ -599,11 +612,14 @@ Repository，也不计算月度汇总。
 - 月收入、月支出、月结余文本。
 - 空数据与错误状态。
 - 流水 `QAbstractItemModel`。
+- 流水类型、账户、分类、关键字筛选状态及匹配数量。
+- 从完整月度流水生成的筛选选项，包括历史账单引用的归档项。
 - 上一月、下一月、加载和切换时区操作。
 - 地区时区及 -14:00 到 +14:00 固定偏移选择。
 
 ViewModel 调用 `GetMonthlyOverview`，但不知道数据来自 SQLite 还是内存测试实现。
-改变月份或时区会重新执行用例。错误枚举在这里转换为面向用户的稳定中文提示。
+改变月份或时区会重新执行用例。筛选通过 `TransactionFilterProxyModel` 只影响列表，
+不会改变完整月份汇总。错误枚举在这里转换为面向用户的稳定中文提示。
 
 ### `AccountBalancesViewModel.h/.cpp`
 
@@ -692,8 +708,9 @@ tests/unit/accounting/
 | `ManageSetupTest.cpp` | 账户/分类补丁更新、字段保留、不存在及存储失败。 |
 | `GetMonthlyOverviewTest.cpp` | 时区边界、跨年、汇总、关联名称、归档项、查询次数和错误。 |
 | `GetAccountBalancesTest.cpp` | 期初余额、收支累计、归档口径、查询失败、缺失关联和整数溢出。 |
-| `AccountingPresentationTest.cpp` | 金额、可读名称、类型、完整/简短时间角色、页面状态和导航。 |
+| `AccountingPresentationTest.cpp` | 金额、可读名称、完整/简短时间、页面导航、筛选状态及汇总不变性。 |
 | `AccountBalancesPresentationTest.cpp` | 余额角色、总资产格式、错误映射及失败后清理旧状态。 |
+| `TransactionFilterProxyModelTest.cpp` | 类型、账户、分类、关键字、组合条件、清空和源模型重置。 |
 | `AccountingSetupTest.cpp` | 金额输入边界、基础数据查询、创建、重命名、归档、恢复和错误映射。 |
 | `CreateTransactionPresentationTest.cpp` | 选项过滤、时区输入、编辑回填、更新/删除信号与错误保留。 |
 
@@ -786,8 +803,9 @@ Repository，并链接 `Qt6::Sql` 和 `StuKitAccountingDomain`。
 
 ### `src/features/accounting/presentation/CMakeLists.txt`
 
-创建 `StuKitAccountingPresentation`，编译金额格式化与解析、四个列表模型和四个
-ViewModel，并链接 `Qt6::Core` 与 `StuKitAccountingApplication`。它不链接 Qt SQL。
+创建 `StuKitAccountingPresentation`，编译金额格式化与解析、四个列表模型、一个
+筛选代理模型和四个 ViewModel，并链接 `Qt6::Core` 与
+`StuKitAccountingApplication`。它不链接 Qt SQL。
 
 ### `src/app/CMakeLists.txt`
 
@@ -826,17 +844,18 @@ Infrastructure 与 Presentation，负责把两条依赖链组装起来。
 13. `AccountListModel` 与 `CategoryListModel`：理解实体如何成为 QML 列表角色。
 14. `AccountingSetupViewModel.h/.cpp`：理解基础资料创建、重命名与归档流程。
 15. `TransactionListModel.h/.cpp`：理解流水如何成为 QML 列表角色。
-16. `AccountingOverviewViewModel.h/.cpp`：理解月份、时区与汇总状态。
-17. `GetAccountBalances.h/.cpp`：理解余额如何由期初值与全部流水安全推导。
-18. `AccountBalanceListModel.h/.cpp`：理解余额结果如何成为 QML 列表角色。
-19. `AccountBalancesViewModel.h/.cpp`：理解总资产文本、刷新和错误状态。
-20. `CreateTransactionViewModel.h/.cpp`：理解表单输入、过滤和提交编排。
-21. `CreateTransactionPresentationTest.cpp`：理解表单状态如何脱离 QML 测试。
-22. `AccountingSetupTest.cpp`：理解基础数据输入、查询、模型和错误映射。
-23. `UserSettings.h/.cpp`：理解自定义时区如何跨启动保存。
-24. `AccountingModule.h/.cpp`：理解信号连接、依赖组装和资源析构顺序。
-25. `AccountingHomePage.qml`：理解 QML 如何只绑定状态和发送操作。
-26. `main.cpp`：理解标准路径、根属性注入和应用启动。
+16. `TransactionFilterProxyModel.h/.cpp`：理解代理模型如何筛选源模型而不复制数据。
+17. `AccountingOverviewViewModel.h/.cpp`：理解月份、时区、汇总与筛选状态。
+18. `GetAccountBalances.h/.cpp`：理解余额如何由期初值与全部流水安全推导。
+19. `AccountBalanceListModel.h/.cpp`：理解余额结果如何成为 QML 列表角色。
+20. `AccountBalancesViewModel.h/.cpp`：理解总资产文本、刷新和错误状态。
+21. `CreateTransactionViewModel.h/.cpp`：理解表单输入、过滤和提交编排。
+22. `CreateTransactionPresentationTest.cpp`：理解表单状态如何脱离 QML 测试。
+23. `AccountingSetupTest.cpp`：理解基础数据输入、查询、模型和错误映射。
+24. `UserSettings.h/.cpp`：理解自定义时区如何跨启动保存。
+25. `AccountingModule.h/.cpp`：理解信号连接、依赖组装和资源析构顺序。
+26. `AccountingHomePage.qml`：理解 QML 如何只绑定状态和发送操作。
+27. `main.cpp`：理解标准路径、根属性注入和应用启动。
 
 ## 13. 修改代码时如何判断文件归属
 
@@ -853,5 +872,6 @@ Infrastructure 与 Presentation，负责把两条依赖链组装起来。
 ## 14. 后续更新规则
 
 每完成一课并新增 C++ 文件，都应在本文补充它的职责、依赖和禁止承担的职责。
-下一阶段将实现月度流水的收支类型、账户、分类和关键字组合筛选。筛选逻辑先放在
-Presentation 代理模型中，不改变 Domain、数据库结构或完整月份汇总的业务含义。
+下一阶段将进入数据可靠性建设，设计 SQLite 一致性备份、候选文件验证、恢复回退
+和模块重新初始化流程。文件选择留在界面及平台边界，数据库操作放在 Infrastructure，
+避免 Windows 或 Android 的文件 API 进入 Domain 和 Application。
