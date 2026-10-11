@@ -1,5 +1,6 @@
 add_subdirectory(unit/schedule)
 add_subdirectory(unit/accounting)
+add_subdirectory(integration/schedule)
 add_subdirectory(integration/accounting)
 add_subdirectory(integration/app)
 add_subdirectory(integration/qml)

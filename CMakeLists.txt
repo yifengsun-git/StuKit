@@ -13,6 +13,7 @@ include(CTest)
 
 add_subdirectory(src/features/schedule/domain)
 add_subdirectory(src/features/schedule/application)
+add_subdirectory(src/features/schedule/infrastructure)
 add_subdirectory(src/features/accounting/domain)
 add_subdirectory(src/features/accounting/application)
 add_subdirectory(src/features/accounting/infrastructure)
