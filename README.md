@@ -24,8 +24,10 @@ Category 实体，并建立了 Account 与 Category 的 Repository 接口和创�
 整数分精确解析并保存；应用重启后会从真实 SQLite 恢复这些基础数据。新增账单
 表单也已接通：用户可以选择收支类型、账户、匹配分类、日期时间和备注，账单保存
 后月度汇总立即刷新。金额不使用浮点数，发生时间严格使用用户自定义记账时区。
+流水列表现在能显示账户名、分类名和类型，点击后可查看包含完整时间与备注的
+只读详情。新增账户及收支分类的入口已调整为常驻按钮，不再只能完成一次首次设置。
 
-当前将进入流水可读化与账单详情阶段，为列表补充账户名称、分类名称和完整详情。
+当前将进入账单编辑与删除阶段，复用已建立的详情入口和表单校验。
 开发过程中保持界面与业务分离，并让时间、数据库和业务代码可在后续 Android
 版本继续复用。
 
@@ -67,6 +69,7 @@ Category 实体，并建立了 Account 与 Category 的 Repository 接口和创�
 - [第二十课：账户与分类首次设置](docs/lessons/20-accounting-setup.md)
 - [第二十一课：新增账单表单](docs/lessons/21-create-transaction-presentation.md)
 - [第二十二课：流水可读化与账单详情](docs/lessons/22-transaction-details.md)
+- [第二十三课：编辑与删除账单](docs/lessons/23-edit-delete-transactions.md)
 
 ## 开发原则
 

@@ -3,7 +3,7 @@
 ## 本课定位
 
 第二十一课已经能创建真实账单，但首页列表目前只显示金额、时间和备注，账户 UUID
-与分类 UUID 对用户没有意义。本课计划建立月度流水的展示 DTO，显示账户名、分类名
+与分类 UUID 对用户没有意义。本课建立月度流水的展示 DTO，显示账户名、分类名
 并提供账单详情入口：
 
 ```text
@@ -14,7 +14,8 @@ SQLite Repositories
   -> AccountingHomePage / Detail Dialog
 ```
 
-本课只增强读取和展示，不修改已有数据库结构，也不实现编辑与删除。
+本课已完成读取和展示增强，没有修改已有数据库结构，也没有提前实现
+编辑与删除。
 
 ## 1. 本课目标
 
@@ -47,7 +48,7 @@ Transaction 必须保存 accountId 和 categoryId 才能保持领域引用，但
 
 ## 3. MonthlyTransactionItem
 
-计划新增用于读取展示的 DTO：
+新增了用于读取展示的 DTO：
 
 ```cpp
 struct MonthlyTransactionItem
@@ -69,7 +70,7 @@ Transaction 被完整保留，避免展示 DTO 丢失后续详情需要的字段
 1 次月度流水查询 + N 次账户查询 + N 次分类查询
 ```
 
-本课计划让 `GetMonthlyOverview` 一次读取全部账户和分类，建立 UUID 到名称的内存
+本课让 `GetMonthlyOverview` 一次读取全部账户和分类，建立 UUID 到名称的内存
 索引，再在线性遍历流水时完成匹配：
 
 ```text
@@ -92,7 +93,7 @@ Transaction 被完整保留，避免展示 DTO 丢失后续详情需要的字段
 
 ## 6. TransactionListModel 更新
 
-计划新增角色：
+已新增角色：
 
 ```text
 accountName
@@ -113,7 +114,7 @@ occurredAt, occurredAtText, note
 
 ## 7. 首页列表调整
 
-每一行计划显示：
+每一行现在显示：
 
 ```text
 餐饮                         -25.50
@@ -126,7 +127,7 @@ occurredAt, occurredAtText, note
 
 ## 8. 账单详情对话框
 
-点击列表项后展示：
+点击列表项后会展示：
 
 - 收入或支出。
 - 精确金额。
@@ -141,7 +142,7 @@ occurredAt, occurredAtText, note
 
 ## 9. 依赖变化
 
-`GetMonthlyOverview` 将从只依赖 Transaction Repository，调整为依赖三个
+`GetMonthlyOverview` 已从只依赖 Transaction Repository，调整为依赖三个
 Repository 接口：
 
 ```text
@@ -153,7 +154,7 @@ ICategoryRepository
 `AccountingModule` 已经持有三个真实 SQLite Repository，只需修改用例构造，不需要
 新增全局对象或让 Presentation 访问 Infrastructure。
 
-## 10. 测试计划
+## 10. 测试覆盖
 
 ### Application
 
@@ -178,9 +179,9 @@ ICategoryRepository
 - 重启模块后详情数据保持一致。
 - QML 启动无绑定错误。
 
-## 11. 预计文件变化
+## 11. 文件变化
 
-主要修改：
+实际修改：
 
 ```text
 src/features/accounting/application/GetMonthlyOverview.h/.cpp
@@ -191,18 +192,42 @@ src/app/AccountingModule.cpp
 相关单元测试与集成测试
 ```
 
-预计不新增数据库迁移，因为账户名、分类名仍由现有表读取，不复制到 transactions
+没有新增数据库迁移，因为账户名、分类名仍由现有表读取，不复制到 transactions
 表中。
 
 ## 12. 验收清单
 
-- [ ] 首页流水显示分类名称和账户名称。
-- [ ] 点击流水可以查看完整详情。
-- [ ] QML 不用 UUID 查询名称。
-- [ ] 查询次数不随流水条数线性增加。
-- [ ] 归档关联项的历史账单仍可读取。
-- [ ] 缺失关联数据不会产生半完整页面。
-- [ ] 月度统计和自定义时区行为不回退。
-- [ ] 不新增不必要的数据库字段或迁移。
-- [ ] 全量测试通过。
-- [ ] 文档与代码导读同步更新。
+- [x] 首页流水显示分类名称和账户名称。
+- [x] 点击流水可以查看完整详情。
+- [x] QML 不用 UUID 查询名称。
+- [x] 查询次数不随流水条数线性增加。
+- [x] 归档关联项的历史账单仍可读取。
+- [x] 缺失关联数据不会产生半完整页面。
+- [x] 月度统计和自定义时区行为不回退。
+- [x] 不新增不必要的数据库字段或迁移。
+- [x] 全量测试通过。
+- [x] 文档与代码导读同步更新。
+
+## 13. 实现与验证结果
+
+- `GetMonthlyOverview` 每次加载固定执行一次流水查询、一次账户查询和
+  一次分类查询，再使用内存索引组装展示数据。
+- 历史流水保留原始实体与 UUID，同时获得账户名、分类名、类型文本和
+  自定义时区下的完整时间。
+- 列表项可点击打开只读详情，会显示金额、账户、分类、时间、备注和
+  账单 ID。
+- 修复了首次设置卡片消失后无法继续添加账户或分类的问题；三个新增入口
+  现在始终可见。
+
+验证结果：
+
+```text
+MSVC 2022 Release build: passed
+CTest: 19/19 passed
+Windows QML startup smoke test: passed
+```
+
+## 14. 后续方向
+
+第二十三课将在已有详情入口上增加账单编辑与删除，并保持领域校验、
+数据库结果和页面刷新一致。

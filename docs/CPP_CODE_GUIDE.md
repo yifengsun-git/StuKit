@@ -5,9 +5,9 @@
 本文说明 StuKit 中各个 C++ 头文件和源文件的职责、依赖关系以及不能承担的职责。
 它适合在阅读代码、排查编译错误或添加新功能前快速查阅。
 
-当前内容对应第二十一课完成后的代码，包括三版 SQLite 迁移、三个 Repository
+当前内容对应第二十二课完成后的代码，包括三版 SQLite 迁移、三个 Repository
 接口、创建与查询用例、记账 Presentation，以及从 QML 创建账户、分类和账单并
-持久化到真实 SQLite 的端到端链路。
+持久化到真实 SQLite 的端到端链路，以及带关联名称的流水列表和账单详情。
 
 ## 2. `.h` 和 `.cpp` 分别做什么
 
@@ -54,8 +54,9 @@ CreateTransaction
 
 GetMonthlyOverview
   -> ITransactionRepository::findOccurredBetween
+  -> IAccountRepository::findAll / ICategoryRepository::findAll
   -> 用户自定义 QTimeZone
-  -> MonthlyOverview
+  -> MonthlyOverview / MonthlyTransactionItem
 
 GetAccountingSetup
   -> IAccountRepository::findAll
@@ -117,7 +118,7 @@ Infrastructure --------------------> Domain
 记账 QML 已通过根属性连接三个 ViewModel：`AccountingOverviewViewModel` 读取月度
 汇总和流水，`AccountingSetupViewModel` 读取并创建账户与分类，
 `CreateTransactionViewModel` 收集并提交账单表单。全新数据库会显示首次设置引导，
-不会自动写入演示数据。
+不会自动写入演示数据。账户与分类创建入口保持常驻，首次设置完成后仍可继续添加。
 
 ## 4. 程序入口
 
@@ -380,13 +381,15 @@ SQLite 实现。
 
 ### `GetMonthlyOverview.h` 与 `GetMonthlyOverview.cpp`
 
-实现指定年月的流水查询和收支汇总：
+实现指定年月的流水查询、关联名称组装和收支汇总：
 
 1. 接收年份、月份和用户自定义 `QTimeZone`。
 2. 使用自定义时区计算当月和下月第一天的起始时刻。
 3. 转换为 UTC 后查询左闭右开范围。
-4. 分别累加收入与支出，并计算收入减支出的结余。
-5. 区分无效请求、存储失败和成功的空月份。
+4. 各读取一次全部账户和分类，建立 UUID 到名称的内存索引。
+5. 组装保留原 `Transaction` 的 `MonthlyTransactionItem`，不为每条流水单独查询。
+6. 分别累加收入与支出，并计算收入减支出的结余。
+7. 区分无效请求、存储失败、缺失关联和成功的空月份。
 
 用例不读取设备系统时区。固定偏移或地区时区由调用者显式传入，因此 Windows 和
 Android 可以使用同一用户设置。
@@ -521,15 +524,17 @@ Presentation 把 Application 结果转换为 QML 容易消费的属性、信号�
 
 ### `TransactionListModel.h/.cpp`
 
-继承 `QAbstractListModel`，把 `std::vector<Transaction>` 暴露为 QML 列表角色：
+继承 `QAbstractListModel`，把 `std::vector<MonthlyTransactionItem>` 暴露为 QML 列表角色：
 
 ```text
 transactionId, isIncome, amountText, accountId,
-categoryId, occurredAt, occurredAtText, note
+categoryId, occurredAt, occurredAtText, note,
+accountName, categoryName, typeText, fullOccurredAtText
 ```
 
 `replaceTransactions()` 使用模型重置通知 QML 更新。`occurredAtText` 按 ViewModel
-传入的自定义时区生成，防止 QML 使用设备时区。模型只转换单行展示数据，不查询
+传入的自定义时区生成简短时间，`fullOccurredAtText` 生成详情用的完整时间，
+防止 QML 使用设备时区。模型只转换单行展示数据，不查询
 Repository，也不计算月度汇总。
 
 ### `AccountingOverviewViewModel.h/.cpp`
@@ -620,8 +625,8 @@ tests/unit/accounting/
 | `CreateCategoryTest.cpp` | 创建分类流程、类型保留、无效输入和存储失败。 |
 | `TransactionRepositoryTest.cpp` | 账单保存、更新及左闭右开时间范围查询契约。 |
 | `CreateTransactionTest.cpp` | 跨实体校验、七类失败结果和成功保存流程。 |
-| `GetMonthlyOverviewTest.cpp` | 自定义时区边界、跨年、空月份和收支汇总。 |
-| `AccountingPresentationTest.cpp` | 金额文本、模型角色、页面状态、月份导航和时区切换。 |
+| `GetMonthlyOverviewTest.cpp` | 时区边界、跨年、汇总、关联名称、归档项、查询次数和错误。 |
+| `AccountingPresentationTest.cpp` | 金额、可读名称、类型、完整/简短时间角色、页面状态和导航。 |
 | `AccountingSetupTest.cpp` | 金额输入边界、基础数据查询、列表模型、创建刷新和错误映射。 |
 | `CreateTransactionPresentationTest.cpp` | 选项过滤、金额与时区输入、夏令时边界、错误保留和创建信号。 |
 
@@ -666,7 +671,8 @@ SQLite Repository 组装起来验证跨层流程。测试先销毁 Repository，
 ViewModel 可用、自定义固定时区可持久化、无效设置回退到 UTC+08:00，并拒绝空的
 应用数据目录。它还通过组合根创建账户和两类分类，销毁并重建模块后确认 SQLite
 数据仍然存在，同时确认空库不会自动产生默认记录。测试还通过表单 ViewModel 写入
-真实账单，验证月度首页立即刷新、时区变化同步，以及重启后流水仍可读取。
+真实账单，验证月度首页立即刷新、账户名和分类名可读、时区变化同步，
+以及重启后流水仍可读取。
 
 ## 11. CMake 文件如何组织 C++ 代码
 
