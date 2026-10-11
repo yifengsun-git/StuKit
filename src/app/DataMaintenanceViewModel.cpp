@@ -84,6 +84,27 @@ bool DataMaintenanceViewModel::restoreFrom(const QUrl &source)
     return true;
 }
 
+bool DataMaintenanceViewModel::exportTransactionsTo(const QUrl &destination)
+{
+    beginOperation();
+    const QString path = localPath(destination);
+    if (path.isEmpty()) {
+        finishWithError(QStringLiteral("请选择本机上的 CSV 保存位置"));
+        return false;
+    }
+
+    if (!m_module.exportTransactions(path, true)) {
+        finishWithError(
+            QStringLiteral("导出失败：%1").arg(m_module.lastError()));
+        return false;
+    }
+
+    finishWithStatus(
+        QStringLiteral("全部流水已导出到：%1")
+            .arg(QFileInfo(path).absoluteFilePath()));
+    return true;
+}
+
 void DataMaintenanceViewModel::clearMessages()
 {
     if (m_errorMessage.isEmpty() && m_statusMessage.isEmpty()) {

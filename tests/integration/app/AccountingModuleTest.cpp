@@ -45,6 +45,7 @@ private slots:
     void createsAndRestoresSetupData();
     void createsEditsDeletesAndRestoresTransaction();
     void backsUpAndRestoresDatabase();
+    void exportsTransactionsThroughMaintenanceViewModel();
     void defaultsInvalidTimeZoneToUtcPlusEight();
     void persistsSelectedFixedTimeZone();
     void rejectsEmptyApplicationDataDirectory();
@@ -387,6 +388,48 @@ void AccountingModuleTest::backsUpAndRestoresDatabase()
     QVERIFY(!module.restoreDatabase(invalidPath));
     QCOMPARE(module.overviewViewModel(), overviewBeforeInvalidRestore);
     QCOMPARE(module.setupViewModel()->accounts()->rowCount(), 1);
+}
+
+void AccountingModuleTest::exportsTransactionsThroughMaintenanceViewModel()
+{
+    QTemporaryDir directory(QDir::current().filePath(
+        QStringLiteral("stukit-module-export-test-XXXXXX")));
+    QVERIFY(directory.isValid());
+    QSettings settings(directory.filePath(QStringLiteral("settings.ini")),
+                       QSettings::IniFormat);
+    AccountingModule module(directory.filePath(QStringLiteral("app-data")),
+                            settings);
+    QVERIFY2(module.initialize(QDate(2026, 10, 1)),
+             qPrintable(module.lastError()));
+
+    auto *setup = module.setupViewModel();
+    QVERIFY(setup->createAccount(
+        QStringLiteral("现金钱包"), QStringLiteral("0.00")));
+    QVERIFY(setup->createCategory(QStringLiteral("餐饮"), false));
+
+    auto *editor = module.transactionEditorViewModel();
+    editor->resetForNewTransaction();
+    editor->setAmountText(QStringLiteral("12.34"));
+    editor->setOccurredDateText(QStringLiteral("2026-10-10"));
+    editor->setOccurredTimeText(QStringLiteral("12:34"));
+    editor->setNote(QStringLiteral("导出测试"));
+    QVERIFY2(editor->submit(), qPrintable(editor->errorMessage()));
+
+    DataMaintenanceViewModel maintenance(module);
+    const QString csvPath = directory.filePath(
+        QStringLiteral("all-transactions.csv"));
+    QVERIFY2(maintenance.exportTransactionsTo(QUrl::fromLocalFile(csvPath)),
+             qPrintable(maintenance.errorMessage()));
+    QVERIFY(maintenance.statusMessage().contains(csvPath));
+
+    QFile csv(csvPath);
+    QVERIFY(csv.open(QIODevice::ReadOnly));
+    const QString contents = QString::fromUtf8(csv.readAll());
+    QVERIFY(contents.contains(QStringLiteral("\"金额\"")));
+    QVERIFY(contents.contains(QStringLiteral("\"12.34\"")));
+    QVERIFY(contents.contains(QStringLiteral("\"现金钱包\"")));
+    QVERIFY(contents.contains(QStringLiteral("\"餐饮\"")));
+    QVERIFY(contents.contains(QStringLiteral("\"导出测试\"")));
 }
 
 void AccountingModuleTest::defaultsInvalidTimeZoneToUtcPlusEight()

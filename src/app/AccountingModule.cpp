@@ -12,11 +12,13 @@
 #include "GetAccountBalances.h"
 #include "GetMonthlyOverview.h"
 #include "GetTransaction.h"
+#include "GetTransactionExportData.h"
 #include "UpdateTransaction.h"
 #include "UpdateAccount.h"
 #include "UpdateCategory.h"
 #include "backup/SqliteBackupService.h"
 #include "database/SqliteDatabase.h"
+#include "export/CsvTransactionWriter.h"
 #include "repositories/SqliteAccountRepository.h"
 #include "repositories/SqliteCategoryRepository.h"
 #include "repositories/SqliteTransactionRepository.h"
@@ -113,6 +115,11 @@ bool AccountingModule::initialize(const QDate &selectedMonth)
         *m_transactionRepository);
     m_getTransaction = std::make_unique<accounting::GetTransaction>(
         *m_transactionRepository);
+    m_getTransactionExportData =
+        std::make_unique<accounting::GetTransactionExportData>(
+            *m_transactionRepository,
+            *m_accountRepository,
+            *m_categoryRepository);
     m_overviewViewModel = std::make_unique<
         accounting::presentation::AccountingOverviewViewModel>(
         *m_getMonthlyOverview,
@@ -308,6 +315,37 @@ bool AccountingModule::restoreDatabase(const QString &backupPath)
     return false;
 }
 
+bool AccountingModule::exportTransactions(
+    const QString &destinationPath,
+    bool replaceExisting)
+{
+    m_lastError.clear();
+    if (!m_getTransactionExportData) {
+        m_lastError = QStringLiteral("Accounting module is not initialized");
+        return false;
+    }
+
+    const accounting::GetTransactionExportDataResult exportDataResult =
+        m_getTransactionExportData->execute();
+    if (!std::holds_alternative<accounting::TransactionExportData>(
+            exportDataResult)) {
+        m_lastError = QStringLiteral("Could not read transactions for export");
+        return false;
+    }
+
+    const accounting::CsvExportResult writeResult =
+        accounting::CsvTransactionWriter::write(
+            destinationPath,
+            std::get<accounting::TransactionExportData>(exportDataResult),
+            m_userSettings.accountingTimeZone(),
+            replaceExisting);
+    if (!writeResult.succeeded()) {
+        m_lastError = writeResult.detail;
+        return false;
+    }
+    return true;
+}
+
 accounting::presentation::CreateTransactionViewModel *
 AccountingModule::transactionEditorViewModel() const noexcept
 {
@@ -353,6 +391,7 @@ void AccountingModule::reset()
     m_setupViewModel.reset();
     m_balancesViewModel.reset();
     m_overviewViewModel.reset();
+    m_getTransactionExportData.reset();
     m_getTransaction.reset();
     m_deleteTransaction.reset();
     m_updateTransaction.reset();

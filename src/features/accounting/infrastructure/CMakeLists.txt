@@ -3,6 +3,8 @@ add_library(StuKitAccountingInfrastructure STATIC
     backup/SqliteBackupService.h
     database/SqliteDatabase.cpp
     database/SqliteDatabase.h
+    export/CsvTransactionWriter.cpp
+    export/CsvTransactionWriter.h
     repositories/SqliteAccountRepository.cpp
     repositories/SqliteAccountRepository.h
     repositories/SqliteCategoryRepository.cpp
@@ -19,6 +21,7 @@ target_include_directories(StuKitAccountingInfrastructure
 target_link_libraries(StuKitAccountingInfrastructure
     PUBLIC
         Qt6::Sql
+        StuKitAccountingApplication
         StuKitAccountingDomain
 )
 

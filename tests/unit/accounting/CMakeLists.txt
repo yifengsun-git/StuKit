@@ -226,6 +226,24 @@ add_test(
     COMMAND StuKitGetAccountBalancesTest
 )
 
+add_executable(StuKitGetTransactionExportDataTest
+    GetTransactionExportDataTest.cpp
+    support/InMemoryAccountRepository.h
+    support/InMemoryCategoryRepository.h
+    support/InMemoryTransactionRepository.h
+)
+
+target_link_libraries(StuKitGetTransactionExportDataTest
+    PRIVATE
+        Qt6::Test
+        StuKitAccountingApplication
+)
+
+add_test(
+    NAME accounting.get_transaction_export_data
+    COMMAND StuKitGetTransactionExportDataTest
+)
+
 add_executable(StuKitAccountingPresentationTest
     AccountingPresentationTest.cpp
     support/InMemoryAccountRepository.h

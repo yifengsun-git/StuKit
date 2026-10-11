@@ -13,6 +13,8 @@ add_library(StuKitAccountingApplication STATIC
     GetMonthlyOverview.h
     GetTransaction.cpp
     GetTransaction.h
+    GetTransactionExportData.cpp
+    GetTransactionExportData.h
     GetAccountingSetup.cpp
     GetAccountingSetup.h
     UpdateAccount.cpp

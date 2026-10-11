@@ -30,6 +30,7 @@ public:
 
     Q_INVOKABLE bool backupTo(const QUrl &destination);
     Q_INVOKABLE bool restoreFrom(const QUrl &source);
+    Q_INVOKABLE bool exportTransactionsTo(const QUrl &destination);
     Q_INVOKABLE void clearMessages();
 
 signals:

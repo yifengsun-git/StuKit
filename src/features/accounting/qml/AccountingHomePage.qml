@@ -256,39 +256,76 @@ Page {
                     text: qsTr("管理账户与分类")
                     onClicked: setupManagementDialog.open()
                 }
-
-                Button {
-                    text: qsTr("备份数据")
-                    enabled: root.maintenanceViewModel !== null
-                        && !root.maintenanceViewModel.busy
-                    onClicked: backupFileDialog.open()
-                }
-
-                Button {
-                    text: qsTr("恢复数据")
-                    enabled: root.maintenanceViewModel !== null
-                        && !root.maintenanceViewModel.busy
-                    onClicked: restoreFileDialog.open()
-                }
             }
 
-            Label {
+            Rectangle {
                 Layout.fillWidth: true
                 Layout.leftMargin: AppTheme.spacingLarge
                 Layout.rightMargin: AppTheme.spacingLarge
-                color: root.maintenanceViewModel
-                    && root.maintenanceViewModel.hasError
-                    ? AppTheme.errorColor
-                    : AppTheme.textSecondaryColor
-                text: {
-                    if (!root.maintenanceViewModel)
-                        return ""
-                    return root.maintenanceViewModel.hasError
-                        ? root.maintenanceViewModel.errorMessage
-                        : root.maintenanceViewModel.statusMessage
+                Layout.preferredHeight: dataToolsLayout.implicitHeight
+                    + AppTheme.spacingMedium * 2
+                radius: AppTheme.radiusMedium
+                color: AppTheme.surfaceColor
+                border.color: AppTheme.borderColor
+                visible: root.maintenanceViewModel !== null
+
+                ColumnLayout {
+                    id: dataToolsLayout
+
+                    anchors.fill: parent
+                    anchors.margins: AppTheme.spacingMedium
+                    spacing: AppTheme.spacingSmall
+
+                    Label {
+                        text: qsTr("数据工具")
+                        color: AppTheme.textPrimaryColor
+                        font.bold: true
+                        font.pixelSize: AppTheme.fontSizeBody
+                    }
+
+                    Label {
+                        Layout.fillWidth: true
+                        text: qsTr("数据库备份用于完整恢复；CSV 导出便于使用表格软件查看和分析流水。")
+                        color: AppTheme.textSecondaryColor
+                        wrapMode: Text.WordWrap
+                    }
+
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: AppTheme.spacingSmall
+
+                        Button {
+                            text: qsTr("备份数据库")
+                            enabled: !root.maintenanceViewModel.busy
+                            onClicked: backupFileDialog.open()
+                        }
+
+                        Button {
+                            text: qsTr("恢复数据库")
+                            enabled: !root.maintenanceViewModel.busy
+                            onClicked: restoreFileDialog.open()
+                        }
+
+                        Button {
+                            text: qsTr("导出全部流水 CSV")
+                            enabled: !root.maintenanceViewModel.busy
+                            highlighted: true
+                            onClicked: exportCsvFileDialog.open()
+                        }
+                    }
+
+                    Label {
+                        Layout.fillWidth: true
+                        color: root.maintenanceViewModel.hasError
+                            ? AppTheme.errorColor
+                            : AppTheme.textSecondaryColor
+                        text: root.maintenanceViewModel.hasError
+                            ? root.maintenanceViewModel.errorMessage
+                            : root.maintenanceViewModel.statusMessage
+                        wrapMode: Text.WrapAnywhere
+                        visible: text.length > 0
+                    }
                 }
-                wrapMode: Text.WrapAnywhere
-                visible: text.length > 0
             }
 
             Button {
@@ -301,11 +338,13 @@ Page {
                 onClicked: root.openTransactionDialog()
             }
 
-            RowLayout {
+            GridLayout {
                 Layout.fillWidth: true
                 Layout.leftMargin: AppTheme.spacingLarge
                 Layout.rightMargin: AppTheme.spacingLarge
-                spacing: AppTheme.spacingMedium
+                columns: root.width >= 820 ? 4 : 2
+                columnSpacing: AppTheme.spacingMedium
+                rowSpacing: AppTheme.spacingMedium
                 visible: root.viewModel !== null
 
                 Repeater {
@@ -1325,6 +1364,16 @@ Page {
             restoreConfirmationDialog.backupFile = selectedFile
             restoreConfirmationDialog.open()
         }
+    }
+
+    PlatformDialogs.FileDialog {
+        id: exportCsvFileDialog
+
+        title: qsTr("导出全部流水")
+        fileMode: PlatformDialogs.FileDialog.SaveFile
+        defaultSuffix: "csv"
+        nameFilters: [qsTr("CSV 文件 (*.csv)")]
+        onAccepted: root.maintenanceViewModel.exportTransactionsTo(selectedFile)
     }
 
     Dialog {

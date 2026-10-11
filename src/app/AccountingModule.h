@@ -20,6 +20,7 @@ class UpdateCategory;
 class CreateTransaction;
 class DeleteTransaction;
 class GetTransaction;
+class GetTransactionExportData;
 class UpdateTransaction;
 class SqliteAccountRepository;
 class SqliteCategoryRepository;
@@ -54,6 +55,9 @@ public:
         const QString &destinationPath,
         bool replaceExisting = false);
     [[nodiscard]] bool restoreDatabase(const QString &backupPath);
+    [[nodiscard]] bool exportTransactions(
+        const QString &destinationPath,
+        bool replaceExisting = false);
 
     [[nodiscard]] accounting::presentation::AccountingOverviewViewModel *
     overviewViewModel() const noexcept;
@@ -93,6 +97,8 @@ private:
     std::unique_ptr<accounting::UpdateTransaction> m_updateTransaction;
     std::unique_ptr<accounting::DeleteTransaction> m_deleteTransaction;
     std::unique_ptr<accounting::GetTransaction> m_getTransaction;
+    std::unique_ptr<accounting::GetTransactionExportData>
+        m_getTransactionExportData;
     std::unique_ptr<accounting::presentation::AccountingOverviewViewModel>
         m_overviewViewModel;
     std::unique_ptr<accounting::presentation::AccountBalancesViewModel>

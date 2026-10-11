@@ -28,6 +28,21 @@ add_test(
     COMMAND StuKitSqliteBackupServiceTest
 )
 
+add_executable(StuKitCsvTransactionWriterTest
+    CsvTransactionWriterTest.cpp
+)
+
+target_link_libraries(StuKitCsvTransactionWriterTest
+    PRIVATE
+        Qt6::Test
+        StuKitAccountingInfrastructure
+)
+
+add_test(
+    NAME accounting.csv_transaction_writer
+    COMMAND StuKitCsvTransactionWriterTest
+)
+
 add_executable(StuKitSqliteAccountRepositoryTest
     SqliteAccountRepositoryTest.cpp
 )
