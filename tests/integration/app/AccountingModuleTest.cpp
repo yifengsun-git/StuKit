@@ -104,8 +104,8 @@ void AccountingModuleTest::initializesDatabaseAndViewModel()
                      "SELECT COUNT(*), MAX(version) FROM schema_migrations")),
                  qPrintable(query.lastError().text()));
         QVERIFY(query.next());
-        QCOMPARE(query.value(0).toInt(), 3);
-        QCOMPARE(query.value(1).toInt(), 3);
+        QCOMPARE(query.value(0).toInt(), 4);
+        QCOMPARE(query.value(1).toInt(), 4);
         database.close();
     }
     QSqlDatabase::removeDatabase(connectionName);

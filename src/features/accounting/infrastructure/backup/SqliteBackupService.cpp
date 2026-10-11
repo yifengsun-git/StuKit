@@ -1,4 +1,5 @@
 #include "backup/SqliteBackupService.h"
+#include "database/SqliteDatabase.h"
 
 #include <QDir>
 #include <QFile>
@@ -14,8 +15,6 @@
 namespace stukit::accounting {
 
 namespace {
-
-constexpr int currentSchemaVersion = 3;
 
 SqliteBackupResult failure(SqliteBackupError error, QString detail)
 {
@@ -175,7 +174,7 @@ SqliteBackupResult SqliteBackupService::validateBackup(
         const int minimumVersion = versionQuery.value(0).toInt();
         const int version = versionQuery.value(1).toInt();
         const int migrationCount = versionQuery.value(2).toInt();
-        if (version > currentSchemaVersion) {
+        if (version > SqliteDatabase::CurrentSchemaVersion) {
             return SqliteBackupResult{
                 .error = SqliteBackupError::UnsupportedVersion,
                 .detail = QStringLiteral("Backup schema is newer than this app"),
@@ -194,7 +193,12 @@ SqliteBackupResult SqliteBackupService::validateBackup(
             && (version < 2
                 || tableExists(database, QStringLiteral("categories")))
             && (version < 3
-                || tableExists(database, QStringLiteral("transactions")));
+                || tableExists(database, QStringLiteral("transactions")))
+            && (version < 4
+                || (tableExists(database, QStringLiteral("academic_terms"))
+                    && tableExists(database, QStringLiteral("courses"))
+                    && tableExists(
+                        database, QStringLiteral("course_meetings"))));
         if (!hasRequiredTables) {
             return failure(
                 SqliteBackupError::InvalidDatabase,

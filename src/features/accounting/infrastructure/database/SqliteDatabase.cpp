@@ -58,6 +58,11 @@ bool SqliteDatabase::migrate() {
     return false;
   }
 
+  if (version > CurrentSchemaVersion) {
+    m_lastError = QStringLiteral("Database schema is newer than this app");
+    return false;
+  }
+
   if (version < 1 && !applyMigration1()) {
     return false;
   }
@@ -67,6 +72,10 @@ bool SqliteDatabase::migrate() {
   }
 
   if (version < 3 && !applyMigration3()) {
+    return false;
+  }
+
+  if (version < 4 && !applyMigration4()) {
     return false;
   }
 
@@ -236,6 +245,98 @@ bool SqliteDatabase::applyMigration3() {
       QStringLiteral("INSERT INTO schema_migrations(version, applied_at) "
                      "VALUES(:version, :appliedAt)"));
   query.bindValue(QStringLiteral(":version"), 3);
+  query.bindValue(QStringLiteral(":appliedAt"),
+                  QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs));
+
+  if (!query.exec()) {
+    m_lastError = query.lastError().text();
+    m_database.rollback();
+    return false;
+  }
+
+  if (!m_database.commit()) {
+    m_lastError = m_database.lastError().text();
+    m_database.rollback();
+    return false;
+  }
+
+  return true;
+}
+
+bool SqliteDatabase::applyMigration4() {
+  if (!m_database.transaction()) {
+    m_lastError = m_database.lastError().text();
+    return false;
+  }
+
+  QSqlQuery query(m_database);
+  const QStringList statements{
+      QStringLiteral("CREATE TABLE academic_terms ("
+                     "id TEXT PRIMARY KEY NOT NULL, "
+                     "name TEXT NOT NULL "
+                     "CHECK (length(trim(name)) BETWEEN 1 AND 40), "
+                     "start_date TEXT NOT NULL "
+                     "CHECK (date(start_date) IS NOT NULL "
+                     "AND start_date = date(start_date)), "
+                     "total_weeks INTEGER NOT NULL "
+                     "CHECK (total_weeks BETWEEN 1 AND 30), "
+                     "archived INTEGER NOT NULL DEFAULT 0 "
+                     "CHECK (archived IN (0, 1)))"),
+      QStringLiteral("CREATE TABLE courses ("
+                     "id TEXT PRIMARY KEY NOT NULL, "
+                     "term_id TEXT NOT NULL, "
+                     "name TEXT NOT NULL "
+                     "CHECK (length(trim(name)) BETWEEN 1 AND 80), "
+                     "teacher TEXT NOT NULL DEFAULT '' "
+                     "CHECK (length(teacher) <= 60), "
+                     "location TEXT NOT NULL DEFAULT '' "
+                     "CHECK (length(location) <= 80), "
+                     "color TEXT NOT NULL "
+                     "CHECK (length(color) = 7 "
+                     "AND substr(color, 1, 1) = '#' "
+                     "AND substr(color, 2, 6) "
+                     "NOT GLOB '*[^0-9A-F]*'), "
+                     "FOREIGN KEY (term_id) REFERENCES academic_terms(id) "
+                     "ON UPDATE CASCADE ON DELETE RESTRICT)"),
+      QStringLiteral("CREATE TABLE course_meetings ("
+                     "id TEXT PRIMARY KEY NOT NULL, "
+                     "course_id TEXT NOT NULL, "
+                     "weekday INTEGER NOT NULL "
+                     "CHECK (weekday BETWEEN 1 AND 7), "
+                     "start_period INTEGER NOT NULL "
+                     "CHECK (start_period BETWEEN 1 AND 20), "
+                     "end_period INTEGER NOT NULL "
+                     "CHECK (end_period BETWEEN 1 AND 20 "
+                     "AND start_period <= end_period), "
+                     "start_week INTEGER NOT NULL "
+                     "CHECK (start_week BETWEEN 1 AND 30), "
+                     "end_week INTEGER NOT NULL "
+                     "CHECK (end_week BETWEEN 1 AND 30 "
+                     "AND start_week <= end_week), "
+                     "week_pattern INTEGER NOT NULL "
+                     "CHECK (week_pattern IN (0, 1, 2)), "
+                     "FOREIGN KEY (course_id) REFERENCES courses(id) "
+                     "ON UPDATE CASCADE ON DELETE RESTRICT)"),
+      QStringLiteral("CREATE INDEX idx_courses_term_id "
+                     "ON courses(term_id)"),
+      QStringLiteral("CREATE INDEX idx_course_meetings_course_id "
+                     "ON course_meetings(course_id)"),
+      QStringLiteral("CREATE INDEX idx_course_meetings_weekday "
+                     "ON course_meetings(weekday)"),
+  };
+
+  for (const QString &statement : statements) {
+    if (!query.exec(statement)) {
+      m_lastError = query.lastError().text();
+      m_database.rollback();
+      return false;
+    }
+  }
+
+  query.prepare(
+      QStringLiteral("INSERT INTO schema_migrations(version, applied_at) "
+                     "VALUES(:version, :appliedAt)"));
+  query.bindValue(QStringLiteral(":version"), CurrentSchemaVersion);
   query.bindValue(QStringLiteral(":appliedAt"),
                   QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs));
 
