@@ -1,6 +1,8 @@
 #include "AccountingModule.h"
 #include "AccountingOverviewViewModel.h"
 #include "AccountingSetupViewModel.h"
+#include "AccountListModel.h"
+#include "CategoryListModel.h"
 #include "CreateTransactionViewModel.h"
 #include "TransactionListModel.h"
 #include "UserSettings.h"
@@ -110,6 +112,14 @@ void AccountingModuleTest::createsEditsDeletesAndRestoresTransaction()
         QVERIFY(setup->createAccount(
             QStringLiteral("银行卡"), QStringLiteral("100.00")));
         QVERIFY(setup->createCategory(QStringLiteral("餐饮"), false));
+        const QString accountId = setup->accounts()->data(
+            setup->accounts()->index(0, 0),
+            stukit::accounting::presentation::AccountListModel::AccountIdRole)
+                                      .toString();
+        const QString categoryId = setup->categories()->data(
+            setup->categories()->index(0, 0),
+            stukit::accounting::presentation::CategoryListModel::CategoryIdRole)
+                                       .toString();
 
         auto *editor = module.transactionEditorViewModel();
         QVERIFY(editor != nullptr);
@@ -139,9 +149,27 @@ void AccountingModuleTest::createsEditsDeletesAndRestoresTransaction()
         QCOMPARE(module.overviewViewModel()->balanceText(),
                  QStringLiteral("-25.50"));
 
+        QVERIFY(setup->renameAccount(accountId, QStringLiteral("主银行卡")));
+        QVERIFY(setup->renameCategory(categoryId, QStringLiteral("日常餐饮")));
+        const QModelIndex refreshedTransactionIndex =
+            module.overviewViewModel()->transactions()->index(0, 0);
+        QCOMPARE(module.overviewViewModel()->transactions()->data(
+                     refreshedTransactionIndex,
+                     stukit::accounting::presentation::TransactionListModel::AccountNameRole)
+                     .toString(),
+                 QStringLiteral("主银行卡"));
+        QCOMPARE(module.overviewViewModel()->transactions()->data(
+                     refreshedTransactionIndex,
+                     stukit::accounting::presentation::TransactionListModel::CategoryNameRole)
+                     .toString(),
+                 QStringLiteral("日常餐饮"));
+        QVERIFY(setup->setCategoryArchived(categoryId, true));
+        QCOMPARE(module.overviewViewModel()->transactions()->rowCount(), 1);
+        QVERIFY(setup->setCategoryArchived(categoryId, false));
+
         const QString transactionId =
             module.overviewViewModel()->transactions()->data(
-                transactionIndex,
+                module.overviewViewModel()->transactions()->index(0, 0),
                 stukit::accounting::presentation::TransactionListModel::IdRole)
                 .toString();
         QVERIFY(editor->beginEditing(transactionId));
@@ -193,6 +221,8 @@ void AccountingModuleTest::createsAndRestoresSetupData()
                        QSettings::IniFormat);
     const QString appDataDirectory = directory.filePath(
         QStringLiteral("app-data"));
+    QString accountId;
+    QString expenseCategoryId;
 
     {
         AccountingModule module(appDataDirectory, settings);
@@ -207,6 +237,22 @@ void AccountingModuleTest::createsAndRestoresSetupData()
         QVERIFY(setup->hasAccounts());
         QVERIFY(setup->hasIncomeCategories());
         QVERIFY(setup->hasExpenseCategories());
+        accountId = setup->accounts()->data(
+            setup->accounts()->index(0, 0),
+            stukit::accounting::presentation::AccountListModel::AccountIdRole)
+                        .toString();
+        expenseCategoryId = setup->categories()->data(
+            setup->categories()->index(1, 0),
+            stukit::accounting::presentation::CategoryListModel::CategoryIdRole)
+                                .toString();
+        QVERIFY(setup->renameAccount(accountId, QStringLiteral("主银行卡")));
+        QVERIFY(setup->renameCategory(
+            expenseCategoryId, QStringLiteral("日常餐饮")));
+        QVERIFY(setup->setAccountArchived(accountId, true));
+        QVERIFY(setup->setCategoryArchived(expenseCategoryId, true));
+        QVERIFY(!setup->hasAccounts());
+        QVERIFY(setup->hasIncomeCategories());
+        QVERIFY(!setup->hasExpenseCategories());
     }
 
     {
@@ -217,8 +263,22 @@ void AccountingModuleTest::createsAndRestoresSetupData()
         QVERIFY(setup != nullptr);
         QCOMPARE(setup->accounts()->rowCount(), 1);
         QCOMPARE(setup->categories()->rowCount(), 2);
-        QVERIFY(setup->hasAccounts());
+        QCOMPARE(setup->accounts()->data(
+                     setup->accounts()->index(0, 0),
+                     stukit::accounting::presentation::AccountListModel::NameRole)
+                     .toString(),
+                 QStringLiteral("主银行卡"));
+        QCOMPARE(setup->categories()->data(
+                     setup->categories()->index(1, 0),
+                     stukit::accounting::presentation::CategoryListModel::NameRole)
+                     .toString(),
+                 QStringLiteral("日常餐饮"));
+        QVERIFY(!setup->hasAccounts());
         QVERIFY(setup->hasIncomeCategories());
+        QVERIFY(!setup->hasExpenseCategories());
+        QVERIFY(setup->setAccountArchived(accountId, false));
+        QVERIFY(setup->setCategoryArchived(expenseCategoryId, false));
+        QVERIFY(setup->hasAccounts());
         QVERIFY(setup->hasExpenseCategories());
         QVERIFY(!setup->hasError());
     }

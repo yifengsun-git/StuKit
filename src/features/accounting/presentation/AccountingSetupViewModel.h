@@ -5,6 +5,8 @@
 #include "CreateAccount.h"
 #include "CreateCategory.h"
 #include "GetAccountingSetup.h"
+#include "UpdateAccount.h"
+#include "UpdateCategory.h"
 
 #include <QAbstractItemModel>
 #include <QObject>
@@ -28,6 +30,8 @@ public:
         GetAccountingSetup &getAccountingSetup,
         CreateAccount &createAccount,
         CreateCategory &createCategory,
+        UpdateAccount &updateAccount,
+        UpdateCategory &updateCategory,
         QObject *parent = nullptr);
 
     [[nodiscard]] QAbstractItemModel *accounts() noexcept;
@@ -42,6 +46,10 @@ public:
     Q_INVOKABLE bool createAccount(
         const QString &name, const QString &openingBalanceText);
     Q_INVOKABLE bool createCategory(const QString &name, bool isIncome);
+    Q_INVOKABLE bool renameAccount(const QString &id, const QString &name);
+    Q_INVOKABLE bool setAccountArchived(const QString &id, bool archived);
+    Q_INVOKABLE bool renameCategory(const QString &id, const QString &name);
+    Q_INVOKABLE bool setCategoryArchived(const QString &id, bool archived);
 
 signals:
     void setupChanged();
@@ -54,6 +62,8 @@ private:
     GetAccountingSetup &m_getAccountingSetup;
     CreateAccount &m_createAccount;
     CreateCategory &m_createCategory;
+    UpdateAccount &m_updateAccount;
+    UpdateCategory &m_updateCategory;
     AccountListModel m_accounts;
     CategoryListModel m_categories;
     bool m_hasAccounts{false};

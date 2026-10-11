@@ -11,6 +11,8 @@
 #include "GetMonthlyOverview.h"
 #include "GetTransaction.h"
 #include "UpdateTransaction.h"
+#include "UpdateAccount.h"
+#include "UpdateCategory.h"
 #include "database/SqliteDatabase.h"
 #include "repositories/SqliteAccountRepository.h"
 #include "repositories/SqliteCategoryRepository.h"
@@ -85,6 +87,10 @@ bool AccountingModule::initialize(const QDate &selectedMonth)
         *m_accountRepository);
     m_createCategory = std::make_unique<accounting::CreateCategory>(
         *m_categoryRepository);
+    m_updateAccount = std::make_unique<accounting::UpdateAccount>(
+        *m_accountRepository);
+    m_updateCategory = std::make_unique<accounting::UpdateCategory>(
+        *m_categoryRepository);
     m_getAccountingSetup = std::make_unique<accounting::GetAccountingSetup>(
         *m_accountRepository, *m_categoryRepository);
     m_createTransaction = std::make_unique<accounting::CreateTransaction>(
@@ -106,7 +112,11 @@ bool AccountingModule::initialize(const QDate &selectedMonth)
         selectedMonth);
     m_setupViewModel = std::make_unique<
         accounting::presentation::AccountingSetupViewModel>(
-        *m_getAccountingSetup, *m_createAccount, *m_createCategory);
+        *m_getAccountingSetup,
+        *m_createAccount,
+        *m_createCategory,
+        *m_updateAccount,
+        *m_updateCategory);
     m_transactionEditorViewModel = std::make_unique<
         accounting::presentation::CreateTransactionViewModel>(
         *m_createTransaction,
@@ -138,6 +148,11 @@ bool AccountingModule::initialize(const QDate &selectedMonth)
         m_transactionEditorViewModel.get(),
         &accounting::presentation::CreateTransactionViewModel::loadSetup);
     QObject::connect(
+        m_setupViewModel.get(),
+        &accounting::presentation::AccountingSetupViewModel::setupChanged,
+        m_overviewViewModel.get(),
+        &accounting::presentation::AccountingOverviewViewModel::load);
+    QObject::connect(
         m_transactionEditorViewModel.get(),
         &accounting::presentation::CreateTransactionViewModel::transactionCreated,
         m_overviewViewModel.get(),
@@ -154,7 +169,6 @@ bool AccountingModule::initialize(const QDate &selectedMonth)
         &accounting::presentation::AccountingOverviewViewModel::load);
 
     m_setupViewModel->load();
-    m_overviewViewModel->load();
     return true;
 }
 
@@ -196,6 +210,8 @@ void AccountingModule::reset()
     m_updateTransaction.reset();
     m_createTransaction.reset();
     m_getAccountingSetup.reset();
+    m_updateCategory.reset();
+    m_updateAccount.reset();
     m_createCategory.reset();
     m_createAccount.reset();
     m_getMonthlyOverview.reset();

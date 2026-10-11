@@ -13,6 +13,10 @@ add_library(StuKitAccountingApplication STATIC
     GetTransaction.h
     GetAccountingSetup.cpp
     GetAccountingSetup.h
+    UpdateAccount.cpp
+    UpdateAccount.h
+    UpdateCategory.cpp
+    UpdateCategory.h
     UpdateTransaction.cpp
     UpdateTransaction.h
 )

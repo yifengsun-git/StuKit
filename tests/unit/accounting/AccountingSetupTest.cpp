@@ -1,6 +1,8 @@
 #include "AccountingSetupViewModel.h"
 #include "GetAccountingSetup.h"
 #include "MoneyInputParser.h"
+#include "UpdateAccount.h"
+#include "UpdateCategory.h"
 #include "support/InMemoryAccountRepository.h"
 #include "support/InMemoryCategoryRepository.h"
 
@@ -55,6 +57,7 @@ private slots:
     void reportsEitherRepositoryFailure();
     void loadsModelsAndCreatesSetupData();
     void exposesStableInputAndStorageErrors();
+    void renamesArchivesAndRestoresSetupData();
 };
 
 void AccountingSetupTest::parsesExactMoneyText()
@@ -133,9 +136,11 @@ void AccountingSetupTest::loadsModelsAndCreatesSetupData()
         QStringLiteral("旧分类"), TransactionType::Expense, true)));
     CreateAccount createAccount(accounts);
     CreateCategory createCategory(categories);
+    UpdateAccount updateAccount(accounts);
+    UpdateCategory updateCategory(categories);
     GetAccountingSetup getSetup(accounts, categories);
     AccountingSetupViewModel viewModel(
-        getSetup, createAccount, createCategory);
+        getSetup, createAccount, createCategory, updateAccount, updateCategory);
 
     viewModel.load();
     QCOMPARE(viewModel.accounts()->rowCount(), 1);
@@ -168,9 +173,11 @@ void AccountingSetupTest::exposesStableInputAndStorageErrors()
     InMemoryCategoryRepository categories;
     CreateAccount createAccount(accounts);
     CreateCategory createCategory(categories);
+    UpdateAccount updateAccount(accounts);
+    UpdateCategory updateCategory(categories);
     GetAccountingSetup getSetup(accounts, categories);
     AccountingSetupViewModel viewModel(
-        getSetup, createAccount, createCategory);
+        getSetup, createAccount, createCategory, updateAccount, updateCategory);
 
     QVERIFY(!viewModel.createAccount(QStringLiteral("现金"), QStringLiteral("1.234")));
     QCOMPARE(viewModel.errorMessage(), QStringLiteral("期初余额格式无效"));
@@ -185,6 +192,54 @@ void AccountingSetupTest::exposesStableInputAndStorageErrors()
     accounts.setFindAllShouldSucceed(false);
     viewModel.load();
     QCOMPARE(viewModel.errorMessage(), QStringLiteral("无法读取账户和分类"));
+}
+
+void AccountingSetupTest::renamesArchivesAndRestoresSetupData()
+{
+    InMemoryAccountRepository accounts;
+    InMemoryCategoryRepository categories;
+    const Account account = makeAccount(QStringLiteral("现金"));
+    const Category category = makeCategory(
+        QStringLiteral("餐饮"), TransactionType::Expense);
+    QVERIFY(accounts.save(account));
+    QVERIFY(categories.save(category));
+    CreateAccount createAccount(accounts);
+    CreateCategory createCategory(categories);
+    UpdateAccount updateAccount(accounts);
+    UpdateCategory updateCategory(categories);
+    GetAccountingSetup getSetup(accounts, categories);
+    AccountingSetupViewModel viewModel(
+        getSetup, createAccount, createCategory, updateAccount, updateCategory);
+    viewModel.load();
+
+    const QString accountId = account.id().toString(QUuid::WithoutBraces);
+    const QString categoryId = category.id().toString(QUuid::WithoutBraces);
+    QVERIFY(viewModel.renameAccount(accountId, QStringLiteral("主现金账户")));
+    QVERIFY(viewModel.renameCategory(categoryId, QStringLiteral("日常餐饮")));
+    QCOMPARE(viewModel.accounts()->data(
+                 viewModel.accounts()->index(0, 0), AccountListModel::NameRole),
+             QVariant(QStringLiteral("主现金账户")));
+    QCOMPARE(viewModel.categories()->data(
+                 viewModel.categories()->index(0, 0), CategoryListModel::NameRole),
+             QVariant(QStringLiteral("日常餐饮")));
+
+    QVERIFY(viewModel.setAccountArchived(accountId, true));
+    QVERIFY(viewModel.setCategoryArchived(categoryId, true));
+    QVERIFY(!viewModel.hasAccounts());
+    QVERIFY(!viewModel.hasExpenseCategories());
+    QVERIFY(viewModel.accounts()->data(
+        viewModel.accounts()->index(0, 0), AccountListModel::ArchivedRole).toBool());
+    QVERIFY(viewModel.categories()->data(
+        viewModel.categories()->index(0, 0), CategoryListModel::ArchivedRole).toBool());
+
+    QVERIFY(viewModel.setAccountArchived(accountId, false));
+    QVERIFY(viewModel.setCategoryArchived(categoryId, false));
+    QVERIFY(viewModel.hasAccounts());
+    QVERIFY(viewModel.hasExpenseCategories());
+
+    QVERIFY(!viewModel.renameAccount(QStringLiteral("not-a-uuid"),
+                                     QStringLiteral("不存在")));
+    QCOMPARE(viewModel.errorMessage(), QStringLiteral("账户信息无效"));
 }
 
 QTEST_APPLESS_MAIN(AccountingSetupTest)

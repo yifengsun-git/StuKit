@@ -1,3 +1,5 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -55,6 +57,22 @@ Page {
         categoryNameField.text = ""
         categoryDialog.open()
         categoryNameField.forceActiveFocus()
+    }
+
+    function openRenameSetupItemDialog(kind, itemId, currentName) {
+        renameSetupItemDialog.itemKind = kind
+        renameSetupItemDialog.itemId = itemId
+        renameSetupItemField.text = currentName
+        renameSetupItemDialog.open()
+        renameSetupItemField.selectAll()
+        renameSetupItemField.forceActiveFocus()
+    }
+
+    function requestArchiveSetupItem(kind, itemId, itemName) {
+        archiveSetupItemDialog.itemKind = kind
+        archiveSetupItemDialog.itemId = itemId
+        archiveSetupItemDialog.itemName = itemName
+        archiveSetupItemDialog.open()
     }
 
     function openTransactionDialog() {
@@ -228,6 +246,11 @@ Page {
                     text: qsTr("新增收入分类")
                     onClicked: root.openCategoryDialog(true)
                 }
+
+                Button {
+                    text: qsTr("管理账户与分类")
+                    onClicked: setupManagementDialog.open()
+                }
             }
 
             Button {
@@ -267,6 +290,8 @@ Page {
                     ]
 
                     delegate: Rectangle {
+                        id: summaryCard
+
                         required property var modelData
 
                         Layout.fillWidth: true
@@ -280,13 +305,13 @@ Page {
                             anchors.margins: AppTheme.spacingMedium
 
                             Label {
-                                text: modelData.title
+                                text: summaryCard.modelData.title
                                 color: AppTheme.textSecondaryColor
                             }
 
                             Label {
-                                text: modelData.value
-                                color: modelData.color
+                                text: summaryCard.modelData.value
+                                color: summaryCard.modelData.color
                                 font.pixelSize: AppTheme.fontSizeHeading
                                 font.bold: true
                             }
@@ -353,6 +378,8 @@ Page {
                     && !root.viewModel.empty
 
                 delegate: Rectangle {
+                    id: transactionDelegate
+
                     required property string transactionId
                     required property bool isIncome
                     required property string amountText
@@ -364,7 +391,7 @@ Page {
                     required property string note
 
                     width: transactionList.width
-                    height: note.length > 0 ? 88 : 68
+                    height: transactionDelegate.note.length > 0 ? 88 : 68
                     radius: AppTheme.radiusSmall
                     color: AppTheme.surfaceColor
                     border.color: AppTheme.borderColor
@@ -378,29 +405,32 @@ Page {
                             spacing: AppTheme.spacingExtraSmall
 
                             Label {
-                                text: categoryName
+                                text: transactionDelegate.categoryName
                                 color: AppTheme.textPrimaryColor
                                 font.bold: true
                                 elide: Text.ElideRight
                             }
 
                             Label {
-                                text: qsTr("%1 · %2").arg(accountName).arg(occurredAtText)
+                                text: qsTr("%1 · %2")
+                                    .arg(transactionDelegate.accountName)
+                                    .arg(transactionDelegate.occurredAtText)
                                 color: AppTheme.textSecondaryColor
                             }
 
                             Label {
                                 Layout.fillWidth: true
-                                text: note
+                                text: transactionDelegate.note
                                 color: AppTheme.textSecondaryColor
                                 elide: Text.ElideRight
-                                visible: note.length > 0
+                                visible: transactionDelegate.note.length > 0
                             }
                         }
 
                         Label {
-                            text: (isIncome ? "+" : "-") + amountText
-                            color: isIncome
+                            text: (transactionDelegate.isIncome ? "+" : "-")
+                                + transactionDelegate.amountText
+                            color: transactionDelegate.isIncome
                                 ? AppTheme.primaryColor
                                 : AppTheme.errorColor
                             font.bold: true
@@ -411,14 +441,14 @@ Page {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
                         onClicked: root.openTransactionDetails(
-                            transactionId,
-                            typeText,
-                            isIncome,
-                            amountText,
-                            accountName,
-                            categoryName,
-                            fullOccurredAtText,
-                            note)
+                            transactionDelegate.transactionId,
+                            transactionDelegate.typeText,
+                            transactionDelegate.isIncome,
+                            transactionDelegate.amountText,
+                            transactionDelegate.accountName,
+                            transactionDelegate.categoryName,
+                            transactionDelegate.fullOccurredAtText,
+                            transactionDelegate.note)
                     }
                 }
             }
@@ -427,6 +457,325 @@ Page {
                 Layout.fillHeight: true
                 Layout.minimumHeight: AppTheme.spacingLarge
             }
+        }
+    }
+
+    Dialog {
+        id: setupManagementDialog
+
+        anchors.centerIn: parent
+        modal: true
+        title: qsTr("账户与分类管理")
+
+        ColumnLayout {
+            width: Math.min(root.width - AppTheme.spacingLarge * 2, 620)
+            spacing: AppTheme.spacingMedium
+
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("归档项会从新增账单的选项中隐藏，但不会删除历史账单。")
+                color: AppTheme.textSecondaryColor
+                wrapMode: Text.WordWrap
+            }
+
+            TabBar {
+                id: setupManagementTabs
+                Layout.fillWidth: true
+
+                TabButton {
+                    text: qsTr("账户")
+                }
+
+                TabButton {
+                    text: qsTr("分类")
+                }
+            }
+
+            StackLayout {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 360
+                currentIndex: setupManagementTabs.currentIndex
+
+                ListView {
+                    id: managedAccountList
+                    clip: true
+                    spacing: AppTheme.spacingSmall
+                    model: root.setupViewModel
+                        ? root.setupViewModel.accounts
+                        : null
+
+                    delegate: Rectangle {
+                        id: accountManagementDelegate
+
+                        required property string accountId
+                        required property string name
+                        required property string openingBalanceText
+                        required property bool archived
+
+                        width: managedAccountList.width
+                        height: accountManagementRow.implicitHeight
+                            + AppTheme.spacingMedium * 2
+                        radius: AppTheme.radiusSmall
+                        color: accountManagementDelegate.archived
+                            ? AppTheme.surfaceVariantColor
+                            : AppTheme.surfaceColor
+                        border.color: AppTheme.borderColor
+
+                        RowLayout {
+                            id: accountManagementRow
+                            anchors.fill: parent
+                            anchors.margins: AppTheme.spacingMedium
+                            spacing: AppTheme.spacingSmall
+
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: AppTheme.spacingExtraSmall
+
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: accountManagementDelegate.name
+                                    color: AppTheme.textPrimaryColor
+                                    font.bold: true
+                                    elide: Text.ElideRight
+                                }
+
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: qsTr("期初余额 %1 · %2")
+                                        .arg(accountManagementDelegate.openingBalanceText)
+                                        .arg(accountManagementDelegate.archived
+                                             ? qsTr("已归档")
+                                             : qsTr("使用中"))
+                                    color: AppTheme.textSecondaryColor
+                                    elide: Text.ElideRight
+                                }
+                            }
+
+                            Button {
+                                text: qsTr("重命名")
+                                onClicked: root.openRenameSetupItemDialog(
+                                    "account",
+                                    accountManagementDelegate.accountId,
+                                    accountManagementDelegate.name)
+                            }
+
+                            Button {
+                                text: accountManagementDelegate.archived
+                                    ? qsTr("恢复")
+                                    : qsTr("归档")
+                                onClicked: {
+                                    if (accountManagementDelegate.archived) {
+                                        root.setupViewModel.setAccountArchived(
+                                            accountManagementDelegate.accountId,
+                                            false)
+                                    } else {
+                                        root.requestArchiveSetupItem(
+                                            "account",
+                                            accountManagementDelegate.accountId,
+                                            accountManagementDelegate.name)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Label {
+                        anchors.centerIn: parent
+                        visible: managedAccountList.count === 0
+                        text: qsTr("还没有账户")
+                        color: AppTheme.textSecondaryColor
+                    }
+                }
+
+                ListView {
+                    id: managedCategoryList
+                    clip: true
+                    spacing: AppTheme.spacingSmall
+                    model: root.setupViewModel
+                        ? root.setupViewModel.categories
+                        : null
+
+                    delegate: Rectangle {
+                        id: categoryManagementDelegate
+
+                        required property string categoryId
+                        required property string name
+                        required property bool isIncome
+                        required property bool archived
+
+                        width: managedCategoryList.width
+                        height: categoryManagementRow.implicitHeight
+                            + AppTheme.spacingMedium * 2
+                        radius: AppTheme.radiusSmall
+                        color: categoryManagementDelegate.archived
+                            ? AppTheme.surfaceVariantColor
+                            : AppTheme.surfaceColor
+                        border.color: AppTheme.borderColor
+
+                        RowLayout {
+                            id: categoryManagementRow
+                            anchors.fill: parent
+                            anchors.margins: AppTheme.spacingMedium
+                            spacing: AppTheme.spacingSmall
+
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: AppTheme.spacingExtraSmall
+
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: categoryManagementDelegate.name
+                                    color: AppTheme.textPrimaryColor
+                                    font.bold: true
+                                    elide: Text.ElideRight
+                                }
+
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: qsTr("%1分类 · %2")
+                                        .arg(categoryManagementDelegate.isIncome
+                                             ? qsTr("收入")
+                                             : qsTr("支出"))
+                                        .arg(categoryManagementDelegate.archived
+                                             ? qsTr("已归档")
+                                             : qsTr("使用中"))
+                                    color: AppTheme.textSecondaryColor
+                                    elide: Text.ElideRight
+                                }
+                            }
+
+                            Button {
+                                text: qsTr("重命名")
+                                onClicked: root.openRenameSetupItemDialog(
+                                    "category",
+                                    categoryManagementDelegate.categoryId,
+                                    categoryManagementDelegate.name)
+                            }
+
+                            Button {
+                                text: categoryManagementDelegate.archived
+                                    ? qsTr("恢复")
+                                    : qsTr("归档")
+                                onClicked: {
+                                    if (categoryManagementDelegate.archived) {
+                                        root.setupViewModel.setCategoryArchived(
+                                            categoryManagementDelegate.categoryId,
+                                            false)
+                                    } else {
+                                        root.requestArchiveSetupItem(
+                                            "category",
+                                            categoryManagementDelegate.categoryId,
+                                            categoryManagementDelegate.name)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Label {
+                        anchors.centerIn: parent
+                        visible: managedCategoryList.count === 0
+                        text: qsTr("还没有分类")
+                        color: AppTheme.textSecondaryColor
+                    }
+                }
+            }
+
+            Label {
+                Layout.fillWidth: true
+                visible: root.setupViewModel && root.setupViewModel.hasError
+                text: root.setupViewModel
+                    ? root.setupViewModel.errorMessage
+                    : ""
+                color: AppTheme.errorColor
+                wrapMode: Text.WordWrap
+            }
+
+            Button {
+                Layout.alignment: Qt.AlignRight
+                text: qsTr("关闭")
+                onClicked: setupManagementDialog.close()
+            }
+        }
+    }
+
+    Dialog {
+        id: renameSetupItemDialog
+
+        property string itemKind: ""
+        property string itemId: ""
+
+        anchors.centerIn: parent
+        modal: true
+        title: itemKind === "account"
+            ? qsTr("重命名账户")
+            : qsTr("重命名分类")
+
+        ColumnLayout {
+            width: Math.min(root.width - AppTheme.spacingLarge * 4, 360)
+            spacing: AppTheme.spacingMedium
+
+            TextField {
+                id: renameSetupItemField
+                Layout.fillWidth: true
+                placeholderText: qsTr("新名称")
+                maximumLength: 40
+            }
+
+            RowLayout {
+                Layout.alignment: Qt.AlignRight
+
+                Button {
+                    text: qsTr("取消")
+                    onClicked: renameSetupItemDialog.close()
+                }
+
+                Button {
+                    text: qsTr("保存")
+                    onClicked: {
+                        const succeeded = renameSetupItemDialog.itemKind
+                            === "account"
+                            ? root.setupViewModel.renameAccount(
+                                renameSetupItemDialog.itemId,
+                                renameSetupItemField.text)
+                            : root.setupViewModel.renameCategory(
+                                renameSetupItemDialog.itemId,
+                                renameSetupItemField.text)
+                        if (succeeded)
+                            renameSetupItemDialog.close()
+                    }
+                }
+            }
+        }
+    }
+
+    Dialog {
+        id: archiveSetupItemDialog
+
+        property string itemKind: ""
+        property string itemId: ""
+        property string itemName: ""
+
+        anchors.centerIn: parent
+        modal: true
+        title: itemKind === "account"
+            ? qsTr("归档账户")
+            : qsTr("归档分类")
+        standardButtons: Dialog.Yes | Dialog.No
+
+        onAccepted: {
+            if (itemKind === "account")
+                root.setupViewModel.setAccountArchived(itemId, true)
+            else
+                root.setupViewModel.setCategoryArchived(itemId, true)
+        }
+
+        Label {
+            width: Math.min(root.width - AppTheme.spacingLarge * 4, 380)
+            text: qsTr("确定归档“%1”吗？它将不再出现在新增或编辑账单的选项中，历史账单不受影响。")
+                .arg(archiveSetupItemDialog.itemName)
+            color: AppTheme.textPrimaryColor
+            wrapMode: Text.WordWrap
         }
     }
 

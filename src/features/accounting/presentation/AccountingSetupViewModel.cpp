@@ -12,11 +12,15 @@ AccountingSetupViewModel::AccountingSetupViewModel(
     GetAccountingSetup &getAccountingSetup,
     CreateAccount &createAccount,
     CreateCategory &createCategory,
+    UpdateAccount &updateAccount,
+    UpdateCategory &updateCategory,
     QObject *parent)
     : QObject(parent)
     , m_getAccountingSetup(getAccountingSetup)
     , m_createAccount(createAccount)
     , m_createCategory(createCategory)
+    , m_updateAccount(updateAccount)
+    , m_updateCategory(updateCategory)
     , m_accounts(this)
     , m_categories(this)
 {
@@ -130,6 +134,114 @@ bool AccountingSetupViewModel::createCategory(
         setError(std::get<CreateCategoryError>(result)
                          == CreateCategoryError::InvalidInput
                      ? QStringLiteral("分类名称无效")
+                     : QStringLiteral("无法保存分类"));
+        return false;
+    }
+
+    load();
+    return !hasError();
+}
+
+bool AccountingSetupViewModel::renameAccount(
+    const QString &id, const QString &name)
+{
+    const QUuid accountId(id);
+    if (accountId.isNull()) {
+        setError(QStringLiteral("账户信息无效"));
+        return false;
+    }
+    const auto result = m_updateAccount.execute(UpdateAccountRequest{
+        .id = accountId,
+        .name = name,
+        .archived = std::nullopt,
+    });
+    if (std::holds_alternative<UpdateAccountError>(result)) {
+        const auto error = std::get<UpdateAccountError>(result);
+        setError(error == UpdateAccountError::InvalidInput
+                     ? QStringLiteral("账户名称无效")
+                 : error == UpdateAccountError::NotFound
+                     ? QStringLiteral("账户不存在或已被移除")
+                     : QStringLiteral("无法保存账户"));
+        return false;
+    }
+
+    load();
+    return !hasError();
+}
+
+bool AccountingSetupViewModel::setAccountArchived(
+    const QString &id, bool archived)
+{
+    const QUuid accountId(id);
+    if (accountId.isNull()) {
+        setError(QStringLiteral("账户信息无效"));
+        return false;
+    }
+    const auto result = m_updateAccount.execute(UpdateAccountRequest{
+        .id = accountId,
+        .name = std::nullopt,
+        .archived = archived,
+    });
+    if (std::holds_alternative<UpdateAccountError>(result)) {
+        const auto error = std::get<UpdateAccountError>(result);
+        setError(error == UpdateAccountError::InvalidInput
+                     ? QStringLiteral("账户信息无效")
+                 : error == UpdateAccountError::NotFound
+                     ? QStringLiteral("账户不存在或已被移除")
+                     : QStringLiteral("无法保存账户"));
+        return false;
+    }
+
+    load();
+    return !hasError();
+}
+
+bool AccountingSetupViewModel::renameCategory(
+    const QString &id, const QString &name)
+{
+    const QUuid categoryId(id);
+    if (categoryId.isNull()) {
+        setError(QStringLiteral("分类信息无效"));
+        return false;
+    }
+    const auto result = m_updateCategory.execute(UpdateCategoryRequest{
+        .id = categoryId,
+        .name = name,
+        .archived = std::nullopt,
+    });
+    if (std::holds_alternative<UpdateCategoryError>(result)) {
+        const auto error = std::get<UpdateCategoryError>(result);
+        setError(error == UpdateCategoryError::InvalidInput
+                     ? QStringLiteral("分类名称无效")
+                 : error == UpdateCategoryError::NotFound
+                     ? QStringLiteral("分类不存在或已被移除")
+                     : QStringLiteral("无法保存分类"));
+        return false;
+    }
+
+    load();
+    return !hasError();
+}
+
+bool AccountingSetupViewModel::setCategoryArchived(
+    const QString &id, bool archived)
+{
+    const QUuid categoryId(id);
+    if (categoryId.isNull()) {
+        setError(QStringLiteral("分类信息无效"));
+        return false;
+    }
+    const auto result = m_updateCategory.execute(UpdateCategoryRequest{
+        .id = categoryId,
+        .name = std::nullopt,
+        .archived = archived,
+    });
+    if (std::holds_alternative<UpdateCategoryError>(result)) {
+        const auto error = std::get<UpdateCategoryError>(result);
+        setError(error == UpdateCategoryError::InvalidInput
+                     ? QStringLiteral("分类信息无效")
+                 : error == UpdateCategoryError::NotFound
+                     ? QStringLiteral("分类不存在或已被移除")
                      : QStringLiteral("无法保存分类"));
         return false;
     }
