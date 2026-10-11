@@ -1,6 +1,14 @@
 add_library(StuKitScheduleApplication STATIC
     DetectScheduleConflicts.cpp
     DetectScheduleConflicts.h
+    GetWeeklySchedule.cpp
+    GetWeeklySchedule.h
+    SaveAcademicTerm.cpp
+    SaveAcademicTerm.h
+    SaveCourse.cpp
+    SaveCourse.h
+    SaveCourseMeeting.cpp
+    SaveCourseMeeting.h
 )
 
 target_include_directories(StuKitScheduleApplication
