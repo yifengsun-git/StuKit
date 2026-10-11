@@ -12,6 +12,7 @@ qt_standard_project_setup(REQUIRES 6.8)
 include(CTest)
 
 add_subdirectory(src/features/schedule/domain)
+add_subdirectory(src/features/schedule/application)
 add_subdirectory(src/features/accounting/domain)
 add_subdirectory(src/features/accounting/application)
 add_subdirectory(src/features/accounting/infrastructure)

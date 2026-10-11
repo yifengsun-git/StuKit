@@ -5,6 +5,9 @@ add_library(StuKitScheduleDomain STATIC
     Course.h
     CourseMeeting.cpp
     CourseMeeting.h
+    IAcademicTermRepository.h
+    ICourseMeetingRepository.h
+    ICourseRepository.h
     Weekday.h
     WeekPattern.h
 )

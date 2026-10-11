@@ -42,3 +42,39 @@ add_test(
     NAME schedule.course_meeting
     COMMAND StuKitCourseMeetingTest
 )
+
+add_executable(StuKitScheduleRepositoryTest
+    ScheduleRepositoryTest.cpp
+    support/InMemoryAcademicTermRepository.h
+    support/InMemoryCourseMeetingRepository.h
+    support/InMemoryCourseRepository.h
+)
+
+target_link_libraries(StuKitScheduleRepositoryTest
+    PRIVATE
+        Qt6::Test
+        StuKitScheduleDomain
+)
+
+add_test(
+    NAME schedule.repositories
+    COMMAND StuKitScheduleRepositoryTest
+)
+
+add_executable(StuKitDetectScheduleConflictsTest
+    DetectScheduleConflictsTest.cpp
+    support/InMemoryAcademicTermRepository.h
+    support/InMemoryCourseMeetingRepository.h
+    support/InMemoryCourseRepository.h
+)
+
+target_link_libraries(StuKitDetectScheduleConflictsTest
+    PRIVATE
+        Qt6::Test
+        StuKitScheduleApplication
+)
+
+add_test(
+    NAME schedule.detect_conflicts
+    COMMAND StuKitDetectScheduleConflictsTest
+)
