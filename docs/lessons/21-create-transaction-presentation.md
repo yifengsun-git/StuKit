@@ -2,7 +2,7 @@
 
 ## 本课定位
 
-第二十课已经允许用户创建真实账户和收支分类。本课计划完成第一笔真实账单的输入
+第二十课已经允许用户创建真实账户和收支分类。本课完成第一笔真实账单的输入
 流程，并在保存成功后刷新当前月首页：
 
 ```text
@@ -94,7 +94,7 @@ QML -> Presentation ViewModel -> Application -> Domain Repository interface
 
 ## 7. CreateTransactionViewModel
 
-计划提供的主要状态：
+提供的主要状态：
 
 ```text
 isIncome, amountText, note
@@ -115,7 +115,7 @@ submit()
 ViewModel 将 `CreateTransactionError` 映射为稳定中文提示。保存成功后发出
 `transactionCreated` 信号，由组合层或页面触发月度首页重新加载。
 
-## 8. QML 交互计划
+## 8. QML 交互
 
 记账首页增加“记一笔”主按钮。对话框中使用：
 
@@ -132,7 +132,7 @@ ViewModel 将 `CreateTransactionError` 映射为稳定中文提示。保存成�
 
 ## 9. 组合根更新
 
-`AccountingModule` 计划增加并持有：
+`AccountingModule` 增加并持有：
 
 - `CreateTransaction`
 - `CreateTransactionViewModel`
@@ -140,7 +140,7 @@ ViewModel 将 `CreateTransactionError` 映射为稳定中文提示。保存成�
 它复用已有三个 SQLite Repository、`AccountingSetupViewModel` 的基础数据，以及
 `AccountingOverviewViewModel` 的当前时区。对象生命周期仍由组合根统一管理。
 
-## 10. 测试计划
+## 10. 测试覆盖
 
 ### Presentation
 
@@ -159,14 +159,12 @@ ViewModel 将 `CreateTransactionError` 映射为稳定中文提示。保存成�
 - 模块重启后账单仍存在。
 - 当前月汇总和流水列表在创建后更新。
 
-## 11. 预计文件变化
+## 11. 实际文件变化
 
-可能新增：
+新增：
 
 ```text
 src/features/accounting/presentation/CreateTransactionViewModel.h/.cpp
-src/features/accounting/presentation/SelectableAccountListModel.h/.cpp
-src/features/accounting/presentation/SelectableCategoryListModel.h/.cpp
 tests/unit/accounting/CreateTransactionPresentationTest.cpp
 ```
 
@@ -180,18 +178,48 @@ AccountingHomePage.qml
 相关 CMake 与集成测试
 ```
 
-模型是否单独拆分会在实现时以职责清晰和最少重复为准，不为了匹配预计文件名而制造
-空壳类型。
+没有新增 SelectableAccountListModel 或 SelectableCategoryListModel。表单 ViewModel
+复用现有 `AccountListModel` 和 `CategoryListModel`，向模型放入已经过滤好的实体，
+避免两个职责相同的模型类型。
 
 ## 12. 验收清单
 
-- [ ] 没有基础数据时给出明确引导。
-- [ ] 表单只显示未归档账户和类型匹配分类。
-- [ ] 金额不经过浮点数。
-- [ ] 时间使用用户自定义记账时区。
-- [ ] QML 不创建 UUID、不访问 Repository。
-- [ ] 创建成功后当前月汇总与列表立即更新。
-- [ ] 保存失败时用户输入不丢失。
-- [ ] 真实 SQLite 重启验证通过。
-- [ ] 全量测试通过。
-- [ ] 文档与代码导读同步更新。
+- [x] 没有基础数据时给出明确引导。
+- [x] 表单只显示未归档账户和类型匹配分类。
+- [x] 金额不经过浮点数。
+- [x] 时间使用用户自定义记账时区。
+- [x] QML 不创建 UUID、不访问 Repository。
+- [x] 创建成功后当前月汇总与列表立即更新。
+- [x] 保存失败时用户输入不丢失。
+- [x] 真实 SQLite 重启验证通过。
+- [x] 全量测试通过。
+- [x] 文档与代码导读同步更新。
+
+## 13. 实现与验证结果
+
+实现中的关键行为：
+
+- 表单打开时重新读取基础数据，默认选择第一个有效账户。
+- 优先使用支出分类；只有收入分类时自动切换到收入模式。
+- 收支切换会在 C++ 中重建分类模型，不在 QML 中隐藏不匹配的行。
+- 日期和时间以 `QDateTime::TransitionResolution::Reject` 结合记账时区构造，夏令时
+  缺口或重复时间不会被静默解释成另一时刻。
+- `transactionCreated` 信号由组合根连接到月度首页 `load()`，保存后立即刷新汇总。
+- 保存失败不会清空表单；保存成功后才清理金额与备注并关闭对话框。
+- 账户或分类发生变化时，表单选项通过 `setupChanged` 自动重新加载。
+
+验证结果：
+
+```text
+MSVC 2022 Release build: passed
+CTest: 19/19 passed
+Windows QML startup smoke test: passed
+```
+
+测试覆盖固定 UTC+08:00 转换、`America/New_York` 夏令时缺口、无效金额、真实
+SQLite 写入、首页刷新和模块重启恢复。
+
+## 14. 后续方向
+
+第二十二课将完善流水的可读信息与详情展示。当前列表已经能显示金额、时间和备注，
+下一步补到账户名称、分类名称和完整账单详情，为后续编辑、删除建立可靠入口。
