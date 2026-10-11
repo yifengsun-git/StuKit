@@ -55,9 +55,10 @@ UTC-14:00 到 UTC+14:00 的固定偏移，选择后会保存并同步到月度�
 课表模块现已启动，并建立了独立的模块开发计划。领域模型、三个 Repository 契约、
 内存测试实现和课程冲突检测已经完成。共享 SQLite 数据库也已升级到版本 4，新增
 学期、课程和上课安排三张表，以及字段约束、外键和查询索引；版本 1～3 可以保留旧
-记账数据并顺序升级，备份验证和未来版本保护已同步。全工程仍保持自动测试通过。
-下一步实现三个课表 SQLite Repository。Windows Release 部署仍在课表 MVP 完成后
-集中处理。
+记账数据并顺序升级，备份验证和未来版本保护已同步。三个课表 SQLite Repository
+现已实现，支持 UPSERT、按关联筛选、稳定排序、外键错误和损坏行拒绝，Repository
+重建后数据仍可恢复。全工程共 38 个测试。下一步实现课表 Application 用例。
+Windows Release 部署仍在课表 MVP 完成后集中处理。
 
 ## 技术方向
 
@@ -112,6 +113,7 @@ UTC-14:00 到 UTC+14:00 的固定偏移，选择后会保存并同步到月度�
 - [第三十四课：课表 Repository 与冲突检测](docs/lessons/34-schedule-repositories-and-conflicts.md)
 - [第三十五课：课表 SQLite 数据库迁移](docs/lessons/35-schedule-database-migration.md)
 - [第三十六课：课表 SQLite Repository](docs/lessons/36-schedule-sqlite-repositories.md)
+- [第三十七课：课表 Application 用例](docs/lessons/37-schedule-application-use-cases.md)
 
 ## 开发原则
 

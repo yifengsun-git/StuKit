@@ -110,6 +110,8 @@ qml/
 - 记账与课表共用数据库连接和迁移历史，但各自使用独立业务表与 Repository。
 - 当前版本 4 包含 accounts、categories、transactions、academic_terms、courses 和
   course_meetings；课表外键不会引用记账表。
+- 课表 SQLite Repository 只依赖 Qt SQL 与课表 Domain；数据库连接由组合根传入，
+  不通过记账 Domain 或 Application 获取。
 - 使用事务保证多条相关写入要么全部成功，要么全部失败。
 - 数据库文件位置通过 QStandardPaths 获取，不写死 Windows 路径。
 

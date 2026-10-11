@@ -5,14 +5,14 @@
 本文说明 StuKit 中各个 C++ 头文件和源文件的职责、依赖关系以及不能承担的职责。
 它适合在阅读代码、排查编译错误或添加新功能前快速查阅。
 
-当前内容对应第三十五课完成后的代码，包括四版 SQLite 迁移、三个记账 Repository
+当前内容对应第三十六课完成后的代码，包括四版 SQLite 迁移、三个记账 Repository
 接口、创建与查询用例、记账 Presentation，以及从 QML 创建账户、分类和账单并
 持久化到真实 SQLite 的端到端链路、账户余额、月度流水筛选、安全备份恢复和
 全部流水 CSV 导出，以及可自定义时间、账户和分类范围的记账分析聚合、ViewModel
 和通用图表系列模型，以及柱状图、折线图、排行、环形图、自定义筛选面板和完整页面
 QML 集成测试。记账与分析 MVP 已完成；课表模块已经建立学期、课程、上课安排、
-星期和单双周 Domain 模型、三个 Repository 契约、课程冲突检测用例，以及版本 4
-课表数据库表、约束、外键、索引和迁移测试。
+星期和单双周 Domain 模型、三个 Repository 契约、课程冲突检测用例、版本 4
+课表数据库表，以及三个课表 SQLite Repository 和集成测试。
 
 ## 2. `.h` 和 `.cpp` 分别做什么
 
@@ -710,6 +710,20 @@ Category。
 它不检查账户是否归档、分类是否归档或分类类型是否匹配；这些用户操作规则由
 `CreateTransaction` 负责。Repository 和数据库只保证数据映射与引用完整性。
 
+### 三个课表 SQLite Repository
+
+目录：`src/features/schedule/infrastructure/repositories/`。
+
+- `SqliteAcademicTermRepository` 映射 UUID、ISO 日期、周数和归档状态。
+- `SqliteCourseRepository` 映射学期关联、教师、教室和颜色，并将 null QString 转为
+  数据库可接受的空文本。
+- `SqliteCourseMeetingRepository` 显式映射星期 1～7 和单双周 0～2，不依赖枚举隐式
+  数值。
+
+三个实现都使用参数绑定和 UPSERT，列表查询有稳定 `ORDER BY`。数据库行读取后会
+重新调用对应 Domain 工厂；任何损坏行都会令查询失败并设置 `lastError()`。这些类只
+依赖 Qt SQL 和课表 Domain，不依赖记账业务层。
+
 ## 8. Presentation：C++ 表现层
 
 目录：
@@ -971,6 +985,13 @@ SQLite Repository 组装起来验证跨层流程。测试先销毁 Repository，
 的账户和分类不能删除，以及 `CreateTransaction` 能通过三个真实 Repository 完成
 持久化。
 
+### 三个课表 SQLite Repository 集成测试
+
+目录：`tests/integration/schedule/`。三个独立测试使用临时版本 4 数据库验证全部字段、
+UPSERT、缺失结果、按关联筛选、稳定排序、外键失败、Repository 重建和关闭连接错误。
+测试还通过 `PRAGMA ignore_check_constraints` 注入损坏行，确认读取时的 Domain 工厂会
+拒绝非法数据。正式用户数据库不会被访问。
+
 ### `tests/integration/app/AccountingModuleTest.cpp`
 
 使用临时目录和真实 SQLite 验证应用组合根：数据库创建并迁移到版本 4、空月份
@@ -1036,6 +1057,12 @@ Qt SQL 或 Qt Quick。
 创建 `StuKitScheduleApplication`，编译 `DetectScheduleConflicts` 并公开 Application
 头文件目录。它只链接 `StuKitScheduleDomain`，不能反向依赖 SQLite 或 QML。
 
+### `src/features/schedule/infrastructure/CMakeLists.txt`
+
+创建 `StuKitScheduleInfrastructure`，编译三个 SQLite Repository。该目标只链接
+`Qt6::Sql` 和 `StuKitScheduleDomain`，不链接任何记账业务目标。数据库连接由最外层
+组合代码传入。
+
 ### `src/features/accounting/application/CMakeLists.txt`
 
 创建：
@@ -1089,6 +1116,12 @@ Infrastructure 与 Presentation，负责把两条依赖链组装起来。
 
 分别创建数据库迁移、备份服务、CSV 写入器、账户、分类和账单 Repository 测试目标。
 三个 Repository 集成测试额外链接 Application，用于验证创建用例到 SQLite 的完整调用链。
+
+### `tests/integration/schedule/CMakeLists.txt`
+
+创建学期、课程和上课安排三个 SQLite Repository 测试目标，并注册三个
+`schedule.sqlite_...` CTest。测试额外链接现有数据库迁移器来创建临时版本 4 数据库，
+产品中的课表 Infrastructure 不因此依赖记账业务层。
 
 ### `tests/integration/qml/CMakeLists.txt`
 
@@ -1153,6 +1186,10 @@ Application/Domain/Presentation，但不链接 SQLite Infrastructure。
 51. `DetectScheduleConflictsTest.cpp`：观察单双周、编辑和跨学期边界。
 52. `SqliteDatabase::applyMigration4()`：理解课表表、约束、外键和原子迁移。
 53. `SqliteDatabaseTest.cpp` 的课表测试：理解版本升级、非法写入和事务回滚。
+54. `SqliteAcademicTermRepository.h/.cpp`：理解日期、归档和学期排序映射。
+55. `SqliteCourseRepository.h/.cpp`：理解关联外键和可选文本的 null/空值差异。
+56. `SqliteCourseMeetingRepository.h/.cpp`：理解星期与单双周的显式稳定编码。
+57. 三个 schedule SQLite 集成测试：理解真实数据库映射与第二道 Domain 校验。
 
 ## 13. 修改代码时如何判断文件归属
 
@@ -1169,5 +1206,5 @@ Application/Domain/Presentation，但不链接 SQLite Infrastructure。
 ## 14. 后续更新规则
 
 每完成一课并新增 C++ 文件，都应在本文补充它的职责、依赖和禁止承担的职责。
-记账和分析 MVP 已完成；课表 Domain、Repository 契约、冲突检测和版本 4 数据库迁移
-也已建立。下一课实现三个课表 SQLite Repository 和实体映射，仍暂不进入 QML。
+记账和分析 MVP 已完成；课表 Domain、冲突检测、版本 4 迁移和三个 SQLite Repository
+也已建立。下一课实现课表 Application 创建、修改和指定教学周查询，仍暂不进入 QML。
