@@ -19,6 +19,8 @@ add_library(StuKitAccountingPresentation STATIC
     MoneyInputParser.h
     TransactionListModel.cpp
     TransactionListModel.h
+    TransactionFilterProxyModel.cpp
+    TransactionFilterProxyModel.h
 )
 
 target_include_directories(StuKitAccountingPresentation

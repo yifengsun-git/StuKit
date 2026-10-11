@@ -372,6 +372,133 @@ Page {
                     && root.viewModel.empty
             }
 
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.leftMargin: AppTheme.spacingLarge
+                Layout.rightMargin: AppTheme.spacingLarge
+                Layout.preferredHeight: transactionFilterLayout.implicitHeight
+                    + AppTheme.spacingMedium * 2
+                radius: AppTheme.radiusMedium
+                color: AppTheme.surfaceColor
+                border.color: AppTheme.borderColor
+                visible: root.activeError.length === 0
+                    && root.viewModel !== null
+                    && !root.viewModel.empty
+
+                ColumnLayout {
+                    id: transactionFilterLayout
+
+                    anchors.fill: parent
+                    anchors.margins: AppTheme.spacingMedium
+                    spacing: AppTheme.spacingSmall
+
+                    Label {
+                        text: qsTr("筛选本月流水")
+                        color: AppTheme.textPrimaryColor
+                        font.bold: true
+                    }
+
+                    GridLayout {
+                        Layout.fillWidth: true
+                        columns: root.width >= 760 ? 3 : 1
+                        columnSpacing: AppTheme.spacingSmall
+                        rowSpacing: AppTheme.spacingSmall
+
+                        ComboBox {
+                            id: transactionTypeFilterBox
+
+                            Layout.fillWidth: true
+                            model: [
+                                { "label": qsTr("全部收支"), "value": 0 },
+                                { "label": qsTr("只看收入"), "value": 1 },
+                                { "label": qsTr("只看支出"), "value": 2 }
+                            ]
+                            textRole: "label"
+                            valueRole: "value"
+                            currentIndex: root.viewModel
+                                ? root.viewModel.typeFilter
+                                : 0
+                            onActivated: root.viewModel.typeFilter = currentValue
+                        }
+
+                        ComboBox {
+                            id: transactionAccountFilterBox
+
+                            Layout.fillWidth: true
+                            model: root.viewModel
+                                ? root.viewModel.accountFilterOptions
+                                : []
+                            textRole: "label"
+                            valueRole: "value"
+                            currentIndex: {
+                                if (!root.viewModel)
+                                    return 0
+                                const selected = indexOfValue(
+                                    root.viewModel.accountIdFilter)
+                                return selected >= 0 ? selected : 0
+                            }
+                            onActivated: root.viewModel.accountIdFilter
+                                = currentValue
+                        }
+
+                        ComboBox {
+                            id: transactionCategoryFilterBox
+
+                            Layout.fillWidth: true
+                            model: root.viewModel
+                                ? root.viewModel.categoryFilterOptions
+                                : []
+                            textRole: "label"
+                            valueRole: "value"
+                            currentIndex: {
+                                if (!root.viewModel)
+                                    return 0
+                                const selected = indexOfValue(
+                                    root.viewModel.categoryIdFilter)
+                                return selected >= 0 ? selected : 0
+                            }
+                            onActivated: root.viewModel.categoryIdFilter
+                                = currentValue
+                        }
+                    }
+
+                    TextField {
+                        id: transactionSearchField
+
+                        Layout.fillWidth: true
+                        placeholderText: qsTr("搜索备注、账户名或分类名")
+                        text: root.viewModel ? root.viewModel.searchText : ""
+                        onTextEdited: root.viewModel.searchText = text
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+
+                        Label {
+                            Layout.fillWidth: true
+                            text: root.viewModel
+                                && root.viewModel.noMatchingTransactions
+                                ? qsTr("没有符合条件的账单")
+                                : qsTr("显示 %1 条账单").arg(
+                                      root.viewModel
+                                          ? root.viewModel.filteredTransactionCount
+                                          : 0)
+                            color: root.viewModel
+                                && root.viewModel.noMatchingTransactions
+                                ? AppTheme.errorColor
+                                : AppTheme.textSecondaryColor
+                        }
+
+                        Button {
+                            text: qsTr("清除筛选")
+                            visible: root.viewModel
+                                && root.viewModel.hasActiveTransactionFilters
+                            onClicked: root.viewModel.clearTransactionFilters()
+                        }
+                    }
+                }
+            }
+
             ListView {
                 id: transactionList
 
@@ -386,6 +513,7 @@ Page {
                 visible: root.activeError.length === 0
                     && root.viewModel !== null
                     && !root.viewModel.empty
+                    && !root.viewModel.noMatchingTransactions
 
                 delegate: Rectangle {
                     id: transactionDelegate

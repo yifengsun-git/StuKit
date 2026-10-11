@@ -261,6 +261,21 @@ add_test(
     COMMAND StuKitAccountBalancesPresentationTest
 )
 
+add_executable(StuKitTransactionFilterProxyModelTest
+    TransactionFilterProxyModelTest.cpp
+)
+
+target_link_libraries(StuKitTransactionFilterProxyModelTest
+    PRIVATE
+        Qt6::Test
+        StuKitAccountingPresentation
+)
+
+add_test(
+    NAME accounting.transaction_filter_proxy
+    COMMAND StuKitTransactionFilterProxyModelTest
+)
+
 add_executable(StuKitAccountingSetupTest
     AccountingSetupTest.cpp
     support/InMemoryAccountRepository.h

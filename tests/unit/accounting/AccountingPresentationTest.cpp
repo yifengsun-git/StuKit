@@ -122,6 +122,7 @@ private slots:
     void formatsMoneyWithoutFloatingPoint();
     void exposesReadableTransactionRoles();
     void loadsMonthlyOverview();
+    void filtersWithoutChangingMonthlyTotals();
     void navigatesAndReloadsMonths();
     void appliesCustomFixedOffset();
     void rejectsInvalidTimeZone();
@@ -208,6 +209,82 @@ void AccountingPresentationTest::loadsMonthlyOverview()
     QVERIFY(!viewModel.isEmpty());
     QVERIFY(!viewModel.hasError());
     QCOMPARE(viewModel.transactions()->rowCount(), 2);
+}
+
+void AccountingPresentationTest::filtersWithoutChangingMonthlyTotals()
+{
+    Fixture fixture;
+    QVERIFY(fixture.transactions.save(fixture.transaction(
+        TransactionType::Income, 7500,
+        QStringLiteral("2026-10-10T02:00:00.000Z"),
+        QStringLiteral("October Salary"))));
+    QVERIFY(fixture.transactions.save(fixture.transaction(
+        TransactionType::Expense, 8000,
+        QStringLiteral("2026-10-11T02:00:00.000Z"),
+        QStringLiteral("Lunch"))));
+    QVERIFY(fixture.transactions.save(fixture.transaction(
+        TransactionType::Expense, 2000,
+        QStringLiteral("2026-10-12T02:00:00.000Z"),
+        QStringLiteral("Bus"))));
+
+    const auto archivedAccount = Account::create(AccountData{
+        .id = fixture.accountId,
+        .name = QStringLiteral("旧银行卡"),
+        .openingBalance = Money::fromCents(0),
+        .archived = true,
+    });
+    const auto archivedExpenseCategory = Category::create(CategoryData{
+        .id = fixture.expenseCategoryId,
+        .name = QStringLiteral("旧餐饮"),
+        .type = TransactionType::Expense,
+        .archived = true,
+    });
+    QVERIFY(archivedAccount.has_value());
+    QVERIFY(archivedExpenseCategory.has_value());
+    QVERIFY(fixture.accounts.save(*archivedAccount));
+    QVERIFY(fixture.categories.save(*archivedExpenseCategory));
+
+    AccountingOverviewViewModel viewModel(
+        fixture.useCase, utcPlusEight(), QDate(2026, 10, 1));
+    QSignalSpy filterSpy(
+        &viewModel,
+        &AccountingOverviewViewModel::transactionFiltersChanged);
+    viewModel.load();
+
+    QCOMPARE(viewModel.filteredTransactionCount(), 3);
+    QCOMPARE(viewModel.accountFilterOptions().size(), 2);
+    QCOMPARE(viewModel.categoryFilterOptions().size(), 3);
+    QCOMPARE(viewModel.totalIncomeText(), QStringLiteral("75.00"));
+    QCOMPARE(viewModel.totalExpenseText(), QStringLiteral("100.00"));
+    QCOMPARE(viewModel.balanceText(), QStringLiteral("-25.00"));
+
+    viewModel.setTypeFilter(
+        TransactionFilterProxyModel::ExpenseTransactions);
+    QCOMPARE(viewModel.filteredTransactionCount(), 2);
+    QCOMPARE(viewModel.categoryFilterOptions().size(), 2);
+
+    viewModel.setSearchText(QStringLiteral("  lunch  "));
+    QCOMPARE(viewModel.searchText(), QStringLiteral("lunch"));
+    QCOMPARE(viewModel.filteredTransactionCount(), 1);
+    QVERIFY(!viewModel.noMatchingTransactions());
+
+    viewModel.setSearchText(QStringLiteral("missing"));
+    QCOMPARE(viewModel.filteredTransactionCount(), 0);
+    QVERIFY(viewModel.noMatchingTransactions());
+    QVERIFY(!viewModel.isEmpty());
+    QCOMPARE(viewModel.totalIncomeText(), QStringLiteral("75.00"));
+    QCOMPARE(viewModel.totalExpenseText(), QStringLiteral("100.00"));
+
+    viewModel.setCategoryIdFilter(
+        fixture.expenseCategoryId.toString(QUuid::WithoutBraces));
+    viewModel.setTypeFilter(
+        TransactionFilterProxyModel::IncomeTransactions);
+    QVERIFY(viewModel.categoryIdFilter().isEmpty());
+
+    viewModel.clearTransactionFilters();
+    QVERIFY(!viewModel.hasActiveTransactionFilters());
+    QCOMPARE(viewModel.filteredTransactionCount(), 3);
+    QVERIFY(filterSpy.count() >= 5);
 }
 
 void AccountingPresentationTest::navigatesAndReloadsMonths()
