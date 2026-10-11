@@ -5,10 +5,11 @@
 本文说明 StuKit 中各个 C++ 头文件和源文件的职责、依赖关系以及不能承担的职责。
 它适合在阅读代码、排查编译错误或添加新功能前快速查阅。
 
-当前内容对应第二十九课完成后的代码，包括三版 SQLite 迁移、三个 Repository
+当前内容对应第三十课完成后的代码，包括三版 SQLite 迁移、三个 Repository
 接口、创建与查询用例、记账 Presentation，以及从 QML 创建账户、分类和账单并
 持久化到真实 SQLite 的端到端链路、账户余额、月度流水筛选、安全备份恢复和
-全部流水 CSV 导出，以及可自定义时间、账户和分类范围的记账分析聚合。
+全部流水 CSV 导出，以及可自定义时间、账户和分类范围的记账分析聚合、ViewModel
+和通用图表系列模型。
 
 ## 2. `.h` 和 `.cpp` 分别做什么
 
@@ -109,6 +110,12 @@ AccountBalancesViewModel
   -> GetAccountBalances
   -> AccountBalanceListModel
   -> MoneyFormatter
+
+AccountingAnalyticsViewModel
+  -> GetAccountingAnalytics / GetAccountingSetup
+  -> MonthlyAnalyticsListModel / CategoryAnalyticsListModel
+  -> AccountAnalyticsListModel / ChartSeriesListModel
+  -> 默认参数 / 多选筛选 / 上月差额 / 错误状态
 
 InMemoryAccountRepository（仅测试）
   -> IAccountRepository
@@ -700,6 +707,22 @@ Repository，也不计算月度汇总。
 归档状态五个角色。金额格式化仍委托 `MoneyFormatter`，模型不读取 Repository，也不
 重新累计流水。
 
+### 三个记账分析列表模型
+
+- `MonthlyAnalyticsListModel` 提供月份标签以及收入、支出、结余的整数分和显示文本。
+- `CategoryAnalyticsListModel` 提供分类名称、收支类型、金额、占比、笔数和归档状态。
+- `AccountAnalyticsListModel` 提供账户名称、收入、支出、净流入、笔数和归档状态。
+
+整数分角色用于图表数值和精确比较，文本角色统一复用 `MoneyFormatter`。这些模型只
+转换 Application DTO，不查询数据库，也不重新聚合账单。
+
+### `features/analytics/presentation/ChartSeriesListModel.h/.cpp`
+
+这是跨功能复用的图表系列模型。每个系列只有 ID、标题、颜色和点数组；每个点只有
+标签、数值及显示文本。它不知道 `Money`、账户、分类或流水，因此未来饮食模块也可以
+把热量、蛋白质和体重趋势转换成同一输入。图表数值允许使用 `double`，但它只用于
+坐标轴绘制，不能反向成为业务金额来源。
+
 ### `AccountingOverviewViewModel.h/.cpp`
 
 记账首页的页面状态桥梁，提供：
@@ -722,6 +745,17 @@ ViewModel 调用 `GetMonthlyOverview`，但不知道数据来自 SQLite 还是�
 调用 `GetAccountBalances`，向 QML 提供账户余额模型、活动账户总资产文本和错误状态。
 存储失败与金额溢出会转换为稳定中文提示；失败时会清空旧列表和旧总资产，避免界面
 继续展示已经失效的数据。它只负责页面状态转换，不参与余额业务计算。
+
+### `AccountingAnalyticsViewModel.h/.cpp`
+
+分析页面的状态桥梁，负责默认当前月与 12 个月范围、多账户/多分类选择、上一月和
+下一月、恢复默认、时区同步、所选月汇总和上月差额。它调用
+`GetAccountingSetup` 获取完整筛选选项，再调用 `GetAccountingAnalytics` 获取聚合结果，
+并把结果分发给四个模型。账单、基础资料或时区变化时，组合根会要求它重新加载。
+
+ViewModel 对结余差额也执行有符号整数边界检查。用例失败时会清空旧模型，并将无效
+输入、存储失败和金额溢出转换为三条稳定中文提示。它不执行 SQL，且通用图表模型不
+持有记账领域对象。
 
 ### `AccountingSetupViewModel.h/.cpp`
 
@@ -808,6 +842,7 @@ tests/unit/accounting/
 | `GetTransactionExportDataTest.cpp` | 全量关联、已归档名称、稳定排序、查询失败和缺失关联。 |
 | `AccountingPresentationTest.cpp` | 金额、可读名称、完整/简短时间、页面导航、筛选状态及汇总不变性。 |
 | `AccountBalancesPresentationTest.cpp` | 余额角色、总资产格式、错误映射及失败后清理旧状态。 |
+| `AccountingAnalyticsPresentationTest.cpp` | 默认参数、四组模型、多选筛选、上月差额、恢复默认和错误清理。 |
 | `TransactionFilterProxyModelTest.cpp` | 类型、账户、分类、关键字、组合条件、清空和源模型重置。 |
 | `AccountingSetupTest.cpp` | 金额输入边界、基础数据查询、创建、重命名、归档、恢复和错误映射。 |
 | `CreateTransactionPresentationTest.cpp` | 选项过滤、时区输入、编辑回填、更新/删除信号与错误保留。 |
@@ -867,7 +902,8 @@ ViewModel 可用、自定义固定时区可持久化、无效设置回退到 UTC
 不会自动产生默认记录。测试还通过表单 ViewModel 写入真实账单，验证创建、编辑和
 删除后月度首页立即刷新，归档项的历史关联名称仍可读，以及每次重启后 SQLite
 保持最新状态；并验证余额随期初值及账单新增、编辑、删除同步变化，重启后仍可从
-真实 SQLite 流水重新推导，归档账户不会计入活动总资产。它还验证真实数据库可以
+真实 SQLite 流水重新推导，归档账户不会计入活动总资产；同时验证分析 ViewModel
+使用默认 12 个月、随真实账单刷新，并与首页和表单同步记账时区。它还验证真实数据库可以
 备份、修改后恢复，恢复前安全快照存在，旧 ViewModel 被销毁并重新创建，以及无效
 候选文件不会触碰当前数据；同时验证 QML 使用的数据维护 ViewModel 能通过组合根把
 真实 SQLite 流水导出为 CSV。
@@ -918,9 +954,15 @@ GetTransactionExportData，并链接
 
 ### `src/features/accounting/presentation/CMakeLists.txt`
 
-创建 `StuKitAccountingPresentation`，编译金额格式化与解析、四个列表模型、一个
-筛选代理模型和四个 ViewModel，并链接 `Qt6::Core` 与
-`StuKitAccountingApplication`。它不链接 Qt SQL。
+创建 `StuKitAccountingPresentation`，编译金额格式化与解析、七个记账列表模型、一个
+筛选代理模型和五个 ViewModel，并链接 `Qt6::Core`、
+`StuKitAccountingApplication` 与 `StuKitAnalyticsPresentation`。它不链接 Qt SQL。
+
+### `src/features/analytics/presentation/CMakeLists.txt`
+
+创建只依赖 `Qt6::Core` 的 `StuKitAnalyticsPresentation`。当前编译通用
+`ChartSeriesListModel`，不依赖任何记账层，因此饮食等功能可以复用它而不会产生模块
+反向依赖。
 
 ### `src/app/CMakeLists.txt`
 
@@ -973,11 +1015,15 @@ Infrastructure 与 Presentation，负责把两条依赖链组装起来。
 27. `CsvTransactionWriter.h/.cpp`：理解 CSV 转义、编码、时区与原子写入。
 28. `GetAccountingAnalytics.h/.cpp`：理解一次范围查询如何产生连续趋势、分类排行和账户资金流。
 29. `GetAccountingAnalyticsTest.cpp`：理解筛选、时区、固定查询次数和溢出如何被验证。
-30. `AccountingModule.h/.cpp`：理解信号连接、依赖组装、恢复回退和资源析构顺序。
-31. `DataMaintenanceViewModel.h/.cpp`：理解文件 URL、操作状态和 QML 对象重绑定通知。
-32. `AccountingHomePage.qml`：理解 QML 如何只绑定状态、选择文件和发送操作。
-33. `AnalyticsHomePage.qml`：理解通用分析板块为何暂时不依赖具体记账 ViewModel。
-34. `main.cpp`：理解标准路径、根属性注入、恢复后重绑定和应用启动。
+30. 三个 Analytics 列表模型：理解整数分、显示文本和百分比如何暴露给 QML。
+31. `ChartSeriesListModel.h/.cpp`：理解功能无关的图表系列契约。
+32. `AccountingAnalyticsViewModel.h/.cpp`：理解默认参数、多选筛选、差额和模型分发。
+33. `AccountingAnalyticsPresentationTest.cpp`：理解分析页面状态如何脱离 QML 测试。
+34. `AccountingModule.h/.cpp`：理解分析刷新信号、依赖组装、恢复回退和析构顺序。
+35. `DataMaintenanceViewModel.h/.cpp`：理解文件 URL、操作状态和 QML 对象重绑定通知。
+36. `AccountingHomePage.qml`：理解 QML 如何只绑定状态、选择文件和发送操作。
+37. `AnalyticsHomePage.qml`：理解分析 ViewModel 如何成为独立板块的页面状态。
+38. `main.cpp`：理解标准路径、根属性注入、恢复后重绑定和应用启动。
 
 ## 13. 修改代码时如何判断文件归属
 
@@ -994,6 +1040,6 @@ Infrastructure 与 Presentation，负责把两条依赖链组装起来。
 ## 14. 后续更新规则
 
 每完成一课并新增 C++ 文件，都应在本文补充它的职责、依赖和禁止承担的职责。
-下一课将增加 `AccountingAnalyticsViewModel` 与只读列表模型，把当前 Application 聚合
-结果转换成默认分析和自定义分析的页面状态。通用图表只消费展示数据，不依赖记账
-领域类型；分析 MVP 完成后再开始课表 Domain。
+下一课将使用当前 `ChartSeriesListModel` 和记账分析模型绘制柱状、折线、排行和可选
+环形图，并补齐账户、分类多选控件。Qt Charts 依赖只允许进入可视化边界；分析 MVP
+完成后再开始课表 Domain。
