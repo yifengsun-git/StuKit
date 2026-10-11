@@ -5,11 +5,11 @@
 本文说明 StuKit 中各个 C++ 头文件和源文件的职责、依赖关系以及不能承担的职责。
 它适合在阅读代码、排查编译错误或添加新功能前快速查阅。
 
-当前内容对应第三十课完成后的代码，包括三版 SQLite 迁移、三个 Repository
+当前内容对应第三十一课完成后的代码，包括三版 SQLite 迁移、三个 Repository
 接口、创建与查询用例、记账 Presentation，以及从 QML 创建账户、分类和账单并
 持久化到真实 SQLite 的端到端链路、账户余额、月度流水筛选、安全备份恢复和
 全部流水 CSV 导出，以及可自定义时间、账户和分类范围的记账分析聚合、ViewModel
-和通用图表系列模型。
+和通用图表系列模型，以及柱状图、折线图、排行、环形图和自定义筛选面板。
 
 ## 2. `.h` 和 `.cpp` 分别做什么
 
@@ -42,6 +42,7 @@ AccountingModule
   -> 创建、查询与导出数据用例
   -> AccountingOverviewViewModel / AccountingSetupViewModel
   -> CreateTransactionViewModel / AccountBalancesViewModel
+  -> AccountingAnalyticsViewModel
 
 DataMaintenanceViewModel
   -> AccountingModule::backupDatabase / restoreDatabase / exportTransactions
@@ -159,11 +160,12 @@ Infrastructure --> Application -> Domain
 Infrastructure ------------------> Domain
 ```
 
-记账 QML 已通过根属性连接五个 ViewModel：`AccountingOverviewViewModel` 读取月度
+记账 QML 已通过根属性连接六个 ViewModel：`AccountingOverviewViewModel` 读取月度
 汇总和流水，`AccountingSetupViewModel` 读取并创建账户与分类，
 `CreateTransactionViewModel` 收集并提交新增或编辑账单表单并编排删除操作，
 `AccountBalancesViewModel` 提供账户当前余额与活动账户总资产，
-`DataMaintenanceViewModel` 编排备份、恢复、CSV 导出和界面重绑定。全新数据库会显示首次设置引导，
+`AccountingAnalyticsViewModel` 提供默认和自定义分析，`DataMaintenanceViewModel`
+编排备份、恢复、CSV 导出和界面重绑定。全新数据库会显示首次设置引导，
 不会自动写入演示数据。账户与分类创建入口保持常驻，首次设置完成后仍可继续添加。
 
 ## 4. 程序入口
@@ -172,7 +174,7 @@ Infrastructure ------------------> Domain
 
 作用：
 
-- 创建 `QGuiApplication`，启动 Qt GUI 事件循环。
+- 创建 `QApplication`，启动 Qt GUI 事件循环，并为 Qt Charts 提供样式服务。
 - 设置组织名和应用名，供设置、路径等 Qt API 使用。
 - 创建 `QQmlApplicationEngine`。
 - 使用 `QStandardPaths` 获取正式应用数据目录。
@@ -723,6 +725,10 @@ Repository，也不计算月度汇总。
 把热量、蛋白质和体重趋势转换成同一输入。图表数值允许使用 `double`，但它只用于
 坐标轴绘制，不能反向成为业务金额来源。
 
+模型同时提供标准 `QAbstractListModel` 角色和只读 `items` 快照。角色适合普通 QML
+列表，`items` 让通用图表组件可以按 `seriesId` 查找系列并批量读取点。每次替换系列
+都会发出 `itemsChanged`，图表无需轮询。
+
 ### `AccountingOverviewViewModel.h/.cpp`
 
 记账首页的页面状态桥梁，提供：
@@ -749,7 +755,8 @@ ViewModel 调用 `GetMonthlyOverview`，但不知道数据来自 SQLite 还是�
 ### `AccountingAnalyticsViewModel.h/.cpp`
 
 分析页面的状态桥梁，负责默认当前月与 12 个月范围、多账户/多分类选择、上一月和
-下一月、恢复默认、时区同步、所选月汇总和上月差额。它调用
+下一月、恢复默认、时区同步、所选月汇总和上月差额。它还提供账户与分类的全选和
+不限批量操作，每次批量操作只重新查询一次。它调用
 `GetAccountingSetup` 获取完整筛选选项，再调用 `GetAccountingAnalytics` 获取聚合结果，
 并把结果分发给四个模型。账单、基础资料或时区变化时，组合根会要求它重新加载。
 
@@ -842,7 +849,7 @@ tests/unit/accounting/
 | `GetTransactionExportDataTest.cpp` | 全量关联、已归档名称、稳定排序、查询失败和缺失关联。 |
 | `AccountingPresentationTest.cpp` | 金额、可读名称、完整/简短时间、页面导航、筛选状态及汇总不变性。 |
 | `AccountBalancesPresentationTest.cpp` | 余额角色、总资产格式、错误映射及失败后清理旧状态。 |
-| `AccountingAnalyticsPresentationTest.cpp` | 默认参数、四组模型、多选筛选、上月差额、恢复默认和错误清理。 |
+| `AccountingAnalyticsPresentationTest.cpp` | 默认参数、四组模型、通用系列快照、多选/全选/不限筛选、上月差额、恢复默认和错误清理。 |
 | `TransactionFilterProxyModelTest.cpp` | 类型、账户、分类、关键字、组合条件、清空和源模型重置。 |
 | `AccountingSetupTest.cpp` | 金额输入边界、基础数据查询、创建、重命名、归档、恢复和错误映射。 |
 | `CreateTransactionPresentationTest.cpp` | 选项过滤、时区输入、编辑回填、更新/删除信号与错误保留。 |
@@ -919,6 +926,10 @@ ViewModel 可用、自定义固定时区可持久化、无效设置回退到 UTC
 - 按依赖顺序加入 Domain、Application、Infrastructure 等子目录。
 - 创建 StuKit 应用目标。
 - 注册 QML 模块。
+
+最终应用链接 `Qt6::Charts` 与 `Qt6::Widgets`，因为 QML 图表需要 Charts，Charts
+运行时需要 `QApplication` 提供样式服务。这两个依赖都停留在应用外壳；Domain、
+Application、Infrastructure 及两个 Presentation 静态库不链接它们。
 
 普通 C++ 业务文件不能加入 `qt_add_qml_module` 的 `QML_FILES`、`SOURCES` 或
 `RESOURCES`；它们应由各层自己的静态库目标管理。
@@ -1022,8 +1033,11 @@ Infrastructure 与 Presentation，负责把两条依赖链组装起来。
 34. `AccountingModule.h/.cpp`：理解分析刷新信号、依赖组装、恢复回退和析构顺序。
 35. `DataMaintenanceViewModel.h/.cpp`：理解文件 URL、操作状态和 QML 对象重绑定通知。
 36. `AccountingHomePage.qml`：理解 QML 如何只绑定状态、选择文件和发送操作。
-37. `AnalyticsHomePage.qml`：理解分析 ViewModel 如何成为独立板块的页面状态。
-38. `main.cpp`：理解标准路径、根属性注入、恢复后重绑定和应用启动。
+37. `AnalyticsFilterPanel.qml`：理解筛选状态如何只调用 ViewModel，而不在 QML 聚合。
+38. `BarSeriesChart.qml` 与 `LineSeriesChart.qml`：理解通用系列如何进入 Qt Charts。
+39. `RankingBars.qml` 与 `DonutBreakdown.qml`：理解同一分类模型的两种展示方式。
+40. `AnalyticsHomePage.qml`：理解图表切换、响应式卡片和空状态如何组成独立板块。
+41. `main.cpp`：理解标准路径、根属性注入、恢复后重绑定和应用启动。
 
 ## 13. 修改代码时如何判断文件归属
 
@@ -1040,6 +1054,5 @@ Infrastructure 与 Presentation，负责把两条依赖链组装起来。
 ## 14. 后续更新规则
 
 每完成一课并新增 C++ 文件，都应在本文补充它的职责、依赖和禁止承担的职责。
-下一课将使用当前 `ChartSeriesListModel` 和记账分析模型绘制柱状、折线、排行和可选
-环形图，并补齐账户、分类多选控件。Qt Charts 依赖只允许进入可视化边界；分析 MVP
-完成后再开始课表 Domain。
+下一课将为分析页面补充 QML 集成测试和真实数据验收，重点检查图表切换、筛选重置、
+归档历史、数据库恢复后的重绑定及窄窗口布局。记账 MVP 收尾后开始课表 Domain。
