@@ -968,5 +968,6 @@ Infrastructure 与 Presentation，负责把两条依赖链组装起来。
 ## 14. 后续更新规则
 
 每完成一课并新增 C++ 文件，都应在本文补充它的职责、依赖和禁止承担的职责。
-下一阶段开始课表 Domain。星期、节次范围和教学周范围先作为不依赖 QML、Qt SQL
-或记账模块的值对象实现；Windows Release 部署在课表 MVP 完成后集中处理。
+下一阶段补齐记账分析。近 6～24 个月趋势和所选月分类排行由新的 Application 用例
+基于现有 Repository 聚合，金额继续使用整数分，图表显示留在 Presentation/QML；
+分析 MVP 完成后再开始课表 Domain。
