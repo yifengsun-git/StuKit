@@ -2,6 +2,7 @@
 
 #include <QAbstractListModel>
 #include <QString>
+#include <QVariantList>
 
 #include <vector>
 
@@ -25,6 +26,7 @@ struct ChartSeries
 class ChartSeriesListModel final : public QAbstractListModel
 {
     Q_OBJECT
+    Q_PROPERTY(QVariantList items READ items NOTIFY itemsChanged)
 
 public:
     enum Role
@@ -43,9 +45,13 @@ public:
     [[nodiscard]] QVariant data(
         const QModelIndex &index, int role = Qt::DisplayRole) const override;
     [[nodiscard]] QHash<int, QByteArray> roleNames() const override;
+    [[nodiscard]] QVariantList items() const;
 
     void replaceSeries(std::vector<ChartSeries> series);
     void clear();
+
+signals:
+    void itemsChanged();
 
 private:
     std::vector<ChartSeries> m_series;

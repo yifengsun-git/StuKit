@@ -371,6 +371,50 @@ bool AccountingAnalyticsViewModel::setCategorySelected(
     return true;
 }
 
+void AccountingAnalyticsViewModel::selectAllAccounts()
+{
+    if (m_selectedAccountIds == m_availableAccountIds) {
+        return;
+    }
+
+    m_selectedAccountIds = m_availableAccountIds;
+    emit filtersChanged();
+    load();
+}
+
+void AccountingAnalyticsViewModel::clearAccountSelection()
+{
+    if (m_selectedAccountIds.isEmpty()) {
+        return;
+    }
+
+    m_selectedAccountIds.clear();
+    emit filtersChanged();
+    load();
+}
+
+void AccountingAnalyticsViewModel::selectAllCategories()
+{
+    if (m_selectedCategoryIds == m_availableCategoryIds) {
+        return;
+    }
+
+    m_selectedCategoryIds = m_availableCategoryIds;
+    emit filtersChanged();
+    load();
+}
+
+void AccountingAnalyticsViewModel::clearCategorySelection()
+{
+    if (m_selectedCategoryIds.isEmpty()) {
+        return;
+    }
+
+    m_selectedCategoryIds.clear();
+    emit filtersChanged();
+    load();
+}
+
 void AccountingAnalyticsViewModel::resetFilters()
 {
     const bool monthChanged = m_selectedMonth != m_defaultSelectedMonth;

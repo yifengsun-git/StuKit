@@ -8,7 +8,7 @@
 
 #include <QCoreApplication>
 #include <QDebug>
-#include <QGuiApplication>
+#include <QApplication>
 #include <QQmlApplicationEngine>
 #include <QSettings>
 #include <QStandardPaths>
@@ -17,7 +17,7 @@
 
 int main(int argc, char *argv[])
 {
-    QGuiApplication app(argc, argv);
+    QApplication app(argc, argv);
 
     QCoreApplication::setOrganizationName("StuKit");
     QCoreApplication::setApplicationName("StuKit");

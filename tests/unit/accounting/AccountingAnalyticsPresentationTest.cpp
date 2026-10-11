@@ -199,6 +199,14 @@ void AccountingAnalyticsPresentationTest::exposesDefaultsSummariesAndModels()
     QCOMPARE(points.size(), 12);
     QCOMPARE(points.back().toMap().value(QStringLiteral("displayValue")),
              QVariant(QStringLiteral("100.00")));
+
+    auto *seriesModel = qobject_cast<ChartSeriesListModel *>(
+        fixture.viewModel.trendSeries());
+    QVERIFY(seriesModel != nullptr);
+    QCOMPARE(seriesModel->items().size(), 3);
+    QCOMPARE(seriesModel->items().front().toMap()
+                 .value(QStringLiteral("seriesId")),
+             QVariant(QStringLiteral("income")));
 }
 
 void AccountingAnalyticsPresentationTest::appliesAndResetsCustomFilters()
@@ -227,6 +235,15 @@ void AccountingAnalyticsPresentationTest::appliesAndResetsCustomFilters()
         fixture.diningId.toString(QUuid::WithoutBraces), true));
     QCOMPARE(fixture.viewModel.selectedExpenseText(), QStringLiteral("5.00"));
     QCOMPARE(fixture.viewModel.selectedCategoryIds().size(), 1);
+
+    fixture.viewModel.selectAllAccounts();
+    QCOMPARE(fixture.viewModel.selectedAccountIds().size(), 2);
+    fixture.viewModel.clearAccountSelection();
+    QVERIFY(fixture.viewModel.selectedAccountIds().isEmpty());
+    fixture.viewModel.selectAllCategories();
+    QCOMPARE(fixture.viewModel.selectedCategoryIds().size(), 3);
+    fixture.viewModel.clearCategorySelection();
+    QVERIFY(fixture.viewModel.selectedCategoryIds().isEmpty());
 
     fixture.viewModel.setMonthCount(6);
     QCOMPARE(fixture.viewModel.monthCount(), 6);

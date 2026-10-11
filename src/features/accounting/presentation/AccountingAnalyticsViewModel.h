@@ -90,6 +90,10 @@ public:
         const QString &accountId, bool selected);
     Q_INVOKABLE bool setCategorySelected(
         const QString &categoryId, bool selected);
+    Q_INVOKABLE void selectAllAccounts();
+    Q_INVOKABLE void clearAccountSelection();
+    Q_INVOKABLE void selectAllCategories();
+    Q_INVOKABLE void clearCategorySelection();
     Q_INVOKABLE void resetFilters();
 
 signals:

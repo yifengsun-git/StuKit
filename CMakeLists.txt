@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-find_package(Qt6 6.8 REQUIRED COMPONENTS Quick Sql)
+find_package(Qt6 6.8 REQUIRED COMPONENTS Quick Sql Charts Widgets)
 qt_standard_project_setup(REQUIRES 6.8)
 
 include(CTest)
@@ -31,6 +31,12 @@ set(STUKIT_QML_FILES
     src/shell/qml/Main.qml
     src/shell/qml/HomePage.qml
     src/features/analytics/qml/AnalyticsHomePage.qml
+    src/features/analytics/qml/components/AnalyticsCard.qml
+    src/features/analytics/qml/components/AnalyticsFilterPanel.qml
+    src/features/analytics/qml/components/BarSeriesChart.qml
+    src/features/analytics/qml/components/DonutBreakdown.qml
+    src/features/analytics/qml/components/LineSeriesChart.qml
+    src/features/analytics/qml/components/RankingBars.qml
     src/features/accounting/qml/AccountingHomePage.qml
     src/features/schedule/qml/ScheduleHomePage.qml
     src/shared/qml/theme/AppTheme.qml
@@ -50,6 +56,36 @@ set_source_files_properties(
 set_source_files_properties(
     src/features/analytics/qml/AnalyticsHomePage.qml
     PROPERTIES QT_RESOURCE_ALIAS AnalyticsHomePage.qml
+)
+
+set_source_files_properties(
+    src/features/analytics/qml/components/AnalyticsCard.qml
+    PROPERTIES QT_RESOURCE_ALIAS AnalyticsCard.qml
+)
+
+set_source_files_properties(
+    src/features/analytics/qml/components/AnalyticsFilterPanel.qml
+    PROPERTIES QT_RESOURCE_ALIAS AnalyticsFilterPanel.qml
+)
+
+set_source_files_properties(
+    src/features/analytics/qml/components/BarSeriesChart.qml
+    PROPERTIES QT_RESOURCE_ALIAS BarSeriesChart.qml
+)
+
+set_source_files_properties(
+    src/features/analytics/qml/components/DonutBreakdown.qml
+    PROPERTIES QT_RESOURCE_ALIAS DonutBreakdown.qml
+)
+
+set_source_files_properties(
+    src/features/analytics/qml/components/LineSeriesChart.qml
+    PROPERTIES QT_RESOURCE_ALIAS LineSeriesChart.qml
+)
+
+set_source_files_properties(
+    src/features/analytics/qml/components/RankingBars.qml
+    PROPERTIES QT_RESOURCE_ALIAS RankingBars.qml
 )
 
 set_source_files_properties(
@@ -84,5 +120,7 @@ qt_add_qml_module(StuKit
 target_link_libraries(StuKit
     PRIVATE
         Qt6::Quick
+        Qt6::Charts
+        Qt6::Widgets
         StuKitAppCore
 )
