@@ -50,8 +50,12 @@ UTC-14:00 到 UTC+14:00 的固定偏移，选择后会保存并同步到月度�
 账户与分类多选、全选、不限和恢复默认，归档项目会明确标记。图表组件消费与记账
 领域无关的系列数据，未来饮食、学习等模块可以复用。分析页面现已加入 QML 集成测试，
 自动验证空状态、图表切换、6/12/24 月范围、筛选摘要、ViewModel 重绑定，以及
-640/960/1280 三档响应式布局；全部 30 个测试通过。记账与分析 MVP 至此完成，下一步
-开始课表领域模型。Windows Release 部署仍在课表 MVP 完成后集中处理。
+640/960/1280 三档响应式布局；记账与分析 MVP 至此完成。
+
+课表模块现已启动，并建立了独立的模块开发计划。第 33 课完成了学期、课程、上课
+安排、星期和单双周领域模型；课程颜色规范、节次/周次边界及实际上课周判断均已有
+自动测试。全工程共 33 个测试通过。下一步建立课表 Repository 接口和冲突检测用例。
+Windows Release 部署仍在课表 MVP 完成后集中处理。
 
 ## 技术方向
 
@@ -66,6 +70,7 @@ UTC-14:00 到 UTC+14:00 的固定偏移，选择后会保存并同步到月度�
 ## 文档入口
 
 - [项目计划](docs/PROJECT_PLAN.md)
+- [课表模块开发计划](docs/SCHEDULE_PLAN.md)
 - [架构说明](docs/ARCHITECTURE.md)
 - [C++ 代码导读](docs/CPP_CODE_GUIDE.md)
 - [开发协作方式](docs/DEVELOPMENT_GUIDE.md)
@@ -102,6 +107,7 @@ UTC-14:00 到 UTC+14:00 的固定偏移，选择后会保存并同步到月度�
 - [第三十一课：多图表与自定义分析交互](docs/lessons/31-accounting-analytics-charts.md)
 - [第三十二课：分析页验收与记账 MVP 收尾](docs/lessons/32-accounting-analytics-acceptance.md)
 - [第三十三课：课表领域模型](docs/lessons/33-schedule-domain-model.md)
+- [第三十四课：课表 Repository 与冲突检测](docs/lessons/34-schedule-repositories-and-conflicts.md)
 
 ## 开发原则
 

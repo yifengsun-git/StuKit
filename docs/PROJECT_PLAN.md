@@ -124,6 +124,10 @@ StuKit 首先面向 Windows 开发，首批功能为记账本和课表。在 Win
 
 目标：按照相同架构完成课表 MVP。
 
+当前状态：进行中。第 33 课已经建立 `AcademicTerm`、`Course`、`CourseMeeting`、
+`Weekday` 和 `WeekPattern` 领域模型及单元测试。详细范围与第 33～42 课安排见
+[课表模块开发计划](SCHEDULE_PLAN.md)。
+
 验收标准：能够建立一个学期的课程，查看指定周课表，并识别时间冲突。
 
 ### 阶段 7：Windows 发布
@@ -164,7 +168,7 @@ StuKit 首先面向 Windows 开发，首批功能为记账本和课表。在 Win
 | M3 | 记账 MVP 可用 | 已完成 |
 | M4 | 记账可靠性与数据可携带性完成 | 已完成 |
 | M5 | 记账分析 MVP 可用 | 已完成 |
-| M6 | 课表 MVP 可用 | 未开始 |
+| M6 | 课表 MVP 可用 | 进行中（Domain 已完成） |
 | M7 | Windows 版本可发布 | 未开始 |
 | M8 | Android 版本可运行 | 未开始 |
 

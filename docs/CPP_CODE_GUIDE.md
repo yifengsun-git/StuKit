@@ -5,12 +5,13 @@
 本文说明 StuKit 中各个 C++ 头文件和源文件的职责、依赖关系以及不能承担的职责。
 它适合在阅读代码、排查编译错误或添加新功能前快速查阅。
 
-当前内容对应第三十二课完成后的代码，包括三版 SQLite 迁移、三个 Repository
+当前内容对应第三十三课完成后的代码，包括三版 SQLite 迁移、三个 Repository
 接口、创建与查询用例、记账 Presentation，以及从 QML 创建账户、分类和账单并
 持久化到真实 SQLite 的端到端链路、账户余额、月度流水筛选、安全备份恢复和
 全部流水 CSV 导出，以及可自定义时间、账户和分类范围的记账分析聚合、ViewModel
 和通用图表系列模型，以及柱状图、折线图、排行、环形图、自定义筛选面板和完整页面
-QML 集成测试。记账与分析 MVP 已完成。
+QML 集成测试。记账与分析 MVP 已完成；课表模块已经建立学期、课程、上课安排、
+星期和单双周 Domain 模型及测试。
 
 ## 2. `.h` 和 `.cpp` 分别做什么
 
@@ -151,6 +152,16 @@ Transaction
 
 Category
   -> TransactionType
+
+AcademicTerm
+  -> 学期名称 / 开始日期 / 总周数 / 归档状态
+
+Course
+  -> AcademicTerm 的 UUID / 教师 / 教室 / #RRGGBB 颜色
+
+CourseMeeting
+  -> Course 的 UUID / Weekday / WeekPattern
+  -> 节次范围 / 周次范围 / occursInWeek
 ```
 
 主要架构依赖方向：
@@ -230,7 +241,7 @@ Infrastructure ------------------> Domain
 它不直接运行 SQL 或复制文件。以后 Android 返回内容 URI 时，应在平台适配边界先
 取得可读写的本地临时文件，再复用相同的数据库维护流程。
 
-## 5. Domain：记账领域层
+## 5. Domain：领域层
 
 目录：
 
@@ -238,7 +249,8 @@ Infrastructure ------------------> Domain
 src/features/accounting/domain/
 ```
 
-Domain 保存记账业务最核心的概念和规则，不依赖 QML、Qt Quick 或 Qt SQL。
+Domain 保存业务最核心的概念和规则，不依赖 QML、Qt Quick 或 Qt SQL。本节先说明
+记账 Domain，再说明刚加入的课表 Domain。
 
 ### `Money.h`
 
@@ -380,6 +392,27 @@ vector：空 vector 表示查询成功但没有流水，`std::nullopt` 表示存
 `removeById()` 使用 `RemoveTransactionResult` 区分删除成功、记录不存在和存储失败。
 
 接口属于 Domain，不引用 Qt SQL，也不负责检查关联账户和分类是否存在。
+
+### `features/schedule/domain/AcademicTerm.h/.cpp`
+
+声明并实现学期实体，保存 UUID、名称、开始日期、总周数和归档状态。静态工厂会
+清理名称并拒绝空 UUID、无效日期和 1～30 之外的总周数。它不查询课程或数据库。
+
+### `features/schedule/domain/Course.h/.cpp`
+
+声明并实现课程实体。课程必须关联学期 UUID，课程名必填，教师和教室可选；颜色以
+规范化的 `#RRGGBB` 文本保存。它不依赖 QML 颜色类型，也不负责查询所属学期。
+
+### `features/schedule/domain/Weekday.h` 与 `WeekPattern.h`
+
+两个只含小型枚举和纯函数的头文件。`Weekday` 限定星期一至星期日；`WeekPattern`
+表示每周、单周和双周，`matchesWeek()` 判断正教学周是否匹配指定模式。
+
+### `features/schedule/domain/CourseMeeting.h/.cpp`
+
+声明并实现重复上课安排，保存星期、节次范围、周次范围和单双周模式。
+`occursInWeek()` 同时检查范围与模式。实体只验证自身边界；是否超过具体学期周数以及
+是否与其他课程冲突，会由 Application 用例负责。
 
 ## 6. Application：应用用例层
 
@@ -825,6 +858,7 @@ Presentation 测试使用。
 
 ```text
 tests/unit/accounting/
+tests/unit/schedule/
 ```
 
 每个测试 `.cpp` 都包含自己的 `QTEST_APPLESS_MAIN`，因此必须拥有独立的 CMake
@@ -854,6 +888,9 @@ tests/unit/accounting/
 | `TransactionFilterProxyModelTest.cpp` | 类型、账户、分类、关键字、组合条件、清空和源模型重置。 |
 | `AccountingSetupTest.cpp` | 金额输入边界、基础数据查询、创建、重命名、归档、恢复和错误映射。 |
 | `CreateTransactionPresentationTest.cpp` | 选项过滤、时区输入、编辑回填、更新/删除信号与错误保留。 |
+| `AcademicTermTest.cpp` | 学期名称、日期、总周数、UUID 和归档状态。 |
+| `CourseTest.cpp` | 课程关联、可选字段、文本清理、长度和颜色规范。 |
+| `CourseMeetingTest.cpp` | 星期、节次、周次、单双周和实际发生判断。 |
 
 测试代码不是产品功能，但它定义了当前代码必须持续满足的行为。修改业务代码后，
 应运行全部测试，而不是只运行本次新增的测试。
@@ -955,6 +992,12 @@ StuKitAccountingDomain
 
 它编译 Money、Transaction、Account 和 Category，并公开领域头文件目录。
 
+### `src/features/schedule/domain/CMakeLists.txt`
+
+创建 `StuKitScheduleDomain`，编译 AcademicTerm、Course 和 CourseMeeting，并公开
+Weekday 与 WeekPattern 头文件。该目标只链接 `Qt6::Core`，不链接记账 Domain、
+Qt SQL 或 Qt Quick。
+
 ### `src/features/accounting/application/CMakeLists.txt`
 
 创建：
@@ -993,7 +1036,12 @@ Infrastructure 与 Presentation，负责把两条依赖链组装起来。
 
 ### `tests/CMakeLists.txt`
 
-负责加入记账单元测试和数据库集成测试目录。
+负责加入课表与记账单元测试，以及数据库和 QML 集成测试目录。
+
+### `tests/unit/schedule/CMakeLists.txt`
+
+为学期、课程和上课安排三个 Qt Test 类分别建立可执行目标，并注册
+`schedule.academic_term`、`schedule.course` 和 `schedule.course_meeting`。
 
 ### `tests/unit/accounting/CMakeLists.txt`
 
@@ -1056,6 +1104,11 @@ Application/Domain/Presentation，但不链接 SQLite Infrastructure。
 40. `AnalyticsHomePage.qml`：理解图表切换、响应式卡片和空状态如何组成独立板块。
 41. `AnalyticsQmlIntegrationTest.cpp`：理解完整 QML 页面如何在隔离环境中自动验收。
 42. `main.cpp`：理解标准路径、根属性注入、恢复后重绑定和应用启动。
+43. `AcademicTerm.h/.cpp`：理解学期实体和开始日期、总周数边界。
+44. `Weekday.h` 与 `WeekPattern.h`：理解稳定枚举和单双周匹配。
+45. `Course.h/.cpp`：理解课程如何关联学期并保存平台无关颜色。
+46. `CourseMeeting.h/.cpp`：理解节次、周次与 `occursInWeek()`。
+47. 三个 schedule 单元测试：观察课表 Domain 的边界如何被固定。
 
 ## 13. 修改代码时如何判断文件归属
 
@@ -1072,5 +1125,5 @@ Application/Domain/Presentation，但不链接 SQLite Infrastructure。
 ## 14. 后续更新规则
 
 每完成一课并新增 C++ 文件，都应在本文补充它的职责、依赖和禁止承担的职责。
-记账和分析 MVP 已完成。下一课开始课表 Domain，先建立学期、课程、上课安排与周次
-模式，并用纯 C++ 自动测试固定核心规则，暂不进入 SQLite 或 QML。
+记账和分析 MVP 已完成，课表 Domain 也已建立。下一课增加课表 Repository 接口、
+内存测试实现和冲突检测用例，仍暂不进入 SQLite 或 QML。
