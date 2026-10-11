@@ -8,6 +8,7 @@ Page {
     id: root
 
     required property var viewModel
+    required property var balancesViewModel
     required property var setupViewModel
     required property var transactionViewModel
     required property string startupError
@@ -126,6 +127,8 @@ Page {
         ? startupError
         : viewModel && viewModel.hasError
             ? viewModel.errorMessage
+            : balancesViewModel && balancesViewModel.hasError
+                ? balancesViewModel.errorMessage
             : ""
 
     background: Rectangle {
@@ -272,6 +275,13 @@ Page {
 
                 Repeater {
                     model: [
+                        {
+                            title: qsTr("总资产"),
+                            value: root.balancesViewModel
+                                ? root.balancesViewModel.activeTotalText
+                                : "0.00",
+                            color: AppTheme.textPrimaryColor
+                        },
                         {
                             title: qsTr("收入"),
                             value: root.viewModel ? root.viewModel.totalIncomeText : "0.00",
@@ -501,7 +511,8 @@ Page {
                     clip: true
                     spacing: AppTheme.spacingSmall
                     model: root.setupViewModel
-                        ? root.setupViewModel.accounts
+                        && root.balancesViewModel
+                        ? root.balancesViewModel.accounts
                         : null
 
                     delegate: Rectangle {
@@ -510,6 +521,7 @@ Page {
                         required property string accountId
                         required property string name
                         required property string openingBalanceText
+                        required property string currentBalanceText
                         required property bool archived
 
                         width: managedAccountList.width
@@ -541,7 +553,8 @@ Page {
 
                                 Label {
                                     Layout.fillWidth: true
-                                    text: qsTr("期初余额 %1 · %2")
+                                    text: qsTr("当前 %1 · 期初 %2 · %3")
+                                        .arg(accountManagementDelegate.currentBalanceText)
                                         .arg(accountManagementDelegate.openingBalanceText)
                                         .arg(accountManagementDelegate.archived
                                              ? qsTr("已归档")

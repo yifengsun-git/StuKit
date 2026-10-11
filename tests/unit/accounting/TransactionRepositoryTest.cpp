@@ -72,8 +72,9 @@ void TransactionRepositoryTest::updatesTransactionWithSameId()
     QVERIFY(repository.save(makeTransaction(id, Money::fromCents(2500))));
 
     const auto transactions = repository.findAll();
-    QCOMPARE(transactions.size(), std::size_t{1});
-    QVERIFY(transactions.front().amount() == Money::fromCents(2500));
+    QVERIFY(transactions.has_value());
+    QCOMPARE(transactions->size(), std::size_t{1});
+    QVERIFY(transactions->front().amount() == Money::fromCents(2500));
 }
 
 void TransactionRepositoryTest::returnsAllTransactions()
@@ -83,7 +84,7 @@ void TransactionRepositoryTest::returnsAllTransactions()
     QVERIFY(repository.save(makeTransaction(QUuid::createUuid())));
     QVERIFY(repository.save(makeTransaction(QUuid::createUuid())));
 
-    QCOMPARE(repository.findAll().size(), std::size_t{2});
+    QCOMPARE(repository.findAll()->size(), std::size_t{2});
 }
 
 void TransactionRepositoryTest::findsTransactionsInHalfOpenRange()

@@ -1,4 +1,6 @@
 #include "AccountingModule.h"
+#include "AccountBalanceListModel.h"
+#include "AccountBalancesViewModel.h"
 #include "AccountingOverviewViewModel.h"
 #include "AccountingSetupViewModel.h"
 #include "AccountListModel.h"
@@ -62,6 +64,7 @@ void AccountingModuleTest::initializesDatabaseAndViewModel()
     QVERIFY2(module.initialize(QDate(2026, 10, 1)),
              qPrintable(module.lastError()));
     QVERIFY(module.overviewViewModel() != nullptr);
+    QVERIFY(module.balancesViewModel() != nullptr);
     QVERIFY(module.setupViewModel() != nullptr);
     QVERIFY(module.transactionEditorViewModel() != nullptr);
     QVERIFY(QFileInfo::exists(module.databasePath()));
@@ -70,6 +73,9 @@ void AccountingModuleTest::initializesDatabaseAndViewModel()
              QStringLiteral("2026-10"));
     QVERIFY(module.overviewViewModel()->isEmpty());
     QVERIFY(!module.overviewViewModel()->hasError());
+    QCOMPARE(module.balancesViewModel()->activeTotalText(),
+             QStringLiteral("0.00"));
+    QVERIFY(!module.balancesViewModel()->hasError());
     QCOMPARE(module.setupViewModel()->accounts()->rowCount(), 0);
     QCOMPARE(module.setupViewModel()->categories()->rowCount(), 0);
     QVERIFY(!module.setupViewModel()->hasError());
@@ -112,6 +118,8 @@ void AccountingModuleTest::createsEditsDeletesAndRestoresTransaction()
         QVERIFY(setup->createAccount(
             QStringLiteral("银行卡"), QStringLiteral("100.00")));
         QVERIFY(setup->createCategory(QStringLiteral("餐饮"), false));
+        QCOMPARE(module.balancesViewModel()->activeTotalText(),
+                 QStringLiteral("100.00"));
         const QString accountId = setup->accounts()->data(
             setup->accounts()->index(0, 0),
             stukit::accounting::presentation::AccountListModel::AccountIdRole)
@@ -148,6 +156,14 @@ void AccountingModuleTest::createsEditsDeletesAndRestoresTransaction()
                  QStringLiteral("25.50"));
         QCOMPARE(module.overviewViewModel()->balanceText(),
                  QStringLiteral("-25.50"));
+        QCOMPARE(module.balancesViewModel()->activeTotalText(),
+                 QStringLiteral("74.50"));
+        QCOMPARE(module.balancesViewModel()->accounts()->data(
+                     module.balancesViewModel()->accounts()->index(0, 0),
+                     stukit::accounting::presentation::
+                         AccountBalanceListModel::CurrentBalanceTextRole)
+                     .toString(),
+                 QStringLiteral("74.50"));
 
         QVERIFY(setup->renameAccount(accountId, QStringLiteral("主银行卡")));
         QVERIFY(setup->renameCategory(categoryId, QStringLiteral("日常餐饮")));
@@ -179,6 +195,8 @@ void AccountingModuleTest::createsEditsDeletesAndRestoresTransaction()
         QCOMPARE(module.overviewViewModel()->transactions()->rowCount(), 1);
         QCOMPARE(module.overviewViewModel()->totalExpenseText(),
                  QStringLiteral("30.00"));
+        QCOMPARE(module.balancesViewModel()->activeTotalText(),
+                 QStringLiteral("70.00"));
     }
 
     {
@@ -190,6 +208,8 @@ void AccountingModuleTest::createsEditsDeletesAndRestoresTransaction()
         QCOMPARE(restored.overviewViewModel()->transactions()->rowCount(), 1);
         QCOMPARE(restored.overviewViewModel()->totalExpenseText(),
                  QStringLiteral("30.00"));
+        QCOMPARE(restored.balancesViewModel()->activeTotalText(),
+                 QStringLiteral("70.00"));
         QVERIFY(restored.transactionEditorViewModel()->isReady());
 
         auto *model = restored.overviewViewModel()->transactions();
@@ -202,6 +222,8 @@ void AccountingModuleTest::createsEditsDeletesAndRestoresTransaction()
         QCOMPARE(model->rowCount(), 0);
         QCOMPARE(restored.overviewViewModel()->totalExpenseText(),
                  QStringLiteral("0.00"));
+        QCOMPARE(restored.balancesViewModel()->activeTotalText(),
+                 QStringLiteral("100.00"));
     }
 
     {
@@ -209,6 +231,8 @@ void AccountingModuleTest::createsEditsDeletesAndRestoresTransaction()
         QVERIFY2(restored.initialize(QDate(2026, 10, 1)),
                  qPrintable(restored.lastError()));
         QCOMPARE(restored.overviewViewModel()->transactions()->rowCount(), 0);
+        QCOMPARE(restored.balancesViewModel()->activeTotalText(),
+                 QStringLiteral("100.00"));
     }
 }
 
@@ -237,6 +261,8 @@ void AccountingModuleTest::createsAndRestoresSetupData()
         QVERIFY(setup->hasAccounts());
         QVERIFY(setup->hasIncomeCategories());
         QVERIFY(setup->hasExpenseCategories());
+        QCOMPARE(module.balancesViewModel()->activeTotalText(),
+                 QStringLiteral("123.45"));
         accountId = setup->accounts()->data(
             setup->accounts()->index(0, 0),
             stukit::accounting::presentation::AccountListModel::AccountIdRole)
@@ -253,6 +279,8 @@ void AccountingModuleTest::createsAndRestoresSetupData()
         QVERIFY(!setup->hasAccounts());
         QVERIFY(setup->hasIncomeCategories());
         QVERIFY(!setup->hasExpenseCategories());
+        QCOMPARE(module.balancesViewModel()->activeTotalText(),
+                 QStringLiteral("0.00"));
     }
 
     {
@@ -276,10 +304,14 @@ void AccountingModuleTest::createsAndRestoresSetupData()
         QVERIFY(!setup->hasAccounts());
         QVERIFY(setup->hasIncomeCategories());
         QVERIFY(!setup->hasExpenseCategories());
+        QCOMPARE(restored.balancesViewModel()->activeTotalText(),
+                 QStringLiteral("0.00"));
         QVERIFY(setup->setAccountArchived(accountId, false));
         QVERIFY(setup->setCategoryArchived(expenseCategoryId, false));
         QVERIFY(setup->hasAccounts());
         QVERIFY(setup->hasExpenseCategories());
+        QCOMPARE(restored.balancesViewModel()->activeTotalText(),
+                 QStringLiteral("123.45"));
         QVERIFY(!setup->hasError());
     }
 }
@@ -338,6 +370,7 @@ void AccountingModuleTest::rejectsEmptyApplicationDataDirectory()
 
     QVERIFY(!module.initialize(QDate(2026, 10, 1)));
     QVERIFY(module.overviewViewModel() == nullptr);
+    QVERIFY(module.balancesViewModel() == nullptr);
     QVERIFY(module.setupViewModel() == nullptr);
     QVERIFY(module.transactionEditorViewModel() == nullptr);
     QVERIFY(!module.lastError().isEmpty());

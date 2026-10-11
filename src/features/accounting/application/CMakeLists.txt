@@ -7,6 +7,8 @@ add_library(StuKitAccountingApplication STATIC
     CreateTransaction.h
     DeleteTransaction.cpp
     DeleteTransaction.h
+    GetAccountBalances.cpp
+    GetAccountBalances.h
     GetMonthlyOverview.cpp
     GetMonthlyOverview.h
     GetTransaction.cpp

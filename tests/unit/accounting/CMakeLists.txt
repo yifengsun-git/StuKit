@@ -209,6 +209,23 @@ add_test(
     COMMAND StuKitGetMonthlyOverviewTest
 )
 
+add_executable(StuKitGetAccountBalancesTest
+    GetAccountBalancesTest.cpp
+    support/InMemoryAccountRepository.h
+    support/InMemoryTransactionRepository.h
+)
+
+target_link_libraries(StuKitGetAccountBalancesTest
+    PRIVATE
+        Qt6::Test
+        StuKitAccountingApplication
+)
+
+add_test(
+    NAME accounting.get_account_balances
+    COMMAND StuKitGetAccountBalancesTest
+)
+
 add_executable(StuKitAccountingPresentationTest
     AccountingPresentationTest.cpp
     support/InMemoryAccountRepository.h
@@ -225,6 +242,23 @@ target_link_libraries(StuKitAccountingPresentationTest
 add_test(
     NAME accounting.presentation
     COMMAND StuKitAccountingPresentationTest
+)
+
+add_executable(StuKitAccountBalancesPresentationTest
+    AccountBalancesPresentationTest.cpp
+    support/InMemoryAccountRepository.h
+    support/InMemoryTransactionRepository.h
+)
+
+target_link_libraries(StuKitAccountBalancesPresentationTest
+    PRIVATE
+        Qt6::Test
+        StuKitAccountingPresentation
+)
+
+add_test(
+    NAME accounting.balances_presentation
+    COMMAND StuKitAccountBalancesPresentationTest
 )
 
 add_executable(StuKitAccountingSetupTest

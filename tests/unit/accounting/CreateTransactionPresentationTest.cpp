@@ -134,10 +134,11 @@ void CreateTransactionPresentationTest::createsTransactionInCustomTimeZone()
     QVERIFY(fixture.viewModel.note().isEmpty());
 
     const auto stored = fixture.transactions.findAll();
-    QCOMPARE(stored.size(), std::size_t{1});
-    QCOMPARE(stored.front().amount().cents(), qint64{2550});
-    QCOMPARE(stored.front().note(), QStringLiteral("午饭"));
-    QCOMPARE(stored.front().occurredAt().toUTC(),
+    QVERIFY(stored.has_value());
+    QCOMPARE(stored->size(), std::size_t{1});
+    QCOMPARE(stored->front().amount().cents(), qint64{2550});
+    QCOMPARE(stored->front().note(), QStringLiteral("午饭"));
+    QCOMPARE(stored->front().occurredAt().toUTC(),
              QDateTime(QDate(2026, 10, 10), QTime(4, 34), Qt::UTC));
 }
 
@@ -188,7 +189,7 @@ void CreateTransactionPresentationTest::rejectsDaylightSavingGap()
     QVERIFY(!fixture.viewModel.submit());
     QCOMPARE(fixture.viewModel.errorMessage(),
              QStringLiteral("发生日期、时间或时区无效"));
-    QVERIFY(fixture.transactions.findAll().empty());
+    QVERIFY(fixture.transactions.findAll()->empty());
 }
 
 void CreateTransactionPresentationTest::reportsSetupQueryFailure()
@@ -212,7 +213,7 @@ void CreateTransactionPresentationTest::editsExistingTransactionInCustomTimeZone
     addCompleteSetup(fixture);
     fillValidExpenseForm(fixture);
     QVERIFY(fixture.viewModel.submit());
-    const QUuid id = fixture.transactions.findAll().front().id();
+    const QUuid id = fixture.transactions.findAll()->front().id();
     QSignalSpy updatedSpy(
         &fixture.viewModel,
         &CreateTransactionViewModel::transactionUpdated);
@@ -239,7 +240,7 @@ void CreateTransactionPresentationTest::editsExistingTransactionInCustomTimeZone
     QVERIFY(stored.has_value());
     QCOMPARE(stored->amount(), Money::fromCents(3000));
     QCOMPARE(stored->note(), QStringLiteral("晚饭"));
-    QCOMPARE(fixture.transactions.findAll().size(), std::size_t{1});
+    QCOMPARE(fixture.transactions.findAll()->size(), std::size_t{1});
 }
 
 void CreateTransactionPresentationTest::deletesTransactionAndReportsFailure()
@@ -248,7 +249,7 @@ void CreateTransactionPresentationTest::deletesTransactionAndReportsFailure()
     addCompleteSetup(fixture);
     fillValidExpenseForm(fixture);
     QVERIFY(fixture.viewModel.submit());
-    const QUuid id = fixture.transactions.findAll().front().id();
+    const QUuid id = fixture.transactions.findAll()->front().id();
     QSignalSpy deletedSpy(
         &fixture.viewModel,
         &CreateTransactionViewModel::transactionDeleted);

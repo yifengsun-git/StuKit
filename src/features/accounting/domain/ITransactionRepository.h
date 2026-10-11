@@ -27,7 +27,7 @@ public:
         const QUuid &id) const = 0;
     [[nodiscard]] virtual RemoveTransactionResult removeById(
         const QUuid &id) = 0;
-    [[nodiscard]] virtual std::vector<Transaction> findAll() const = 0;
+    [[nodiscard]] virtual std::optional<std::vector<Transaction>> findAll() const = 0;
     [[nodiscard]] virtual std::optional<std::vector<Transaction>>
     findOccurredBetween(const QDateTime &startInclusive,
                         const QDateTime &endExclusive) const = 0;

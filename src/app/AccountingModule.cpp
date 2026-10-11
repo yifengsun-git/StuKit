@@ -1,5 +1,6 @@
 #include "AccountingModule.h"
 
+#include "AccountBalancesViewModel.h"
 #include "AccountingOverviewViewModel.h"
 #include "AccountingSetupViewModel.h"
 #include "CreateAccount.h"
@@ -8,6 +9,7 @@
 #include "CreateTransactionViewModel.h"
 #include "DeleteTransaction.h"
 #include "GetAccountingSetup.h"
+#include "GetAccountBalances.h"
 #include "GetMonthlyOverview.h"
 #include "GetTransaction.h"
 #include "UpdateTransaction.h"
@@ -83,6 +85,8 @@ bool AccountingModule::initialize(const QDate &selectedMonth)
         *m_transactionRepository,
         *m_accountRepository,
         *m_categoryRepository);
+    m_getAccountBalances = std::make_unique<accounting::GetAccountBalances>(
+        *m_accountRepository, *m_transactionRepository);
     m_createAccount = std::make_unique<accounting::CreateAccount>(
         *m_accountRepository);
     m_createCategory = std::make_unique<accounting::CreateCategory>(
@@ -110,6 +114,9 @@ bool AccountingModule::initialize(const QDate &selectedMonth)
         *m_getMonthlyOverview,
         m_userSettings.accountingTimeZone(),
         selectedMonth);
+    m_balancesViewModel = std::make_unique<
+        accounting::presentation::AccountBalancesViewModel>(
+        *m_getAccountBalances);
     m_setupViewModel = std::make_unique<
         accounting::presentation::AccountingSetupViewModel>(
         *m_getAccountingSetup,
@@ -153,10 +160,20 @@ bool AccountingModule::initialize(const QDate &selectedMonth)
         m_overviewViewModel.get(),
         &accounting::presentation::AccountingOverviewViewModel::load);
     QObject::connect(
+        m_setupViewModel.get(),
+        &accounting::presentation::AccountingSetupViewModel::setupChanged,
+        m_balancesViewModel.get(),
+        &accounting::presentation::AccountBalancesViewModel::load);
+    QObject::connect(
         m_transactionEditorViewModel.get(),
         &accounting::presentation::CreateTransactionViewModel::transactionCreated,
         m_overviewViewModel.get(),
         &accounting::presentation::AccountingOverviewViewModel::load);
+    QObject::connect(
+        m_transactionEditorViewModel.get(),
+        &accounting::presentation::CreateTransactionViewModel::transactionCreated,
+        m_balancesViewModel.get(),
+        &accounting::presentation::AccountBalancesViewModel::load);
     QObject::connect(
         m_transactionEditorViewModel.get(),
         &accounting::presentation::CreateTransactionViewModel::transactionUpdated,
@@ -164,9 +181,19 @@ bool AccountingModule::initialize(const QDate &selectedMonth)
         &accounting::presentation::AccountingOverviewViewModel::load);
     QObject::connect(
         m_transactionEditorViewModel.get(),
+        &accounting::presentation::CreateTransactionViewModel::transactionUpdated,
+        m_balancesViewModel.get(),
+        &accounting::presentation::AccountBalancesViewModel::load);
+    QObject::connect(
+        m_transactionEditorViewModel.get(),
         &accounting::presentation::CreateTransactionViewModel::transactionDeleted,
         m_overviewViewModel.get(),
         &accounting::presentation::AccountingOverviewViewModel::load);
+    QObject::connect(
+        m_transactionEditorViewModel.get(),
+        &accounting::presentation::CreateTransactionViewModel::transactionDeleted,
+        m_balancesViewModel.get(),
+        &accounting::presentation::AccountBalancesViewModel::load);
 
     m_setupViewModel->load();
     return true;
@@ -190,6 +217,12 @@ AccountingModule::overviewViewModel() const noexcept
     return m_overviewViewModel.get();
 }
 
+accounting::presentation::AccountBalancesViewModel *
+AccountingModule::balancesViewModel() const noexcept
+{
+    return m_balancesViewModel.get();
+}
+
 const QString &AccountingModule::databasePath() const noexcept
 {
     return m_databasePath;
@@ -204,12 +237,14 @@ void AccountingModule::reset()
 {
     m_transactionEditorViewModel.reset();
     m_setupViewModel.reset();
+    m_balancesViewModel.reset();
     m_overviewViewModel.reset();
     m_getTransaction.reset();
     m_deleteTransaction.reset();
     m_updateTransaction.reset();
     m_createTransaction.reset();
     m_getAccountingSetup.reset();
+    m_getAccountBalances.reset();
     m_updateCategory.reset();
     m_updateAccount.reset();
     m_createCategory.reset();

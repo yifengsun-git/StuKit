@@ -215,9 +215,10 @@ void SqliteTransactionRepositoryTest::updatesTransactionWithSameId()
         QStringLiteral("更新后"))));
 
     const auto transactions = m_transactions->findAll();
-    QCOMPARE(transactions.size(), std::size_t{1});
-    QCOMPARE(transactions.front().amount(), Money::fromCents(250));
-    QCOMPARE(transactions.front().note(), QStringLiteral("更新后"));
+    QVERIFY(transactions.has_value());
+    QCOMPARE(transactions->size(), std::size_t{1});
+    QCOMPARE(transactions->front().amount(), Money::fromCents(250));
+    QCOMPARE(transactions->front().note(), QStringLiteral("更新后"));
 }
 
 void SqliteTransactionRepositoryTest::removesTransactionAndReportsMissingId()
@@ -257,9 +258,10 @@ void SqliteTransactionRepositoryTest::returnsAllTransactionsNewestFirst()
     const auto transactions = m_transactions->findAll();
     QVERIFY2(m_transactions->lastError().isEmpty(),
              qPrintable(m_transactions->lastError()));
-    QCOMPARE(transactions.size(), std::size_t{2});
-    QCOMPARE(transactions.front().amount(), Money::fromCents(200));
-    QCOMPARE(transactions.back().amount(), Money::fromCents(100));
+    QVERIFY(transactions.has_value());
+    QCOMPARE(transactions->size(), std::size_t{2});
+    QCOMPARE(transactions->front().amount(), Money::fromCents(200));
+    QCOMPARE(transactions->back().amount(), Money::fromCents(100));
 }
 
 void SqliteTransactionRepositoryTest::findsTransactionsInHalfOpenTimeRange()

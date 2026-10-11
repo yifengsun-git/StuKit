@@ -1,4 +1,5 @@
 #include "AccountingModule.h"
+#include "AccountBalancesViewModel.h"
 #include "AccountingOverviewViewModel.h"
 #include "AccountingSetupViewModel.h"
 #include "CreateTransactionViewModel.h"
@@ -42,6 +43,10 @@ int main(int argc, char *argv[])
         QStringLiteral("accountingOverview"),
         QVariant::fromValue(static_cast<QObject *>(
             accountingModule.overviewViewModel())));
+    initialProperties.insert(
+        QStringLiteral("accountingBalances"),
+        QVariant::fromValue(static_cast<QObject *>(
+            accountingModule.balancesViewModel())));
     initialProperties.insert(
         QStringLiteral("accountingSetup"),
         QVariant::fromValue(static_cast<QObject *>(

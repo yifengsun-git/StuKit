@@ -1,4 +1,8 @@
 add_library(StuKitAccountingPresentation STATIC
+    AccountBalanceListModel.cpp
+    AccountBalanceListModel.h
+    AccountBalancesViewModel.cpp
+    AccountBalancesViewModel.h
     AccountListModel.cpp
     AccountListModel.h
     AccountingOverviewViewModel.cpp

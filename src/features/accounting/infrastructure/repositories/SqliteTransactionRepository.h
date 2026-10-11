@@ -19,7 +19,7 @@ public:
         const QUuid &id) const override;
     [[nodiscard]] RemoveTransactionResult removeById(
         const QUuid &id) override;
-    [[nodiscard]] std::vector<Transaction> findAll() const override;
+    [[nodiscard]] std::optional<std::vector<Transaction>> findAll() const override;
     [[nodiscard]] std::optional<std::vector<Transaction>> findOccurredBetween(
         const QDateTime &startInclusive,
         const QDateTime &endExclusive) const override;

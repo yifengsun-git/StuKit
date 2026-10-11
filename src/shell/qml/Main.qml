@@ -7,6 +7,7 @@ ApplicationWindow
     id: window
 
     required property var accountingOverview
+    required property var accountingBalances
     required property var accountingSetup
     required property var accountingTransactionEditor
     required property string accountingStartupError
@@ -148,6 +149,7 @@ ApplicationWindow
 
         AccountingHomePage {
             viewModel: window.accountingOverview
+            balancesViewModel: window.accountingBalances
             setupViewModel: window.accountingSetup
             transactionViewModel: window.accountingTransactionEditor
             startupError: window.accountingStartupError

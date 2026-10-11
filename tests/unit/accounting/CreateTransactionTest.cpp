@@ -116,7 +116,7 @@ void CreateTransactionTest::rejectsInvalidInputWithoutSaving()
     QVERIFY(std::holds_alternative<CreateTransactionError>(result));
     QVERIFY(std::get<CreateTransactionError>(result)
             == CreateTransactionError::InvalidInput);
-    QVERIFY(transactions.findAll().empty());
+    QVERIFY(transactions.findAll()->empty());
 }
 
 void CreateTransactionTest::reportsMissingAccount()
@@ -135,7 +135,7 @@ void CreateTransactionTest::reportsMissingAccount()
     QVERIFY(std::holds_alternative<CreateTransactionError>(result));
     QVERIFY(std::get<CreateTransactionError>(result)
             == CreateTransactionError::AccountNotFound);
-    QVERIFY(transactions.findAll().empty());
+    QVERIFY(transactions.findAll()->empty());
 }
 
 void CreateTransactionTest::rejectsArchivedAccount()
@@ -155,7 +155,7 @@ void CreateTransactionTest::rejectsArchivedAccount()
     QVERIFY(std::holds_alternative<CreateTransactionError>(result));
     QVERIFY(std::get<CreateTransactionError>(result)
             == CreateTransactionError::AccountArchived);
-    QVERIFY(transactions.findAll().empty());
+    QVERIFY(transactions.findAll()->empty());
 }
 
 void CreateTransactionTest::reportsMissingCategory()
@@ -174,7 +174,7 @@ void CreateTransactionTest::reportsMissingCategory()
     QVERIFY(std::holds_alternative<CreateTransactionError>(result));
     QVERIFY(std::get<CreateTransactionError>(result)
             == CreateTransactionError::CategoryNotFound);
-    QVERIFY(transactions.findAll().empty());
+    QVERIFY(transactions.findAll()->empty());
 }
 
 void CreateTransactionTest::rejectsArchivedCategory()
@@ -195,7 +195,7 @@ void CreateTransactionTest::rejectsArchivedCategory()
     QVERIFY(std::holds_alternative<CreateTransactionError>(result));
     QVERIFY(std::get<CreateTransactionError>(result)
             == CreateTransactionError::CategoryArchived);
-    QVERIFY(transactions.findAll().empty());
+    QVERIFY(transactions.findAll()->empty());
 }
 
 void CreateTransactionTest::rejectsCategoryTypeMismatch()
@@ -216,7 +216,7 @@ void CreateTransactionTest::rejectsCategoryTypeMismatch()
     QVERIFY(std::holds_alternative<CreateTransactionError>(result));
     QVERIFY(std::get<CreateTransactionError>(result)
             == CreateTransactionError::CategoryTypeMismatch);
-    QVERIFY(transactions.findAll().empty());
+    QVERIFY(transactions.findAll()->empty());
 }
 
 void CreateTransactionTest::reportsStorageFailure()
@@ -237,7 +237,7 @@ void CreateTransactionTest::reportsStorageFailure()
     QVERIFY(std::holds_alternative<CreateTransactionError>(result));
     QVERIFY(std::get<CreateTransactionError>(result)
             == CreateTransactionError::StorageFailure);
-    QVERIFY(transactions.findAll().empty());
+    QVERIFY(transactions.findAll()->empty());
 }
 
 QTEST_APPLESS_MAIN(CreateTransactionTest)

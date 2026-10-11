@@ -144,14 +144,15 @@ RemoveTransactionResult SqliteTransactionRepository::removeById(
         : RemoveTransactionResult::NotFound;
 }
 
-std::vector<Transaction> SqliteTransactionRepository::findAll() const
+std::optional<std::vector<Transaction>>
+SqliteTransactionRepository::findAll() const
 {
     m_lastError.clear();
     std::vector<Transaction> transactions;
 
     if (!m_database.isOpen()) {
         m_lastError = QStringLiteral("Database is not open");
-        return transactions;
+        return std::nullopt;
     }
 
     QSqlQuery query(m_database);
@@ -160,13 +161,13 @@ std::vector<Transaction> SqliteTransactionRepository::findAll() const
             "occurred_at, note FROM transactions "
             "ORDER BY occurred_at DESC, id"))) {
         m_lastError = query.lastError().text();
-        return transactions;
+        return std::nullopt;
     }
 
     while (query.next()) {
         auto transaction = transactionFromCurrentRow(query);
         if (!transaction.has_value()) {
-            return {};
+            return std::nullopt;
         }
 
         transactions.push_back(std::move(*transaction));

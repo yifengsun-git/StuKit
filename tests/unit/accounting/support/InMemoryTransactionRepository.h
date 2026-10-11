@@ -67,8 +67,11 @@ public:
         return RemoveTransactionResult::Removed;
     }
 
-    [[nodiscard]] std::vector<Transaction> findAll() const override
+    [[nodiscard]] std::optional<std::vector<Transaction>> findAll() const override
     {
+        if (!m_findAllShouldSucceed) {
+            return std::nullopt;
+        }
         return m_transactions;
     }
 
@@ -115,6 +118,11 @@ public:
         m_findOccurredBetweenShouldSucceed = shouldSucceed;
     }
 
+    void setFindAllShouldSucceed(bool shouldSucceed) noexcept
+    {
+        m_findAllShouldSucceed = shouldSucceed;
+    }
+
     void setRemoveShouldSucceed(bool shouldSucceed) noexcept
     {
         m_removeShouldSucceed = shouldSucceed;
@@ -124,6 +132,7 @@ private:
     std::vector<Transaction> m_transactions;
     bool m_saveShouldSucceed{true};
     bool m_findOccurredBetweenShouldSucceed{true};
+    bool m_findAllShouldSucceed{true};
     bool m_removeShouldSucceed{true};
 };
 

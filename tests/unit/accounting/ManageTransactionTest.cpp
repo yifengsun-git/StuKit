@@ -117,7 +117,7 @@ void ManageTransactionTest::updatesExistingTransactionAndKeepsId()
     QCOMPARE(stored->id(), id);
     QCOMPARE(stored->amount(), Money::fromCents(2550));
     QCOMPARE(stored->note(), QStringLiteral("修改后"));
-    QCOMPARE(fixture.transactions.findAll().size(), std::size_t{1});
+    QCOMPARE(fixture.transactions.findAll()->size(), std::size_t{1});
 }
 
 void ManageTransactionTest::doesNotUpsertMissingTransaction()
@@ -131,7 +131,7 @@ void ManageTransactionTest::doesNotUpsertMissingTransaction()
     QVERIFY(std::holds_alternative<UpdateTransactionError>(result));
     QCOMPARE(std::get<UpdateTransactionError>(result),
              UpdateTransactionError::TransactionNotFound);
-    QVERIFY(fixture.transactions.findAll().empty());
+    QVERIFY(fixture.transactions.findAll()->empty());
 }
 
 void ManageTransactionTest::validatesCategoryTypeAndStorageFailure()
