@@ -24,8 +24,9 @@ QVariant TransactionListModel::data(const QModelIndex &index, int role) const
         return {};
     }
 
-    const Transaction &transaction = m_transactions.at(
+    const MonthlyTransactionItem &item = m_transactions.at(
         static_cast<std::size_t>(index.row()));
+    const Transaction &transaction = item.transaction;
     switch (role) {
     case IdRole:
         return transaction.id().toString(QUuid::WithoutBraces);
@@ -45,6 +46,18 @@ QVariant TransactionListModel::data(const QModelIndex &index, int role) const
             .toString(QStringLiteral("MM-dd HH:mm"));
     case NoteRole:
         return transaction.note();
+    case AccountNameRole:
+        return item.accountName;
+    case CategoryNameRole:
+        return item.categoryName;
+    case TypeTextRole:
+        return transaction.type() == TransactionType::Income
+            ? QStringLiteral("收入")
+            : QStringLiteral("支出");
+    case FullOccurredAtTextRole:
+        return transaction.occurredAt()
+            .toTimeZone(m_timeZone)
+            .toString(QStringLiteral("yyyy-MM-dd HH:mm"));
     default:
         return {};
     }
@@ -61,11 +74,15 @@ QHash<int, QByteArray> TransactionListModel::roleNames() const
         {OccurredAtRole, QByteArrayLiteral("occurredAt")},
         {OccurredAtTextRole, QByteArrayLiteral("occurredAtText")},
         {NoteRole, QByteArrayLiteral("note")},
+        {AccountNameRole, QByteArrayLiteral("accountName")},
+        {CategoryNameRole, QByteArrayLiteral("categoryName")},
+        {TypeTextRole, QByteArrayLiteral("typeText")},
+        {FullOccurredAtTextRole, QByteArrayLiteral("fullOccurredAtText")},
     };
 }
 
 void TransactionListModel::replaceTransactions(
-    std::vector<Transaction> transactions)
+    std::vector<MonthlyTransactionItem> transactions)
 {
     beginResetModel();
     m_transactions = std::move(transactions);
@@ -88,7 +105,9 @@ void TransactionListModel::setTimeZone(QTimeZone timeZone)
         return;
     }
 
-    emit dataChanged(index(0), index(rowCount() - 1), {OccurredAtTextRole});
+    emit dataChanged(
+        index(0), index(rowCount() - 1),
+        {OccurredAtTextRole, FullOccurredAtTextRole});
 }
 
 } // namespace stukit::accounting::presentation

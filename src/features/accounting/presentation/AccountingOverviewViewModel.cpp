@@ -86,7 +86,7 @@ QAbstractItemModel *AccountingOverviewViewModel::transactions() noexcept
 
 void AccountingOverviewViewModel::load()
 {
-    const auto result = m_getMonthlyOverview.execute(GetMonthlyOverviewRequest{
+    auto result = m_getMonthlyOverview.execute(GetMonthlyOverviewRequest{
         .year = selectedYear(),
         .month = selectedMonth(),
         .timeZone = m_timeZone,
@@ -106,7 +106,7 @@ void AccountingOverviewViewModel::load()
         return;
     }
 
-    auto overview = std::get<MonthlyOverview>(result);
+    auto overview = std::get<MonthlyOverview>(std::move(result));
     m_totalIncomeText = formatMoney(overview.totalIncome);
     m_totalExpenseText = formatMoney(overview.totalExpense);
     m_balanceText = formatMoney(overview.balance);

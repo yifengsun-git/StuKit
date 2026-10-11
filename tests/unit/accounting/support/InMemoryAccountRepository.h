@@ -60,6 +60,7 @@ public:
 
     std::optional<std::vector<Account>> findAll() const override
     {
+        ++m_findAllCallCount;
         if (!m_findAllShouldSucceed) {
             return std::nullopt;
         }
@@ -67,9 +68,15 @@ public:
         return m_accounts;
     }
 
+    [[nodiscard]] int findAllCallCount() const noexcept
+    {
+        return m_findAllCallCount;
+    }
+
 private:
     bool m_saveShouldSucceed{true};
     bool m_findAllShouldSucceed{true};
+    mutable int m_findAllCallCount{0};
     std::vector<Account> m_accounts;
 };
 

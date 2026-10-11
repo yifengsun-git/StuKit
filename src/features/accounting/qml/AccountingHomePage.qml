@@ -37,6 +37,20 @@ Page {
         amountField.forceActiveFocus()
     }
 
+    function openTransactionDetails(transactionId, typeText, isIncome,
+                                    amountText, accountName, categoryName,
+                                    occurredAtText, note) {
+        transactionDetailDialog.transactionId = transactionId
+        transactionDetailDialog.typeText = typeText
+        transactionDetailDialog.income = isIncome
+        transactionDetailDialog.amountText = amountText
+        transactionDetailDialog.accountName = accountName
+        transactionDetailDialog.categoryName = categoryName
+        transactionDetailDialog.occurredAtText = occurredAtText
+        transactionDetailDialog.note = note
+        transactionDetailDialog.open()
+    }
+
     readonly property string activeError: startupError.length > 0
         ? startupError
         : viewModel && viewModel.hasError
@@ -124,45 +138,42 @@ Page {
                         Layout.fillWidth: true
                         text: root.setupViewModel && root.setupViewModel.hasError
                             ? root.setupViewModel.errorMessage
-                            : qsTr("账户表示钱存放的位置，分类说明一笔钱的用途或来源。")
+                            : qsTr("账户表示钱存放的位置，分类说明一笔钱的用途或来源。请使用下方入口完成准备。")
                         color: root.setupViewModel && root.setupViewModel.hasError
                             ? AppTheme.errorColor
                             : AppTheme.textSecondaryColor
                         wrapMode: Text.WordWrap
                     }
 
-                    Flow {
-                        Layout.fillWidth: true
-                        spacing: AppTheme.spacingSmall
-
-                        Button {
-                            text: qsTr("创建资金账户")
-                            visible: root.setupViewModel !== null
-                                && !root.setupViewModel.hasAccounts
-                            onClicked: root.openAccountDialog()
-                        }
-
-                        Button {
-                            text: qsTr("创建支出分类")
-                            visible: root.setupViewModel !== null
-                                && !root.setupViewModel.hasExpenseCategories
-                            onClicked: root.openCategoryDialog(false)
-                        }
-
-                        Button {
-                            text: qsTr("创建收入分类")
-                            visible: root.setupViewModel !== null
-                                && !root.setupViewModel.hasIncomeCategories
-                            onClicked: root.openCategoryDialog(true)
-                        }
-
-                        Button {
-                            text: qsTr("重试读取")
-                            visible: root.setupViewModel !== null
-                                && root.setupViewModel.hasError
-                            onClicked: root.setupViewModel.load()
-                        }
+                    Button {
+                        text: qsTr("重试读取")
+                        visible: root.setupViewModel !== null
+                            && root.setupViewModel.hasError
+                        onClicked: root.setupViewModel.load()
                     }
+                }
+            }
+
+            Flow {
+                Layout.fillWidth: true
+                Layout.leftMargin: AppTheme.spacingLarge
+                Layout.rightMargin: AppTheme.spacingLarge
+                spacing: AppTheme.spacingSmall
+                visible: root.setupViewModel !== null
+
+                Button {
+                    text: qsTr("新增账户")
+                    onClicked: root.openAccountDialog()
+                }
+
+                Button {
+                    text: qsTr("新增支出分类")
+                    onClicked: root.openCategoryDialog(false)
+                }
+
+                Button {
+                    text: qsTr("新增收入分类")
+                    onClicked: root.openCategoryDialog(true)
                 }
             }
 
@@ -289,13 +300,18 @@ Page {
                     && !root.viewModel.empty
 
                 delegate: Rectangle {
+                    required property string transactionId
                     required property bool isIncome
                     required property string amountText
+                    required property string accountName
+                    required property string categoryName
+                    required property string typeText
                     required property string occurredAtText
+                    required property string fullOccurredAtText
                     required property string note
 
                     width: transactionList.width
-                    height: 68
+                    height: note.length > 0 ? 88 : 68
                     radius: AppTheme.radiusSmall
                     color: AppTheme.surfaceColor
                     border.color: AppTheme.borderColor
@@ -309,14 +325,23 @@ Page {
                             spacing: AppTheme.spacingExtraSmall
 
                             Label {
-                                text: note.length > 0 ? note : qsTr("无备注")
+                                text: categoryName
                                 color: AppTheme.textPrimaryColor
+                                font.bold: true
                                 elide: Text.ElideRight
                             }
 
                             Label {
-                                text: occurredAtText
+                                text: qsTr("%1 · %2").arg(accountName).arg(occurredAtText)
                                 color: AppTheme.textSecondaryColor
+                            }
+
+                            Label {
+                                Layout.fillWidth: true
+                                text: note
+                                color: AppTheme.textSecondaryColor
+                                elide: Text.ElideRight
+                                visible: note.length > 0
                             }
                         }
 
@@ -327,6 +352,20 @@ Page {
                                 : AppTheme.errorColor
                             font.bold: true
                         }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.openTransactionDetails(
+                            transactionId,
+                            typeText,
+                            isIncome,
+                            amountText,
+                            accountName,
+                            categoryName,
+                            fullOccurredAtText,
+                            note)
                     }
                 }
             }
@@ -586,6 +625,104 @@ Page {
                             transactionDialog.close()
                     }
                 }
+            }
+        }
+    }
+
+    Dialog {
+        id: transactionDetailDialog
+
+        property string transactionId: ""
+        property string typeText: ""
+        property bool income: false
+        property string amountText: ""
+        property string accountName: ""
+        property string categoryName: ""
+        property string occurredAtText: ""
+        property string note: ""
+
+        anchors.centerIn: parent
+        modal: true
+        title: qsTr("账单详情")
+        standardButtons: Dialog.Close
+
+        GridLayout {
+            width: Math.min(root.width - AppTheme.spacingLarge * 4, 420)
+            columns: 2
+            rowSpacing: AppTheme.spacingMedium
+            columnSpacing: AppTheme.spacingLarge
+
+            Label {
+                text: qsTr("类型")
+                color: AppTheme.textSecondaryColor
+            }
+            Label {
+                text: transactionDetailDialog.typeText
+                color: AppTheme.textPrimaryColor
+            }
+
+            Label {
+                text: qsTr("金额")
+                color: AppTheme.textSecondaryColor
+            }
+            Label {
+                text: (transactionDetailDialog.income ? "+" : "-")
+                    + transactionDetailDialog.amountText
+                color: transactionDetailDialog.income
+                    ? AppTheme.primaryColor
+                    : AppTheme.errorColor
+                font.bold: true
+            }
+
+            Label {
+                text: qsTr("分类")
+                color: AppTheme.textSecondaryColor
+            }
+            Label {
+                text: transactionDetailDialog.categoryName
+                color: AppTheme.textPrimaryColor
+            }
+
+            Label {
+                text: qsTr("账户")
+                color: AppTheme.textSecondaryColor
+            }
+            Label {
+                text: transactionDetailDialog.accountName
+                color: AppTheme.textPrimaryColor
+            }
+
+            Label {
+                text: qsTr("发生时间")
+                color: AppTheme.textSecondaryColor
+            }
+            Label {
+                text: transactionDetailDialog.occurredAtText
+                color: AppTheme.textPrimaryColor
+            }
+
+            Label {
+                text: qsTr("备注")
+                color: AppTheme.textSecondaryColor
+            }
+            Label {
+                Layout.fillWidth: true
+                text: transactionDetailDialog.note.length > 0
+                    ? transactionDetailDialog.note
+                    : qsTr("无")
+                color: AppTheme.textPrimaryColor
+                wrapMode: Text.WordWrap
+            }
+
+            Label {
+                text: qsTr("账单 ID")
+                color: AppTheme.textSecondaryColor
+            }
+            Label {
+                Layout.fillWidth: true
+                text: transactionDetailDialog.transactionId
+                color: AppTheme.textSecondaryColor
+                wrapMode: Text.WrapAnywhere
             }
         }
     }

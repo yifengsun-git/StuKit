@@ -158,6 +158,8 @@ add_test(
 
 add_executable(StuKitGetMonthlyOverviewTest
     GetMonthlyOverviewTest.cpp
+    support/InMemoryAccountRepository.h
+    support/InMemoryCategoryRepository.h
     support/InMemoryTransactionRepository.h
 )
 
@@ -174,6 +176,8 @@ add_test(
 
 add_executable(StuKitAccountingPresentationTest
     AccountingPresentationTest.cpp
+    support/InMemoryAccountRepository.h
+    support/InMemoryCategoryRepository.h
     support/InMemoryTransactionRepository.h
 )
 

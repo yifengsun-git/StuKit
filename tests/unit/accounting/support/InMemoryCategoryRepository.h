@@ -50,11 +50,17 @@ public:
 
     [[nodiscard]] std::optional<std::vector<Category>> findAll() const override
     {
+        ++m_findAllCallCount;
         if (!m_findAllShouldSucceed) {
             return std::nullopt;
         }
 
         return m_categories;
+    }
+
+    [[nodiscard]] int findAllCallCount() const noexcept
+    {
+        return m_findAllCallCount;
     }
 
     void setSaveShouldSucceed(bool shouldSucceed) noexcept
@@ -71,6 +77,7 @@ private:
     std::vector<Category> m_categories;
     bool m_saveShouldSucceed{true};
     bool m_findAllShouldSucceed{true};
+    mutable int m_findAllCallCount{0};
 };
 
 } // namespace stukit::accounting::testing

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Transaction.h"
+#include "GetMonthlyOverview.h"
 
 #include <QAbstractListModel>
 #include <QTimeZone>
@@ -23,7 +23,11 @@ public:
         CategoryIdRole,
         OccurredAtRole,
         OccurredAtTextRole,
-        NoteRole
+        NoteRole,
+        AccountNameRole,
+        CategoryNameRole,
+        TypeTextRole,
+        FullOccurredAtTextRole
     };
     Q_ENUM(Role)
 
@@ -35,12 +39,12 @@ public:
         const QModelIndex &index, int role = Qt::DisplayRole) const override;
     [[nodiscard]] QHash<int, QByteArray> roleNames() const override;
 
-    void replaceTransactions(std::vector<Transaction> transactions);
+    void replaceTransactions(std::vector<MonthlyTransactionItem> transactions);
     void clear();
     void setTimeZone(QTimeZone timeZone);
 
 private:
-    std::vector<Transaction> m_transactions;
+    std::vector<MonthlyTransactionItem> m_transactions;
     QTimeZone m_timeZone{QTimeZone::UTC};
 };
 

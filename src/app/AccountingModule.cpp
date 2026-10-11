@@ -75,7 +75,9 @@ bool AccountingModule::initialize(const QDate &selectedMonth)
     m_transactionRepository =
         std::make_unique<accounting::SqliteTransactionRepository>(connection);
     m_getMonthlyOverview = std::make_unique<accounting::GetMonthlyOverview>(
-        *m_transactionRepository);
+        *m_transactionRepository,
+        *m_accountRepository,
+        *m_categoryRepository);
     m_createAccount = std::make_unique<accounting::CreateAccount>(
         *m_accountRepository);
     m_createCategory = std::make_unique<accounting::CreateCategory>(

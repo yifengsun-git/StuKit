@@ -1,5 +1,7 @@
 #pragma once
 
+#include "IAccountRepository.h"
+#include "ICategoryRepository.h"
 #include "ITransactionRepository.h"
 
 #include <QTimeZone>
@@ -16,9 +18,16 @@ struct GetMonthlyOverviewRequest
     QTimeZone timeZone;
 };
 
+struct MonthlyTransactionItem
+{
+    Transaction transaction;
+    QString accountName;
+    QString categoryName;
+};
+
 struct MonthlyOverview
 {
-    std::vector<Transaction> transactions;
+    std::vector<MonthlyTransactionItem> transactions;
     Money totalIncome{Money::fromCents(0)};
     Money totalExpense{Money::fromCents(0)};
     Money balance{Money::fromCents(0)};
@@ -37,13 +46,18 @@ using GetMonthlyOverviewResult = std::variant<
 class GetMonthlyOverview final
 {
 public:
-    explicit GetMonthlyOverview(ITransactionRepository &transactionRepository);
+    GetMonthlyOverview(
+        ITransactionRepository &transactionRepository,
+        IAccountRepository &accountRepository,
+        ICategoryRepository &categoryRepository);
 
     [[nodiscard]] GetMonthlyOverviewResult execute(
         const GetMonthlyOverviewRequest &request) const;
 
 private:
     ITransactionRepository &m_transactionRepository;
+    IAccountRepository &m_accountRepository;
+    ICategoryRepository &m_categoryRepository;
 };
 
 } // namespace stukit::accounting

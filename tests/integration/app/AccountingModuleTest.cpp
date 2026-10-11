@@ -2,6 +2,7 @@
 #include "AccountingOverviewViewModel.h"
 #include "AccountingSetupViewModel.h"
 #include "CreateTransactionViewModel.h"
+#include "TransactionListModel.h"
 #include "UserSettings.h"
 
 #include <QDir>
@@ -121,6 +122,18 @@ void AccountingModuleTest::createsRefreshesAndRestoresTransaction()
 
         QVERIFY2(editor->submit(), qPrintable(editor->errorMessage()));
         QCOMPARE(module.overviewViewModel()->transactions()->rowCount(), 1);
+        const QModelIndex transactionIndex =
+            module.overviewViewModel()->transactions()->index(0, 0);
+        QCOMPARE(module.overviewViewModel()->transactions()->data(
+                     transactionIndex,
+                     stukit::accounting::presentation::TransactionListModel::AccountNameRole)
+                     .toString(),
+                 QStringLiteral("银行卡"));
+        QCOMPARE(module.overviewViewModel()->transactions()->data(
+                     transactionIndex,
+                     stukit::accounting::presentation::TransactionListModel::CategoryNameRole)
+                     .toString(),
+                 QStringLiteral("餐饮"));
         QCOMPARE(module.overviewViewModel()->totalExpenseText(),
                  QStringLiteral("25.50"));
         QCOMPARE(module.overviewViewModel()->balanceText(),
