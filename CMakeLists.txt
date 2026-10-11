@@ -29,6 +29,7 @@ qt_add_executable(StuKit
 set(STUKIT_QML_FILES
     src/shell/qml/Main.qml
     src/shell/qml/HomePage.qml
+    src/features/analytics/qml/AnalyticsHomePage.qml
     src/features/accounting/qml/AccountingHomePage.qml
     src/features/schedule/qml/ScheduleHomePage.qml
     src/shared/qml/theme/AppTheme.qml
@@ -43,6 +44,11 @@ set_source_files_properties(
 set_source_files_properties(
     src/shell/qml/HomePage.qml
     PROPERTIES QT_RESOURCE_ALIAS HomePage.qml
+)
+
+set_source_files_properties(
+    src/features/analytics/qml/AnalyticsHomePage.qml
+    PROPERTIES QT_RESOURCE_ALIAS AnalyticsHomePage.qml
 )
 
 set_source_files_properties(

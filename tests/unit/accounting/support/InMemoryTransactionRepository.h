@@ -79,6 +79,7 @@ public:
         const QDateTime &startInclusive,
         const QDateTime &endExclusive) const override
     {
+        ++m_findOccurredBetweenCallCount;
         if (!m_findOccurredBetweenShouldSucceed
             || !startInclusive.isValid()
             || !endExclusive.isValid()
@@ -128,12 +129,18 @@ public:
         m_removeShouldSucceed = shouldSucceed;
     }
 
+    [[nodiscard]] int findOccurredBetweenCallCount() const noexcept
+    {
+        return m_findOccurredBetweenCallCount;
+    }
+
 private:
     std::vector<Transaction> m_transactions;
     bool m_saveShouldSucceed{true};
     bool m_findOccurredBetweenShouldSucceed{true};
     bool m_findAllShouldSucceed{true};
     bool m_removeShouldSucceed{true};
+    mutable int m_findOccurredBetweenCallCount{0};
 };
 
 } // namespace stukit::accounting::testing

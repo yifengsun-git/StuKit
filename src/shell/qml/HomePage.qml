@@ -6,6 +6,7 @@ Page {
     id: root
 
     signal accountingRequested()
+    signal analyticsRequested()
     signal scheduleRequested()
 
     background: Rectangle {
@@ -40,6 +41,13 @@ Page {
                 Layout.preferredHeight: AppTheme.controlHeight
                 text: qsTr("记账本")
                 onClicked: root.accountingRequested()
+            }
+
+            Button {
+                Layout.preferredWidth: 160
+                Layout.preferredHeight: AppTheme.controlHeight
+                text: qsTr("数据分析")
+                onClicked: root.analyticsRequested()
             }
 
             Button {

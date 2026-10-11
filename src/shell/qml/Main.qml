@@ -68,6 +68,8 @@ ApplicationWindow
                     case 1:
                         return qsTr("记账本")
                     case 2:
+                        return qsTr("数据分析")
+                    case 3:
                         return qsTr("课表")
                     default:
                         return qsTr("首页")
@@ -125,8 +127,15 @@ ApplicationWindow
                 Button
                 {
                     Layout.fillWidth: true
-                    text: qsTr("课表")
+                    text: qsTr("数据分析")
                     onClicked: window.navigateTo(2)
+                }
+
+                Button
+                {
+                    Layout.fillWidth: true
+                    text: qsTr("课表")
+                    onClicked: window.navigateTo(3)
                 }
 
                 Item
@@ -145,7 +154,8 @@ ApplicationWindow
         HomePage
         {
             onAccountingRequested: window.navigateTo(1)
-            onScheduleRequested: window.navigateTo(2)
+            onAnalyticsRequested: window.navigateTo(2)
+            onScheduleRequested: window.navigateTo(3)
         }
 
         AccountingHomePage {
@@ -156,6 +166,7 @@ ApplicationWindow
             maintenanceViewModel: window.dataMaintenance
             startupError: window.accountingStartupError
         }
+        AnalyticsHomePage {}
         ScheduleHomePage {}
     }
 }
