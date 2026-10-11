@@ -3,7 +3,7 @@
 ## 本课定位
 
 第二十二课已经让流水列表显示可读的账户名和分类名，并可以打开只读详情。
-本课将从这个稳定入口扩展两项常用能力：修改已有账单和删除账单。
+本课已从这个稳定入口扩展两项常用能力：修改已有账单和删除账单。
 
 ```text
 AccountingHomePage / Transaction Dialog
@@ -29,15 +29,21 @@ AccountingHomePage / Transaction Dialog
 
 ## 2. 先定义存储契约
 
-`ITransactionRepository` 已经有 `save()` 和 `findById()`，但还没有删除契约。
-本课计划新增：
+`ITransactionRepository` 原本已经有 `save()` 和 `findById()`，本课新增了明确的
+删除契约：
 
 ```cpp
-virtual bool removeById(const QUuid &id) = 0;
+enum class RemoveTransactionResult
+{
+    Removed,
+    NotFound,
+    StorageFailure
+};
+
+virtual RemoveTransactionResult removeById(const QUuid &id) = 0;
 ```
 
-或者使用能区分“成功”“不存在”“存储失败”的显式结果类型。实现时会先检查
-当前 Repository 的错误表达方式，避免一个布尔值隐藏重要差异。
+它能区分“成功”“不存在”“存储失败”，避免一个布尔值隐藏重要差异。
 
 SQLite 实现使用带 UUID 条件的单行 `DELETE`，并检查受影响行数。不会删除
 账户或分类，也不需要新的数据库迁移。
@@ -45,7 +51,7 @@ SQLite 实现使用带 UUID 条件的单行 `DELETE`，并检查受影响行数�
 ## 3. UpdateTransaction 用例
 
 更新不能只依赖 Repository 的 UPSERT，否则调用者传入不存在的 UUID 时会意外创建
-新账单。`UpdateTransaction` 计划执行：
+新账单。`UpdateTransaction` 执行：
 
 1. 检查原账单是否存在。
 2. 通过 `Transaction::create()` 重新验证全部字段。
@@ -69,9 +75,8 @@ SQLite 实现使用带 UUID 条件的单行 `DELETE`，并检查受影响行数�
 
 ## 5. 表单编辑模式
 
-现有 `CreateTransactionViewModel` 已经承担了大部分表单状态。实现时会评估将它重命名为
-`TransactionEditorViewModel`，或为编辑增加一个薄适配层。无论选择哪种方式，QML
-都只看到统一表单状态：
+现有 `CreateTransactionViewModel` 已经承担了大部分表单状态。本课保留类名以避免
+一次无必要的全局重命名，但将它扩展成同时支持新增与编辑的统一表单状态：
 
 ```text
 isEditing
@@ -91,7 +96,7 @@ deleteAvailable
 - 用例失败时保留当前对话框和输入，显示可恢复的中文错误。
 - 成功后关闭对话框，并通过组合根信号刷新首页。
 
-## 7. 测试计划
+## 7. 测试覆盖
 
 ### Application
 
@@ -114,12 +119,13 @@ deleteAvailable
 - 应用重启后保持最新状态。
 - QML 启动无类型、属性或绑定错误。
 
-## 8. 预计文件变化
+## 8. 文件变化
 
 ```text
 src/features/accounting/domain/repositories/ITransactionRepository.h
 src/features/accounting/application/UpdateTransaction.h/.cpp
 src/features/accounting/application/DeleteTransaction.h/.cpp
+src/features/accounting/application/GetTransaction.h/.cpp
 src/features/accounting/infrastructure/repositories/SqliteTransactionRepository.h/.cpp
 src/features/accounting/presentation/CreateTransactionViewModel.h/.cpp
 src/features/accounting/qml/AccountingHomePage.qml
@@ -127,19 +133,43 @@ src/app/AccountingModule.h/.cpp
 相关单元测试与集成测试
 ```
 
-如果表单 ViewModel 重命名，会同步修改 CMake 目标和代码导读。预计不新增数据库
-迁移。
+表单 ViewModel 没有重命名，也没有新增数据库迁移。
 
 ## 9. 验收清单
 
-- [ ] 详情可进入编辑，且所有字段回填正确。
-- [ ] 更新保留原账单 UUID。
-- [ ] 更新不存在的 UUID 不会新建账单。
-- [ ] 删除前必须二次确认。
-- [ ] 编辑与删除成功后当月页立即刷新。
-- [ ] 失败状态有稳定错误并不丢失输入。
-- [ ] QML 不访问 Repository 或 SQL。
-- [ ] 自定义时区、整数分金额和分类过滤不回退。
-- [ ] 真实 SQLite 与应用重启验证通过。
-- [ ] 全量测试与 QML 启动检查通过。
-- [ ] 文档与代码导读同步更新。
+- [x] 详情可进入编辑，且所有字段回填正确。
+- [x] 更新保留原账单 UUID。
+- [x] 更新不存在的 UUID 不会新建账单。
+- [x] 删除前必须二次确认。
+- [x] 编辑与删除成功后当月页立即刷新。
+- [x] 失败状态有稳定错误并不丢失输入。
+- [x] QML 不访问 Repository 或 SQL。
+- [x] 自定义时区、整数分金额和分类过滤不回退。
+- [x] 真实 SQLite 与应用重启验证通过。
+- [x] 全量测试与 QML 启动检查通过。
+- [x] 文档与代码导读同步更新。
+
+## 10. 实现与验证结果
+
+- `GetTransaction` 为编辑表单读取原账单，Presentation 不直接访问 Repository。
+- `UpdateTransaction` 在保存前检查原 UUID、账户、分类与收支类型，不存在的
+  账单不会被 UPSERT 成新记录。
+- `DeleteTransaction` 和 Repository 删除契约保留“不存在”与“存储失败”的差异。
+- 编辑表单在当前记账时区中回填日期和时间，保存后仍转换为稳定时刻。
+- 详情页提供编辑和删除入口，删除前必须通过单独确认对话框。
+- 更新和删除信号由 `AccountingModule` 连接到月度首页刷新。
+- 同步补齐了时区界面：可从 Qt 完整地区时区列表选择或手动输入 IANA ID，
+  也可选择 UTC-14:00 到 UTC+14:00 的 15 分钟精度固定偏移。
+
+验证结果：
+
+```text
+MSVC 2022 Release build: passed
+CTest: 20/20 passed
+Windows QML startup smoke test: passed
+```
+
+## 11. 后续方向
+
+第二十四课将完成账户与分类的管理入口，包括列表、重命名、归档与恢复，
+让基础资料不再只能创建。

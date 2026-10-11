@@ -26,8 +26,12 @@ Category 实体，并建立了 Account 与 Category 的 Repository 接口和创�
 后月度汇总立即刷新。金额不使用浮点数，发生时间严格使用用户自定义记账时区。
 流水列表现在能显示账户名、分类名和类型，点击后可查看包含完整时间与备注的
 只读详情。新增账户及收支分类的入口已调整为常驻按钮，不再只能完成一次首次设置。
+时区也已拥有可用的选择界面：既可选择或输入 IANA 地区时区，也可使用
+UTC-14:00 到 UTC+14:00 的固定偏移，选择后会保存并同步到月度查询和账单表单。
+账单详情现在可以进入编辑，修改会保留原 UUID；删除需要二次确认，两种操作
+成功后都会立即刷新月度汇总和流水列表。
 
-当前将进入账单编辑与删除阶段，复用已建立的详情入口和表单校验。
+当前将进入账户与分类管理阶段，完成重命名、归档和恢复入口。
 开发过程中保持界面与业务分离，并让时间、数据库和业务代码可在后续 Android
 版本继续复用。
 
@@ -70,6 +74,7 @@ Category 实体，并建立了 Account 与 Category 的 Repository 接口和创�
 - [第二十一课：新增账单表单](docs/lessons/21-create-transaction-presentation.md)
 - [第二十二课：流水可读化与账单详情](docs/lessons/22-transaction-details.md)
 - [第二十三课：编辑与删除账单](docs/lessons/23-edit-delete-transactions.md)
+- [第二十四课：账户与分类管理](docs/lessons/24-account-category-management.md)
 
 ## 开发原则
 
