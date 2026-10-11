@@ -5,10 +5,10 @@
 本文说明 StuKit 中各个 C++ 头文件和源文件的职责、依赖关系以及不能承担的职责。
 它适合在阅读代码、排查编译错误或添加新功能前快速查阅。
 
-当前内容对应第二十八课完成后的代码，包括三版 SQLite 迁移、三个 Repository
+当前内容对应第二十九课完成后的代码，包括三版 SQLite 迁移、三个 Repository
 接口、创建与查询用例、记账 Presentation，以及从 QML 创建账户、分类和账单并
 持久化到真实 SQLite 的端到端链路、账户余额、月度流水筛选、安全备份恢复和
-全部流水 CSV 导出。
+全部流水 CSV 导出，以及可自定义时间、账户和分类范围的记账分析聚合。
 
 ## 2. `.h` 和 `.cpp` 分别做什么
 
@@ -62,6 +62,12 @@ GetMonthlyOverview
   -> IAccountRepository::findAll / ICategoryRepository::findAll
   -> 用户自定义 QTimeZone
   -> MonthlyOverview / MonthlyTransactionItem
+
+GetAccountingAnalytics
+  -> ITransactionRepository::findOccurredBetween
+  -> IAccountRepository::findAll / ICategoryRepository::findAll
+  -> 用户自定义 QTimeZone / 账户和分类筛选
+  -> 月度趋势 / 分类排行 / 账户资金流
 
 GetTransactionExportData
   -> 三个 Repository::findAll
@@ -463,6 +469,21 @@ SQLite 实现。
 用例不读取设备系统时区。固定偏移或地区时区由调用者显式传入，因此 Windows 和
 Android 可以使用同一用户设置。
 
+### `GetAccountingAnalytics.h` 与 `GetAccountingAnalytics.cpp`
+
+实现可自定义的记账分析查询：
+
+1. 接收截止月份、2～24 个月范围、记账时区以及可选账户和分类 UUID。
+2. 使用记账时区计算自然月边界，再转换为 UTC 做一次范围查询。
+3. 各读取一次全部账户与分类，验证筛选 ID 和流水关联。
+4. 返回连续月份的收入、支出和结余，即使某个月没有数据也保留零值点。
+5. 聚合所选月份的收入/支出分类排行和账户资金流。
+6. 保留已归档关联的名称及状态，并使用稳定排序。
+7. 在金额累加前检查 `qint64` 溢出，失败时不返回部分结果。
+
+用例不依赖 Qt Charts，也不计算颜色、坐标轴和控件状态。默认 12 个月只是请求默认值，
+与用户自定义分析共用同一条执行路径。
+
 ### `GetTransactionExportData.h/.cpp`
 
 为跨软件导出准备稳定的数据快照：
@@ -783,6 +804,7 @@ tests/unit/accounting/
 | `ManageSetupTest.cpp` | 账户/分类补丁更新、字段保留、不存在及存储失败。 |
 | `GetMonthlyOverviewTest.cpp` | 时区边界、跨年、汇总、关联名称、归档项、查询次数和错误。 |
 | `GetAccountBalancesTest.cpp` | 期初余额、收支累计、归档口径、查询失败、缺失关联和整数溢出。 |
+| `GetAccountingAnalyticsTest.cpp` | 连续月份、月度/分类/账户聚合、自定义过滤、时区边界、固定查询次数和溢出。 |
 | `GetTransactionExportDataTest.cpp` | 全量关联、已归档名称、稳定排序、查询失败和缺失关联。 |
 | `AccountingPresentationTest.cpp` | 金额、可读名称、完整/简短时间、页面导航、筛选状态及汇总不变性。 |
 | `AccountBalancesPresentationTest.cpp` | 余额角色、总资产格式、错误映射及失败后清理旧状态。 |
@@ -884,7 +906,8 @@ StuKitAccountingApplication
 ```
 
 它编译账户、分类和账单的创建/更新用例，以及 GetMonthlyOverview、
-GetAccountingSetup、GetAccountBalances 和 GetTransactionExportData，并链接
+GetAccountingAnalytics、GetAccountingSetup、GetAccountBalances 和
+GetTransactionExportData，并链接
 `StuKitAccountingDomain`。依赖不能反过来。
 
 ### `src/features/accounting/infrastructure/CMakeLists.txt`
@@ -948,10 +971,13 @@ Infrastructure 与 Presentation，负责把两条依赖链组装起来。
 25. `SqliteBackupService.h/.cpp`：理解一致快照、验证和原子文件替换。
 26. `GetTransactionExportData.h/.cpp`：理解全量查询、名称关联和稳定排序。
 27. `CsvTransactionWriter.h/.cpp`：理解 CSV 转义、编码、时区与原子写入。
-28. `AccountingModule.h/.cpp`：理解信号连接、依赖组装、恢复回退和资源析构顺序。
-29. `DataMaintenanceViewModel.h/.cpp`：理解文件 URL、操作状态和 QML 对象重绑定通知。
-30. `AccountingHomePage.qml`：理解 QML 如何只绑定状态、选择文件和发送操作。
-31. `main.cpp`：理解标准路径、根属性注入、恢复后重绑定和应用启动。
+28. `GetAccountingAnalytics.h/.cpp`：理解一次范围查询如何产生连续趋势、分类排行和账户资金流。
+29. `GetAccountingAnalyticsTest.cpp`：理解筛选、时区、固定查询次数和溢出如何被验证。
+30. `AccountingModule.h/.cpp`：理解信号连接、依赖组装、恢复回退和资源析构顺序。
+31. `DataMaintenanceViewModel.h/.cpp`：理解文件 URL、操作状态和 QML 对象重绑定通知。
+32. `AccountingHomePage.qml`：理解 QML 如何只绑定状态、选择文件和发送操作。
+33. `AnalyticsHomePage.qml`：理解通用分析板块为何暂时不依赖具体记账 ViewModel。
+34. `main.cpp`：理解标准路径、根属性注入、恢复后重绑定和应用启动。
 
 ## 13. 修改代码时如何判断文件归属
 
@@ -968,6 +994,6 @@ Infrastructure 与 Presentation，负责把两条依赖链组装起来。
 ## 14. 后续更新规则
 
 每完成一课并新增 C++ 文件，都应在本文补充它的职责、依赖和禁止承担的职责。
-下一阶段补齐记账分析。近 6～24 个月趋势和所选月分类排行由新的 Application 用例
-基于现有 Repository 聚合，金额继续使用整数分，图表显示留在 Presentation/QML；
-分析 MVP 完成后再开始课表 Domain。
+下一课将增加 `AccountingAnalyticsViewModel` 与只读列表模型，把当前 Application 聚合
+结果转换成默认分析和自定义分析的页面状态。通用图表只消费展示数据，不依赖记账
+领域类型；分析 MVP 完成后再开始课表 Domain。

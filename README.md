@@ -41,10 +41,15 @@ UTC-14:00 到 UTC+14:00 的固定偏移，选择后会保存并同步到月度�
 保留当前数据库，失败时可回退；本地数据库和备份文件均被 Git 忽略。全部历史流水
 现在也能导出为 UTF-8 CSV，包含稳定的账户与分类名称、精确金额、UTC 时间和记账
 时区时间，逗号、引号及多行备注会按 CSV 规则转义。首页的数据维护入口已整理为
-独立卡片，统计摘要会在窄窗口下自动切换为两列。当前准备补齐记账分析模块：近
-12 个月收支趋势、所选月分类排行和上月对比；分析 MVP 完成后再开始课表模块。
-Windows Release 部署将在课表 MVP 完成后集中处理。开发过程中继续保持界面与业务
-分离，并让时间、数据库和业务代码可在后续 Android 版本复用。
+独立卡片，统计摘要会在窄窗口下自动切换为两列。
+
+记账分析的查询基础已经完成：可以按用户记账时区聚合连续 2～24 个月的收入、支出
+和结余，并按账户、分类自定义过滤；所选月还会生成收入/支出分类排行和账户资金流。
+应用现在有独立的“数据分析”一级入口，默认记账分析和自定义分析共用一条查询链路。
+当前页面还是分析板块骨架，下一步连接 ViewModel 和通用图表数据模型，再提供柱状图、
+折线图、排行图及可选环形图。通用分析外壳以后可以接入饮食、学习等模块的数据源，
+各功能自己的统计规则仍保持隔离。分析 MVP 完成后再开始课表模块，Windows Release
+部署将在课表 MVP 完成后集中处理。
 
 ## 技术方向
 
@@ -90,7 +95,8 @@ Windows Release 部署将在课表 MVP 完成后集中处理。开发过程中�
 - [第二十六课：月度流水筛选与搜索](docs/lessons/26-transaction-filtering.md)
 - [第二十七课：SQLite 数据备份与恢复](docs/lessons/27-database-backup-and-restore.md)
 - [第二十八课：流水 CSV 导出](docs/lessons/28-transaction-csv-export.md)
-- [第二十九课：记账分析查询与聚合模型](docs/lessons/29-accounting-analytics-query.md)
+- [第二十九课：可自定义的记账分析查询](docs/lessons/29-accounting-analytics-query.md)
+- [第三十课：分析 ViewModel 与通用图表数据模型](docs/lessons/30-accounting-analytics-presentation.md)
 
 ## 开发原则
 
