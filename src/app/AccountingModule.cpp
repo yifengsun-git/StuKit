@@ -15,11 +15,13 @@
 #include "UpdateTransaction.h"
 #include "UpdateAccount.h"
 #include "UpdateCategory.h"
+#include "backup/SqliteBackupService.h"
 #include "database/SqliteDatabase.h"
 #include "repositories/SqliteAccountRepository.h"
 #include "repositories/SqliteCategoryRepository.h"
 #include "repositories/SqliteTransactionRepository.h"
 
+#include <QDateTime>
 #include <QDir>
 #include <QObject>
 #include <QUuid>
@@ -75,6 +77,8 @@ bool AccountingModule::initialize(const QDate &selectedMonth)
     }
 
     const auto connection = m_database->connection();
+    m_backupService = std::make_unique<accounting::SqliteBackupService>(
+        connection);
     m_accountRepository =
         std::make_unique<accounting::SqliteAccountRepository>(connection);
     m_categoryRepository =
@@ -199,6 +203,111 @@ bool AccountingModule::initialize(const QDate &selectedMonth)
     return true;
 }
 
+bool AccountingModule::backupDatabase(
+    const QString &destinationPath,
+    bool replaceExisting)
+{
+    m_lastError.clear();
+    if (!m_backupService) {
+        m_lastError = QStringLiteral("Database backup service is unavailable");
+        return false;
+    }
+
+    const accounting::SqliteBackupResult result =
+        m_backupService->createBackup(destinationPath, replaceExisting);
+    if (!result.succeeded()) {
+        m_lastError = result.detail;
+        return false;
+    }
+    return true;
+}
+
+bool AccountingModule::restoreDatabase(const QString &backupPath)
+{
+    m_lastError.clear();
+    if (!m_backupService || !m_overviewViewModel) {
+        m_lastError = QStringLiteral("Accounting module is not initialized");
+        return false;
+    }
+
+    const accounting::SqliteBackupResult validation =
+        accounting::SqliteBackupService::validateBackup(backupPath);
+    if (!validation.succeeded()) {
+        m_lastError = validation.detail;
+        return false;
+    }
+
+    const QDate selectedMonth(
+        m_overviewViewModel->selectedYear(),
+        m_overviewViewModel->selectedMonth(),
+        1);
+    const QString activeDatabasePath = m_databasePath;
+    const QString safetyDirectory = QDir(m_appDataDirectory).filePath(
+        QStringLiteral("backups"));
+    if (!QDir().mkpath(safetyDirectory)) {
+        m_lastError = QStringLiteral("Could not create safety backup directory");
+        return false;
+    }
+
+    const QString timestamp = QDateTime::currentDateTimeUtc().toString(
+        QStringLiteral("yyyyMMdd-HHmmss-zzz"));
+    const QString safetyPath = QDir(safetyDirectory).filePath(
+        QStringLiteral("pre-restore-%1-%2.sqlite")
+            .arg(timestamp,
+                 QUuid::createUuid().toString(QUuid::WithoutBraces)));
+    const accounting::SqliteBackupResult safetyResult =
+        m_backupService->createBackup(safetyPath);
+    if (!safetyResult.succeeded()) {
+        m_lastError = QStringLiteral("Could not create safety backup: %1")
+            .arg(safetyResult.detail);
+        return false;
+    }
+    m_lastSafetyBackupPath = safetyPath;
+
+    reset();
+    const accounting::SqliteBackupResult replacement =
+        accounting::SqliteBackupService::replaceDatabase(
+            backupPath, activeDatabasePath);
+    if (!replacement.succeeded()) {
+        const bool reopened = initialize(selectedMonth);
+        const QString reopenDetail = reopened
+            ? QString{}
+            : QStringLiteral("; reopening current data failed: %1")
+                  .arg(m_lastError);
+        m_lastError = QStringLiteral("Could not install backup: %1%2")
+            .arg(replacement.detail, reopenDetail);
+        return false;
+    }
+
+    if (initialize(selectedMonth)) {
+        return true;
+    }
+
+    const QString restoredDatabaseError = m_lastError;
+    reset();
+    const accounting::SqliteBackupResult rollback =
+        accounting::SqliteBackupService::replaceDatabase(
+            safetyPath, activeDatabasePath);
+    if (!rollback.succeeded()) {
+        m_lastError = QStringLiteral(
+            "Restored database failed to initialize (%1); rollback failed (%2)")
+            .arg(restoredDatabaseError, rollback.detail);
+        return false;
+    }
+
+    const bool rollbackInitialized = initialize(selectedMonth);
+    const QString rollbackInitializationError = m_lastError;
+    m_lastError = rollbackInitialized
+        ? QStringLiteral(
+              "Restored database failed to initialize; original data was restored: %1")
+              .arg(restoredDatabaseError)
+        : QStringLiteral(
+              "Restored database failed to initialize (%1); "
+              "original data also failed to reopen (%2)")
+              .arg(restoredDatabaseError, rollbackInitializationError);
+    return false;
+}
+
 accounting::presentation::CreateTransactionViewModel *
 AccountingModule::transactionEditorViewModel() const noexcept
 {
@@ -228,6 +337,11 @@ const QString &AccountingModule::databasePath() const noexcept
     return m_databasePath;
 }
 
+const QString &AccountingModule::lastSafetyBackupPath() const noexcept
+{
+    return m_lastSafetyBackupPath;
+}
+
 const QString &AccountingModule::lastError() const noexcept
 {
     return m_lastError;
@@ -253,6 +367,7 @@ void AccountingModule::reset()
     m_transactionRepository.reset();
     m_categoryRepository.reset();
     m_accountRepository.reset();
+    m_backupService.reset();
     m_database.reset();
     m_databasePath.clear();
 }

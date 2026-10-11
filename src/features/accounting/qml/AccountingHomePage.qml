@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Dialogs as PlatformDialogs
 import QtQuick.Layouts
 
 Page {
@@ -11,6 +12,7 @@ Page {
     required property var balancesViewModel
     required property var setupViewModel
     required property var transactionViewModel
+    required property var maintenanceViewModel
     required property string startupError
 
     readonly property var fixedOffsetOptions: {
@@ -254,6 +256,39 @@ Page {
                     text: qsTr("管理账户与分类")
                     onClicked: setupManagementDialog.open()
                 }
+
+                Button {
+                    text: qsTr("备份数据")
+                    enabled: root.maintenanceViewModel !== null
+                        && !root.maintenanceViewModel.busy
+                    onClicked: backupFileDialog.open()
+                }
+
+                Button {
+                    text: qsTr("恢复数据")
+                    enabled: root.maintenanceViewModel !== null
+                        && !root.maintenanceViewModel.busy
+                    onClicked: restoreFileDialog.open()
+                }
+            }
+
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: AppTheme.spacingLarge
+                Layout.rightMargin: AppTheme.spacingLarge
+                color: root.maintenanceViewModel
+                    && root.maintenanceViewModel.hasError
+                    ? AppTheme.errorColor
+                    : AppTheme.textSecondaryColor
+                text: {
+                    if (!root.maintenanceViewModel)
+                        return ""
+                    return root.maintenanceViewModel.hasError
+                        ? root.maintenanceViewModel.errorMessage
+                        : root.maintenanceViewModel.statusMessage
+                }
+                wrapMode: Text.WrapAnywhere
+                visible: text.length > 0
             }
 
             Button {
@@ -1267,6 +1302,47 @@ Page {
                 wrapMode: Text.WordWrap
                 visible: text.length > 0
             }
+        }
+    }
+
+    PlatformDialogs.FileDialog {
+        id: backupFileDialog
+
+        title: qsTr("保存 StuKit 数据备份")
+        fileMode: PlatformDialogs.FileDialog.SaveFile
+        defaultSuffix: "sqlite"
+        nameFilters: [qsTr("StuKit 数据库 (*.sqlite)")]
+        onAccepted: root.maintenanceViewModel.backupTo(selectedFile)
+    }
+
+    PlatformDialogs.FileDialog {
+        id: restoreFileDialog
+
+        title: qsTr("选择 StuKit 数据备份")
+        fileMode: PlatformDialogs.FileDialog.OpenFile
+        nameFilters: [qsTr("StuKit 数据库 (*.sqlite *.sqlite3 *.db)")]
+        onAccepted: {
+            restoreConfirmationDialog.backupFile = selectedFile
+            restoreConfirmationDialog.open()
+        }
+    }
+
+    Dialog {
+        id: restoreConfirmationDialog
+
+        property url backupFile
+
+        anchors.centerIn: parent
+        modal: true
+        title: qsTr("恢复数据")
+        standardButtons: Dialog.Yes | Dialog.No
+        onAccepted: root.maintenanceViewModel.restoreFrom(backupFile)
+
+        Label {
+            width: Math.min(root.width - AppTheme.spacingLarge * 4, 440)
+            text: qsTr("恢复会用所选备份替换当前记账数据。StuKit 会先自动保存当前数据库，确定继续吗？")
+            color: AppTheme.textPrimaryColor
+            wrapMode: Text.WordWrap
         }
     }
 

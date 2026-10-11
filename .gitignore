@@ -18,3 +18,11 @@ compile_commands.json
 *.dll
 *.obj
 *.pdb
+
+# Local databases and user backups
+*.sqlite
+*.sqlite3
+*.db
+*.db3
+*.sqlite-shm
+*.sqlite-wal

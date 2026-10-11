@@ -6,12 +6,16 @@
 #include "AccountListModel.h"
 #include "CategoryListModel.h"
 #include "CreateTransactionViewModel.h"
+#include "DataMaintenanceViewModel.h"
 #include "TransactionListModel.h"
 #include "UserSettings.h"
 
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
+#include <QPointer>
 #include <QSettings>
+#include <QSignalSpy>
 #include <QSqlDatabase>
 #include <QSqlError>
 #include <QSqlQuery>
@@ -40,6 +44,7 @@ private slots:
     void initializesDatabaseAndViewModel();
     void createsAndRestoresSetupData();
     void createsEditsDeletesAndRestoresTransaction();
+    void backsUpAndRestoresDatabase();
     void defaultsInvalidTimeZoneToUtcPlusEight();
     void persistsSelectedFixedTimeZone();
     void rejectsEmptyApplicationDataDirectory();
@@ -314,6 +319,74 @@ void AccountingModuleTest::createsAndRestoresSetupData()
                  QStringLiteral("123.45"));
         QVERIFY(!setup->hasError());
     }
+}
+
+void AccountingModuleTest::backsUpAndRestoresDatabase()
+{
+    QTemporaryDir directory(QDir::current().filePath(
+        QStringLiteral("stukit-module-backup-test-XXXXXX")));
+    QVERIFY(directory.isValid());
+    QSettings settings(directory.filePath(QStringLiteral("settings.ini")),
+                       QSettings::IniFormat);
+    AccountingModule module(directory.filePath(QStringLiteral("app-data")),
+                            settings);
+    QVERIFY2(module.initialize(QDate(2026, 10, 1)),
+             qPrintable(module.lastError()));
+
+    auto *setup = module.setupViewModel();
+    QVERIFY(setup->createAccount(
+        QStringLiteral("备份前账户"), QStringLiteral("12.34")));
+    const QString accountId = setup->accounts()->data(
+        setup->accounts()->index(0, 0),
+        stukit::accounting::presentation::AccountListModel::AccountIdRole)
+                                  .toString();
+
+    const QString backupPath = directory.filePath(
+        QStringLiteral("manual-backup.sqlite"));
+    DataMaintenanceViewModel maintenance(module);
+    QSignalSpy objectsChangedSpy(
+        &maintenance,
+        &DataMaintenanceViewModel::accountingObjectsChanged);
+    QVERIFY2(maintenance.backupTo(QUrl::fromLocalFile(backupPath)),
+             qPrintable(maintenance.errorMessage()));
+    QVERIFY(!maintenance.statusMessage().isEmpty());
+    QVERIFY(QFileInfo::exists(backupPath));
+
+    QVERIFY(setup->renameAccount(accountId, QStringLiteral("备份后账户")));
+    QCOMPARE(setup->accounts()->data(
+                 setup->accounts()->index(0, 0),
+                 stukit::accounting::presentation::AccountListModel::NameRole)
+                 .toString(),
+             QStringLiteral("备份后账户"));
+
+    QPointer<stukit::accounting::presentation::AccountingOverviewViewModel>
+        oldOverview = module.overviewViewModel();
+    QVERIFY2(maintenance.restoreFrom(QUrl::fromLocalFile(backupPath)),
+             qPrintable(maintenance.errorMessage()));
+    QCOMPARE(objectsChangedSpy.count(), 1);
+    QVERIFY(oldOverview.isNull());
+    QCOMPARE(module.overviewViewModel()->monthLabel(),
+             QStringLiteral("2026-10"));
+    QCOMPARE(module.setupViewModel()->accounts()->rowCount(), 1);
+    QCOMPARE(module.setupViewModel()->accounts()->data(
+                 module.setupViewModel()->accounts()->index(0, 0),
+                 stukit::accounting::presentation::AccountListModel::NameRole)
+                 .toString(),
+             QStringLiteral("备份前账户"));
+    QVERIFY(QFileInfo::exists(module.lastSafetyBackupPath()));
+    QVERIFY(module.lastSafetyBackupPath().contains(
+        QStringLiteral("pre-restore-")));
+
+    const QString invalidPath = directory.filePath(
+        QStringLiteral("invalid.sqlite"));
+    QFile invalidFile(invalidPath);
+    QVERIFY(invalidFile.open(QIODevice::WriteOnly));
+    QVERIFY(invalidFile.write("invalid") > 0);
+    invalidFile.close();
+    auto *overviewBeforeInvalidRestore = module.overviewViewModel();
+    QVERIFY(!module.restoreDatabase(invalidPath));
+    QCOMPARE(module.overviewViewModel(), overviewBeforeInvalidRestore);
+    QCOMPARE(module.setupViewModel()->accounts()->rowCount(), 1);
 }
 
 void AccountingModuleTest::defaultsInvalidTimeZoneToUtcPlusEight()

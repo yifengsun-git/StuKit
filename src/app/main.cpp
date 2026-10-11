@@ -3,6 +3,7 @@
 #include "AccountingOverviewViewModel.h"
 #include "AccountingSetupViewModel.h"
 #include "CreateTransactionViewModel.h"
+#include "DataMaintenanceViewModel.h"
 
 #include <QCoreApplication>
 #include <QDebug>
@@ -28,6 +29,7 @@ int main(int argc, char *argv[])
 
     QSettings settings;
     stukit::app::AccountingModule accountingModule(appDataDirectory, settings);
+    stukit::app::DataMaintenanceViewModel dataMaintenance(accountingModule);
 
     QString accountingStartupError;
     if (!accountingModule.initialize()) {
@@ -57,6 +59,9 @@ int main(int argc, char *argv[])
             accountingModule.transactionEditorViewModel())));
     initialProperties.insert(
         QStringLiteral("accountingStartupError"), accountingStartupError);
+    initialProperties.insert(
+        QStringLiteral("dataMaintenance"),
+        QVariant::fromValue(static_cast<QObject *>(&dataMaintenance)));
     engine.setInitialProperties(initialProperties);
 
     QObject::connect(
@@ -67,6 +72,32 @@ int main(int argc, char *argv[])
         Qt::QueuedConnection);
 
     engine.loadFromModule("StuKit", "Main");
+
+    if (!engine.rootObjects().isEmpty()) {
+        QObject *rootObject = engine.rootObjects().constFirst();
+        QObject::connect(
+            &dataMaintenance,
+            &stukit::app::DataMaintenanceViewModel::accountingObjectsChanged,
+            rootObject,
+            [rootObject, &accountingModule]() {
+                rootObject->setProperty(
+                    "accountingOverview",
+                    QVariant::fromValue(static_cast<QObject *>(
+                        accountingModule.overviewViewModel())));
+                rootObject->setProperty(
+                    "accountingBalances",
+                    QVariant::fromValue(static_cast<QObject *>(
+                        accountingModule.balancesViewModel())));
+                rootObject->setProperty(
+                    "accountingSetup",
+                    QVariant::fromValue(static_cast<QObject *>(
+                        accountingModule.setupViewModel())));
+                rootObject->setProperty(
+                    "accountingTransactionEditor",
+                    QVariant::fromValue(static_cast<QObject *>(
+                        accountingModule.transactionEditorViewModel())));
+            });
+    }
 
     return app.exec();
 }

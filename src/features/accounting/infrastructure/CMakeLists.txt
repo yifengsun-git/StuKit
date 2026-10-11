@@ -1,4 +1,6 @@
 add_library(StuKitAccountingInfrastructure STATIC
+    backup/SqliteBackupService.cpp
+    backup/SqliteBackupService.h
     database/SqliteDatabase.cpp
     database/SqliteDatabase.h
     repositories/SqliteAccountRepository.cpp

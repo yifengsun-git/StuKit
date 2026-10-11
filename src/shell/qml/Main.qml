@@ -10,6 +10,7 @@ ApplicationWindow
     required property var accountingBalances
     required property var accountingSetup
     required property var accountingTransactionEditor
+    required property var dataMaintenance
     required property string accountingStartupError
 
     property int currentPage: 0
@@ -152,6 +153,7 @@ ApplicationWindow
             balancesViewModel: window.accountingBalances
             setupViewModel: window.accountingSetup
             transactionViewModel: window.accountingTransactionEditor
+            maintenanceViewModel: window.dataMaintenance
             startupError: window.accountingStartupError
         }
         ScheduleHomePage {}

@@ -1,6 +1,8 @@
 add_library(StuKitAppCore STATIC
     AccountingModule.cpp
     AccountingModule.h
+    DataMaintenanceViewModel.cpp
+    DataMaintenanceViewModel.h
     UserSettings.cpp
     UserSettings.h
 )

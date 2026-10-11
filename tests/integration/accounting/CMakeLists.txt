@@ -13,6 +13,21 @@ add_test(
     COMMAND StuKitSqliteDatabaseTest
 )
 
+add_executable(StuKitSqliteBackupServiceTest
+    SqliteBackupServiceTest.cpp
+)
+
+target_link_libraries(StuKitSqliteBackupServiceTest
+    PRIVATE
+        Qt6::Test
+        StuKitAccountingInfrastructure
+)
+
+add_test(
+    NAME accounting.sqlite_backup_service
+    COMMAND StuKitSqliteBackupServiceTest
+)
+
 add_executable(StuKitSqliteAccountRepositoryTest
     SqliteAccountRepositoryTest.cpp
 )

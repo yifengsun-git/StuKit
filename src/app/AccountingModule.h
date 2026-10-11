@@ -24,6 +24,7 @@ class UpdateTransaction;
 class SqliteAccountRepository;
 class SqliteCategoryRepository;
 class SqliteDatabase;
+class SqliteBackupService;
 class SqliteTransactionRepository;
 
 namespace presentation {
@@ -49,6 +50,10 @@ public:
 
     [[nodiscard]] bool initialize(
         const QDate &selectedMonth = QDate::currentDate());
+    [[nodiscard]] bool backupDatabase(
+        const QString &destinationPath,
+        bool replaceExisting = false);
+    [[nodiscard]] bool restoreDatabase(const QString &backupPath);
 
     [[nodiscard]] accounting::presentation::AccountingOverviewViewModel *
     overviewViewModel() const noexcept;
@@ -59,6 +64,7 @@ public:
     [[nodiscard]] accounting::presentation::CreateTransactionViewModel *
     transactionEditorViewModel() const noexcept;
     [[nodiscard]] const QString &databasePath() const noexcept;
+    [[nodiscard]] const QString &lastSafetyBackupPath() const noexcept;
     [[nodiscard]] const QString &lastError() const noexcept;
 
 private:
@@ -67,9 +73,11 @@ private:
     QString m_appDataDirectory;
     UserSettings m_userSettings;
     QString m_databasePath;
+    QString m_lastSafetyBackupPath;
     QString m_lastError;
 
     std::unique_ptr<accounting::SqliteDatabase> m_database;
+    std::unique_ptr<accounting::SqliteBackupService> m_backupService;
     std::unique_ptr<accounting::SqliteAccountRepository> m_accountRepository;
     std::unique_ptr<accounting::SqliteCategoryRepository> m_categoryRepository;
     std::unique_ptr<accounting::SqliteTransactionRepository>
