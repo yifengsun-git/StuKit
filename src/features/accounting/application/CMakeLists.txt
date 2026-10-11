@@ -5,10 +5,16 @@ add_library(StuKitAccountingApplication STATIC
     CreateCategory.h
     CreateTransaction.cpp
     CreateTransaction.h
+    DeleteTransaction.cpp
+    DeleteTransaction.h
     GetMonthlyOverview.cpp
     GetMonthlyOverview.h
+    GetTransaction.cpp
+    GetTransaction.h
     GetAccountingSetup.cpp
     GetAccountingSetup.h
+    UpdateTransaction.cpp
+    UpdateTransaction.h
 )
 
 target_include_directories(StuKitAccountingApplication

@@ -1,5 +1,6 @@
 #include "CreateTransactionViewModel.h"
 
+#include "MoneyFormatter.h"
 #include "MoneyInputParser.h"
 
 #include <QDate>
@@ -24,11 +25,17 @@ QString idText(const QUuid &id)
 
 CreateTransactionViewModel::CreateTransactionViewModel(
     CreateTransaction &createTransaction,
+    UpdateTransaction &updateTransaction,
+    DeleteTransaction &deleteTransaction,
+    GetTransaction &getTransaction,
     GetAccountingSetup &getAccountingSetup,
     QTimeZone timeZone,
     QObject *parent)
     : QObject(parent)
     , m_createTransaction(createTransaction)
+    , m_updateTransaction(updateTransaction)
+    , m_deleteTransaction(deleteTransaction)
+    , m_getTransaction(getTransaction)
     , m_getAccountingSetup(getAccountingSetup)
     , m_timeZone(std::move(timeZone))
     , m_accounts(this)
@@ -103,6 +110,22 @@ bool CreateTransactionViewModel::hasError() const noexcept
 const QString &CreateTransactionViewModel::errorMessage() const noexcept
 {
     return m_errorMessage;
+}
+
+bool CreateTransactionViewModel::isEditing() const noexcept
+{
+    return !m_editingTransactionId.isNull();
+}
+
+QString CreateTransactionViewModel::editingTransactionId() const
+{
+    return idText(m_editingTransactionId);
+}
+
+QString CreateTransactionViewModel::submitButtonText() const
+{
+    return isEditing() ? QStringLiteral("保存修改")
+                       : QStringLiteral("保存");
 }
 
 const QTimeZone &CreateTransactionViewModel::timeZone() const noexcept
@@ -229,6 +252,10 @@ void CreateTransactionViewModel::loadSetup()
 
 void CreateTransactionViewModel::resetForNewTransaction()
 {
+    if (isEditing()) {
+        m_editingTransactionId = {};
+        emit editingChanged();
+    }
     loadSetup();
     if (hasError()) {
         return;
@@ -260,6 +287,82 @@ void CreateTransactionViewModel::resetForNewTransaction()
         clearError();
     }
     emit formChanged();
+}
+
+bool CreateTransactionViewModel::beginEditing(const QString &transactionId)
+{
+    loadSetup();
+    if (hasError()) {
+        return false;
+    }
+
+    const QUuid id(transactionId);
+    const auto result = m_getTransaction.execute(id);
+    if (std::holds_alternative<GetTransactionError>(result)) {
+        setError(id.isNull() ? QStringLiteral("账单 ID 无效")
+                             : QStringLiteral("账单不存在"));
+        return false;
+    }
+
+    const Transaction transaction = std::get<Transaction>(result);
+    const bool income = transaction.type() == TransactionType::Income;
+    if (m_income != income) {
+        m_income = income;
+        emit transactionTypeChanged();
+    }
+    filterCategories();
+
+    if (!containsAccountId(transaction.accountId())) {
+        setError(QStringLiteral("账单关联的账户已不可用"));
+        return false;
+    }
+    if (!containsCategoryId(transaction.categoryId())) {
+        setError(QStringLiteral("账单关联的分类已不可用"));
+        return false;
+    }
+
+    m_editingTransactionId = transaction.id();
+    m_amountText = formatMoney(transaction.amount());
+    m_note = transaction.note();
+    m_selectedAccountId = idText(transaction.accountId());
+    m_selectedCategoryId = idText(transaction.categoryId());
+    const QDateTime localOccurredAt = transaction.occurredAt().toTimeZone(
+        m_timeZone);
+    m_occurredDateText = localOccurredAt.date().toString(Qt::ISODate);
+    m_occurredTimeText = localOccurredAt.time().toString(
+        QStringLiteral("HH:mm"));
+    clearError();
+    emit editingChanged();
+    emit formChanged();
+    return true;
+}
+
+bool CreateTransactionViewModel::deleteTransaction(
+    const QString &transactionId)
+{
+    const auto error = m_deleteTransaction.execute(QUuid(transactionId));
+    if (error.has_value()) {
+        switch (*error) {
+        case DeleteTransactionError::InvalidInput:
+            setError(QStringLiteral("账单 ID 无效"));
+            break;
+        case DeleteTransactionError::TransactionNotFound:
+            setError(QStringLiteral("账单不存在"));
+            break;
+        case DeleteTransactionError::StorageFailure:
+            setError(QStringLiteral("无法删除账单"));
+            break;
+        }
+        return false;
+    }
+
+    if (m_editingTransactionId == QUuid(transactionId)) {
+        m_editingTransactionId = {};
+        emit editingChanged();
+    }
+    clearError();
+    emit transactionDeleted();
+    return true;
 }
 
 bool CreateTransactionViewModel::submit()
@@ -296,8 +399,63 @@ bool CreateTransactionViewModel::submit()
         return false;
     }
 
+    const TransactionType type = m_income
+        ? TransactionType::Income
+        : TransactionType::Expense;
+
+    if (isEditing()) {
+        const auto result = m_updateTransaction.execute(UpdateTransactionRequest{
+            .id = m_editingTransactionId,
+            .type = type,
+            .amount = *amount,
+            .accountId = accountId,
+            .categoryId = categoryId,
+            .occurredAt = occurredAt,
+            .note = m_note,
+        });
+        if (std::holds_alternative<UpdateTransactionError>(result)) {
+            const auto error = std::get<UpdateTransactionError>(result);
+            switch (error) {
+            case UpdateTransactionError::InvalidInput:
+                setError(QStringLiteral("账单输入无效"));
+                break;
+            case UpdateTransactionError::TransactionNotFound:
+                setError(QStringLiteral("账单不存在"));
+                break;
+            case UpdateTransactionError::AccountNotFound:
+                setError(QStringLiteral("所选账户不存在"));
+                break;
+            case UpdateTransactionError::AccountArchived:
+                setError(QStringLiteral("所选账户已归档"));
+                break;
+            case UpdateTransactionError::CategoryNotFound:
+                setError(QStringLiteral("所选分类不存在"));
+                break;
+            case UpdateTransactionError::CategoryArchived:
+                setError(QStringLiteral("所选分类已归档"));
+                break;
+            case UpdateTransactionError::CategoryTypeMismatch:
+                setError(QStringLiteral("分类类型与账单类型不匹配"));
+                break;
+            case UpdateTransactionError::StorageFailure:
+                setError(QStringLiteral("无法保存账单"));
+                break;
+            }
+            return false;
+        }
+
+        m_editingTransactionId = {};
+        m_amountText.clear();
+        m_note.clear();
+        clearError();
+        emit editingChanged();
+        emit formChanged();
+        emit transactionUpdated();
+        return true;
+    }
+
     const auto result = m_createTransaction.execute(CreateTransactionRequest{
-        .type = m_income ? TransactionType::Income : TransactionType::Expense,
+        .type = type,
         .amount = *amount,
         .accountId = accountId,
         .categoryId = categoryId,

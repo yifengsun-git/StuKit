@@ -156,6 +156,24 @@ add_test(
     COMMAND StuKitCreateTransactionTest
 )
 
+add_executable(StuKitManageTransactionTest
+    ManageTransactionTest.cpp
+    support/InMemoryAccountRepository.h
+    support/InMemoryCategoryRepository.h
+    support/InMemoryTransactionRepository.h
+)
+
+target_link_libraries(StuKitManageTransactionTest
+    PRIVATE
+        Qt6::Test
+        StuKitAccountingApplication
+)
+
+add_test(
+    NAME accounting.manage_transaction
+    COMMAND StuKitManageTransactionTest
+)
+
 add_executable(StuKitGetMonthlyOverviewTest
     GetMonthlyOverviewTest.cpp
     support/InMemoryAccountRepository.h

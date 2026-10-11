@@ -10,6 +10,39 @@ Page {
     required property var transactionViewModel
     required property string startupError
 
+    readonly property var fixedOffsetOptions: {
+        const options = []
+        for (let minutes = -14 * 60; minutes <= 14 * 60; minutes += 15) {
+            const absoluteMinutes = Math.abs(minutes)
+            const hours = Math.floor(absoluteMinutes / 60)
+            const remainingMinutes = absoluteMinutes % 60
+            const sign = minutes >= 0 ? "+" : "-"
+            const label = "UTC" + sign
+                + String(hours).padStart(2, "0") + ":"
+                + String(remainingMinutes).padStart(2, "0")
+            options.push({ "label": label, "minutes": minutes })
+        }
+        return options
+    }
+
+    function openTimeZoneDialog() {
+        const currentId = viewModel.timeZoneId
+        const fixedMatch = /^UTC([+-])(\d{2}):(\d{2})$/.exec(currentId)
+        if (fixedMatch) {
+            timeZoneModeCombo.currentIndex = 1
+            const direction = fixedMatch[1] === "+" ? 1 : -1
+            const minutes = direction
+                * (Number(fixedMatch[2]) * 60 + Number(fixedMatch[3]))
+            const fixedIndex = fixedOffsetCombo.indexOfValue(minutes)
+            fixedOffsetCombo.currentIndex = fixedIndex >= 0 ? fixedIndex : 56
+        } else {
+            timeZoneModeCombo.currentIndex = 0
+            const regionIndex = regionTimeZoneCombo.find(currentId)
+            regionTimeZoneCombo.currentIndex = regionIndex >= 0 ? regionIndex : 0
+        }
+        timeZoneDialog.open()
+    }
+
     function openAccountDialog() {
         accountNameField.text = ""
         openingBalanceField.text = "0.00"
@@ -29,12 +62,32 @@ Page {
         if (!transactionViewModel.ready)
             return
 
+        loadTransactionForm()
+        transactionDialog.open()
+        amountField.forceActiveFocus()
+    }
+
+    function openEditTransactionDialog(transactionId) {
+        if (!transactionViewModel.beginEditing(transactionId))
+            return
+
+        loadTransactionForm()
+        transactionDetailDialog.close()
+        transactionDialog.open()
+        amountField.forceActiveFocus()
+    }
+
+    function loadTransactionForm() {
         amountField.text = transactionViewModel.amountText
         dateField.text = transactionViewModel.occurredDateText
         timeField.text = transactionViewModel.occurredTimeText
         noteField.text = transactionViewModel.note
-        transactionDialog.open()
-        amountField.forceActiveFocus()
+        const accountIndex = accountBox.indexOfValue(
+            transactionViewModel.selectedAccountId)
+        accountBox.currentIndex = accountIndex >= 0 ? accountIndex : 0
+        const categoryIndex = categoryBox.indexOfValue(
+            transactionViewModel.selectedCategoryId)
+        categoryBox.currentIndex = categoryIndex >= 0 ? categoryIndex : 0
     }
 
     function openTransactionDetails(transactionId, typeText, isIncome,
@@ -97,13 +150,13 @@ Page {
                 }
             }
 
-            Label {
+            Button {
                 Layout.alignment: Qt.AlignHCenter
-                color: AppTheme.textSecondaryColor
                 text: root.viewModel
-                    ? qsTr("时区：%1").arg(root.viewModel.timeZoneId)
+                    ? qsTr("时区：%1  ·  更改").arg(root.viewModel.timeZoneId)
                     : ""
                 visible: text.length > 0
+                onClicked: root.openTimeZoneDialog()
             }
 
             Rectangle {
@@ -487,7 +540,9 @@ Page {
 
         anchors.centerIn: parent
         modal: true
-        title: qsTr("新增账单")
+        title: root.transactionViewModel && root.transactionViewModel.editing
+            ? qsTr("编辑账单")
+            : qsTr("新增账单")
 
         ColumnLayout {
             width: Math.min(root.width - AppTheme.spacingLarge * 4, 420)
@@ -617,7 +672,9 @@ Page {
                 }
 
                 Button {
-                    text: qsTr("保存")
+                    text: root.transactionViewModel
+                        ? root.transactionViewModel.submitButtonText
+                        : qsTr("保存")
                     enabled: root.transactionViewModel
                         && root.transactionViewModel.canSubmit
                     onClicked: {
@@ -625,6 +682,100 @@ Page {
                             transactionDialog.close()
                     }
                 }
+            }
+        }
+    }
+
+    Dialog {
+        id: timeZoneDialog
+
+        anchors.centerIn: parent
+        modal: true
+        title: qsTr("选择记账时区")
+        standardButtons: Dialog.Save | Dialog.Cancel
+
+        onAccepted: {
+            let saved = false
+            if (timeZoneModeCombo.currentIndex === 0) {
+                saved = root.viewModel.selectTimeZone(
+                    regionTimeZoneCombo.editText.trim())
+            } else {
+                saved = root.viewModel.selectFixedOffsetMinutes(
+                    fixedOffsetCombo.currentValue)
+            }
+
+            if (!saved)
+                Qt.callLater(function() { timeZoneDialog.open() })
+        }
+
+        ColumnLayout {
+            width: Math.min(root.width - AppTheme.spacingLarge * 4, 460)
+            spacing: AppTheme.spacingMedium
+
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("时区会影响账单所属月份、列表时间和新增账单的时间解释。")
+                color: AppTheme.textSecondaryColor
+                wrapMode: Text.WordWrap
+            }
+
+            Label {
+                text: qsTr("时区类型")
+                color: AppTheme.textSecondaryColor
+            }
+
+            ComboBox {
+                id: timeZoneModeCombo
+                Layout.fillWidth: true
+                model: [qsTr("地区时区（自动处理夏令时）"),
+                        qsTr("固定 UTC 偏移")]
+            }
+
+            Label {
+                text: qsTr("地区时区")
+                color: AppTheme.textSecondaryColor
+                visible: timeZoneModeCombo.currentIndex === 0
+            }
+
+            ComboBox {
+                id: regionTimeZoneCombo
+                Layout.fillWidth: true
+                visible: timeZoneModeCombo.currentIndex === 0
+                editable: true
+                model: root.viewModel ? root.viewModel.availableTimeZoneIds : []
+            }
+
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("可输入或选择 IANA 时区 ID，例如 Asia/Shanghai。")
+                color: AppTheme.textSecondaryColor
+                wrapMode: Text.WordWrap
+                visible: timeZoneModeCombo.currentIndex === 0
+            }
+
+            Label {
+                text: qsTr("UTC 偏移")
+                color: AppTheme.textSecondaryColor
+                visible: timeZoneModeCombo.currentIndex === 1
+            }
+
+            ComboBox {
+                id: fixedOffsetCombo
+                Layout.fillWidth: true
+                visible: timeZoneModeCombo.currentIndex === 1
+                model: root.fixedOffsetOptions
+                textRole: "label"
+                valueRole: "minutes"
+            }
+
+            Label {
+                Layout.fillWidth: true
+                text: root.viewModel && root.viewModel.hasError
+                    ? root.viewModel.errorMessage
+                    : ""
+                color: AppTheme.errorColor
+                wrapMode: Text.WordWrap
+                visible: text.length > 0
             }
         }
     }
@@ -724,6 +875,50 @@ Page {
                 color: AppTheme.textSecondaryColor
                 wrapMode: Text.WrapAnywhere
             }
+
+            RowLayout {
+                Layout.columnSpan: 2
+                Layout.fillWidth: true
+                Layout.topMargin: AppTheme.spacingMedium
+
+                Button {
+                    text: qsTr("删除")
+                    onClicked: deleteTransactionDialog.open()
+                }
+
+                Item {
+                    Layout.fillWidth: true
+                }
+
+                Button {
+                    text: qsTr("编辑")
+                    onClicked: root.openEditTransactionDialog(
+                        transactionDetailDialog.transactionId)
+                }
+            }
+        }
+    }
+
+    Dialog {
+        id: deleteTransactionDialog
+
+        anchors.centerIn: parent
+        modal: true
+        title: qsTr("删除账单")
+        standardButtons: Dialog.Yes | Dialog.No
+
+        onAccepted: {
+            if (root.transactionViewModel.deleteTransaction(
+                    transactionDetailDialog.transactionId)) {
+                transactionDetailDialog.close()
+            }
+        }
+
+        Label {
+            width: Math.min(root.width - AppTheme.spacingLarge * 4, 380)
+            text: qsTr("确定永久删除这笔账单吗？删除后无法恢复。")
+            color: AppTheme.textPrimaryColor
+            wrapMode: Text.WordWrap
         }
     }
 }

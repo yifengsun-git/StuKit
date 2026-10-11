@@ -15,6 +15,9 @@ class GetAccountingSetup;
 class CreateAccount;
 class CreateCategory;
 class CreateTransaction;
+class DeleteTransaction;
+class GetTransaction;
+class UpdateTransaction;
 class SqliteAccountRepository;
 class SqliteCategoryRepository;
 class SqliteDatabase;
@@ -70,6 +73,9 @@ private:
     std::unique_ptr<accounting::CreateAccount> m_createAccount;
     std::unique_ptr<accounting::CreateCategory> m_createCategory;
     std::unique_ptr<accounting::CreateTransaction> m_createTransaction;
+    std::unique_ptr<accounting::UpdateTransaction> m_updateTransaction;
+    std::unique_ptr<accounting::DeleteTransaction> m_deleteTransaction;
+    std::unique_ptr<accounting::GetTransaction> m_getTransaction;
     std::unique_ptr<accounting::presentation::AccountingOverviewViewModel>
         m_overviewViewModel;
     std::unique_ptr<accounting::presentation::AccountingSetupViewModel>

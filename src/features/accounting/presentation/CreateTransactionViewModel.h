@@ -3,7 +3,10 @@
 #include "AccountListModel.h"
 #include "CategoryListModel.h"
 #include "CreateTransaction.h"
+#include "DeleteTransaction.h"
 #include "GetAccountingSetup.h"
+#include "GetTransaction.h"
+#include "UpdateTransaction.h"
 
 #include <QAbstractItemModel>
 #include <QObject>
@@ -30,10 +33,16 @@ class CreateTransactionViewModel final : public QObject
     Q_PROPERTY(bool canSubmit READ canSubmit NOTIFY formChanged)
     Q_PROPERTY(bool hasError READ hasError NOTIFY errorChanged)
     Q_PROPERTY(QString errorMessage READ errorMessage NOTIFY errorChanged)
+    Q_PROPERTY(bool editing READ isEditing NOTIFY editingChanged)
+    Q_PROPERTY(QString editingTransactionId READ editingTransactionId NOTIFY editingChanged)
+    Q_PROPERTY(QString submitButtonText READ submitButtonText NOTIFY editingChanged)
 
 public:
     CreateTransactionViewModel(
         CreateTransaction &createTransaction,
+        UpdateTransaction &updateTransaction,
+        DeleteTransaction &deleteTransaction,
+        GetTransaction &getTransaction,
         GetAccountingSetup &getAccountingSetup,
         QTimeZone timeZone,
         QObject *parent = nullptr);
@@ -51,6 +60,9 @@ public:
     [[nodiscard]] bool canSubmit() const noexcept;
     [[nodiscard]] bool hasError() const noexcept;
     [[nodiscard]] const QString &errorMessage() const noexcept;
+    [[nodiscard]] bool isEditing() const noexcept;
+    [[nodiscard]] QString editingTransactionId() const;
+    [[nodiscard]] QString submitButtonText() const;
     [[nodiscard]] const QTimeZone &timeZone() const noexcept;
 
     void setIncome(bool income);
@@ -64,6 +76,8 @@ public:
 
     Q_INVOKABLE void loadSetup();
     Q_INVOKABLE void resetForNewTransaction();
+    Q_INVOKABLE bool beginEditing(const QString &transactionId);
+    Q_INVOKABLE bool deleteTransaction(const QString &transactionId);
     Q_INVOKABLE bool submit();
 
 signals:
@@ -71,7 +85,10 @@ signals:
     void optionsChanged();
     void formChanged();
     void errorChanged();
+    void editingChanged();
     void transactionCreated();
+    void transactionUpdated();
+    void transactionDeleted();
 
 private:
     void filterCategories();
@@ -81,6 +98,9 @@ private:
     [[nodiscard]] bool containsCategoryId(const QUuid &id) const;
 
     CreateTransaction &m_createTransaction;
+    UpdateTransaction &m_updateTransaction;
+    DeleteTransaction &m_deleteTransaction;
+    GetTransaction &m_getTransaction;
     GetAccountingSetup &m_getAccountingSetup;
     QTimeZone m_timeZone;
     AccountListModel m_accounts;
@@ -96,6 +116,7 @@ private:
     QString m_occurredDateText;
     QString m_occurredTimeText;
     QString m_errorMessage;
+    QUuid m_editingTransactionId;
 };
 
 } // namespace stukit::accounting::presentation

@@ -1,8 +1,8 @@
-add_executable(StuKitAccountingModuleTest
+add_executable(StuKitAccountingModuleIntegrationTest
     AccountingModuleTest.cpp
 )
 
-target_link_libraries(StuKitAccountingModuleTest
+target_link_libraries(StuKitAccountingModuleIntegrationTest
     PRIVATE
         Qt6::Sql
         Qt6::Test
@@ -11,5 +11,5 @@ target_link_libraries(StuKitAccountingModuleTest
 
 add_test(
     NAME app.accounting_module
-    COMMAND StuKitAccountingModuleTest
+    COMMAND StuKitAccountingModuleIntegrationTest
 )

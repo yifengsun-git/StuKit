@@ -49,6 +49,24 @@ public:
         return *transaction;
     }
 
+    [[nodiscard]] RemoveTransactionResult removeById(
+        const QUuid &id) override
+    {
+        if (!m_removeShouldSucceed) {
+            return RemoveTransactionResult::StorageFailure;
+        }
+
+        const auto transaction = std::find_if(
+            m_transactions.begin(), m_transactions.end(),
+            [&id](const Transaction &stored) { return stored.id() == id; });
+        if (transaction == m_transactions.end()) {
+            return RemoveTransactionResult::NotFound;
+        }
+
+        m_transactions.erase(transaction);
+        return RemoveTransactionResult::Removed;
+    }
+
     [[nodiscard]] std::vector<Transaction> findAll() const override
     {
         return m_transactions;
@@ -97,10 +115,16 @@ public:
         m_findOccurredBetweenShouldSucceed = shouldSucceed;
     }
 
+    void setRemoveShouldSucceed(bool shouldSucceed) noexcept
+    {
+        m_removeShouldSucceed = shouldSucceed;
+    }
+
 private:
     std::vector<Transaction> m_transactions;
     bool m_saveShouldSucceed{true};
     bool m_findOccurredBetweenShouldSucceed{true};
+    bool m_removeShouldSucceed{true};
 };
 
 } // namespace stukit::accounting::testing

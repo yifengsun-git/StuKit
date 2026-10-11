@@ -132,6 +132,8 @@ private slots:
 void GetMonthlyOverviewTest::returnsZeroTotalsForEmptyMonth()
 {
     Fixture fixture;
+    QCOMPARE(fixture.transactions.removeById(QUuid::createUuid()),
+             RemoveTransactionResult::NotFound);
     const auto result = fixture.getMonthlyOverview.execute({
         .year = 2026,
         .month = 10,
@@ -231,12 +233,13 @@ void GetMonthlyOverviewTest::loadsRelatedCollectionsOnlyOnce()
         TransactionType::Expense, 500,
         QStringLiteral("2026-10-11T02:00:00.000Z"))));
 
-    fixture.getMonthlyOverview.execute({
+    const auto result = fixture.getMonthlyOverview.execute({
         .year = 2026,
         .month = 10,
         .timeZone = customUtcPlusEight(),
     });
 
+    QVERIFY(std::holds_alternative<MonthlyOverview>(result));
     QCOMPARE(fixture.accounts.findAllCallCount(), 1);
     QCOMPARE(fixture.categories.findAllCallCount(), 1);
 }

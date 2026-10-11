@@ -7,6 +7,7 @@
 #include <QDate>
 #include <QObject>
 #include <QString>
+#include <QStringList>
 #include <QTimeZone>
 
 namespace stukit::accounting::presentation {
@@ -18,6 +19,7 @@ class AccountingOverviewViewModel final : public QObject
     Q_PROPERTY(int selectedMonth READ selectedMonth NOTIFY selectedMonthChanged)
     Q_PROPERTY(QString monthLabel READ monthLabel NOTIFY selectedMonthChanged)
     Q_PROPERTY(QString timeZoneId READ timeZoneId NOTIFY timeZoneChanged)
+    Q_PROPERTY(QStringList availableTimeZoneIds READ availableTimeZoneIds CONSTANT)
     Q_PROPERTY(QString totalIncomeText READ totalIncomeText NOTIFY overviewChanged)
     Q_PROPERTY(QString totalExpenseText READ totalExpenseText NOTIFY overviewChanged)
     Q_PROPERTY(QString balanceText READ balanceText NOTIFY overviewChanged)
@@ -37,6 +39,7 @@ public:
     [[nodiscard]] int selectedMonth() const noexcept;
     [[nodiscard]] QString monthLabel() const;
     [[nodiscard]] QString timeZoneId() const;
+    [[nodiscard]] QStringList availableTimeZoneIds() const;
     [[nodiscard]] const QTimeZone &timeZone() const noexcept;
     [[nodiscard]] const QString &totalIncomeText() const noexcept;
     [[nodiscard]] const QString &totalExpenseText() const noexcept;

@@ -35,7 +35,7 @@ private slots:
     void initTestCase();
     void initializesDatabaseAndViewModel();
     void createsAndRestoresSetupData();
-    void createsRefreshesAndRestoresTransaction();
+    void createsEditsDeletesAndRestoresTransaction();
     void defaultsInvalidTimeZoneToUtcPlusEight();
     void persistsSelectedFixedTimeZone();
     void rejectsEmptyApplicationDataDirectory();
@@ -92,7 +92,7 @@ void AccountingModuleTest::initializesDatabaseAndViewModel()
     QSqlDatabase::removeDatabase(connectionName);
 }
 
-void AccountingModuleTest::createsRefreshesAndRestoresTransaction()
+void AccountingModuleTest::createsEditsDeletesAndRestoresTransaction()
 {
     QTemporaryDir directory(QDir::current().filePath(
         QStringLiteral("stukit-module-transaction-test-XXXXXX")));
@@ -138,16 +138,49 @@ void AccountingModuleTest::createsRefreshesAndRestoresTransaction()
                  QStringLiteral("25.50"));
         QCOMPARE(module.overviewViewModel()->balanceText(),
                  QStringLiteral("-25.50"));
+
+        const QString transactionId =
+            module.overviewViewModel()->transactions()->data(
+                transactionIndex,
+                stukit::accounting::presentation::TransactionListModel::IdRole)
+                .toString();
+        QVERIFY(editor->beginEditing(transactionId));
+        editor->setAmountText(QStringLiteral("30.00"));
+        editor->setNote(QStringLiteral("晚饭"));
+        QVERIFY2(editor->submit(), qPrintable(editor->errorMessage()));
+        QCOMPARE(module.overviewViewModel()->transactions()->rowCount(), 1);
+        QCOMPARE(module.overviewViewModel()->totalExpenseText(),
+                 QStringLiteral("30.00"));
     }
 
     {
         AccountingModule restored(appDataDirectory, settings);
         QVERIFY2(restored.initialize(QDate(2026, 10, 1)),
                  qPrintable(restored.lastError()));
+        QVERIFY2(!restored.overviewViewModel()->hasError(),
+                 qPrintable(restored.overviewViewModel()->errorMessage()));
         QCOMPARE(restored.overviewViewModel()->transactions()->rowCount(), 1);
         QCOMPARE(restored.overviewViewModel()->totalExpenseText(),
-                 QStringLiteral("25.50"));
+                 QStringLiteral("30.00"));
         QVERIFY(restored.transactionEditorViewModel()->isReady());
+
+        auto *model = restored.overviewViewModel()->transactions();
+        const QString transactionId = model->data(
+            model->index(0, 0),
+            stukit::accounting::presentation::TransactionListModel::IdRole)
+            .toString();
+        QVERIFY(restored.transactionEditorViewModel()->deleteTransaction(
+            transactionId));
+        QCOMPARE(model->rowCount(), 0);
+        QCOMPARE(restored.overviewViewModel()->totalExpenseText(),
+                 QStringLiteral("0.00"));
+    }
+
+    {
+        AccountingModule restored(appDataDirectory, settings);
+        QVERIFY2(restored.initialize(QDate(2026, 10, 1)),
+                 qPrintable(restored.lastError()));
+        QCOMPARE(restored.overviewViewModel()->transactions()->rowCount(), 0);
     }
 }
 

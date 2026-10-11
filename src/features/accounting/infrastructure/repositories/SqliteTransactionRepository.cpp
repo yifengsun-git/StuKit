@@ -117,6 +117,33 @@ std::optional<Transaction> SqliteTransactionRepository::findById(
     return transactionFromCurrentRow(query);
 }
 
+RemoveTransactionResult SqliteTransactionRepository::removeById(
+    const QUuid &id)
+{
+    m_lastError.clear();
+
+    if (!m_database.isOpen()) {
+        m_lastError = QStringLiteral("Database is not open");
+        return RemoveTransactionResult::StorageFailure;
+    }
+    if (id.isNull()) {
+        return RemoveTransactionResult::NotFound;
+    }
+
+    QSqlQuery query(m_database);
+    query.prepare(QStringLiteral(
+        "DELETE FROM transactions WHERE id = :id"));
+    query.bindValue(QStringLiteral(":id"), id.toString(QUuid::WithoutBraces));
+    if (!query.exec()) {
+        m_lastError = query.lastError().text();
+        return RemoveTransactionResult::StorageFailure;
+    }
+
+    return query.numRowsAffected() == 1
+        ? RemoveTransactionResult::Removed
+        : RemoveTransactionResult::NotFound;
+}
+
 std::vector<Transaction> SqliteTransactionRepository::findAll() const
 {
     m_lastError.clear();

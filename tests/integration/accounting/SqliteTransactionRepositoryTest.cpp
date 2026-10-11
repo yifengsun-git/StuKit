@@ -83,6 +83,7 @@ private slots:
     void savesAndFindsIncomeTransaction();
     void returnsNulloptForMissingTransaction();
     void updatesTransactionWithSameId();
+    void removesTransactionAndReportsMissingId();
     void returnsAllTransactionsNewestFirst();
     void findsTransactionsInHalfOpenTimeRange();
     void rejectsInvalidTimeRange();
@@ -217,6 +218,23 @@ void SqliteTransactionRepositoryTest::updatesTransactionWithSameId()
     QCOMPARE(transactions.size(), std::size_t{1});
     QCOMPARE(transactions.front().amount(), Money::fromCents(250));
     QCOMPARE(transactions.front().note(), QStringLiteral("更新后"));
+}
+
+void SqliteTransactionRepositoryTest::removesTransactionAndReportsMissingId()
+{
+    const auto id = QUuid::createUuid();
+    const auto accountId = QUuid::createUuid();
+    const auto categoryId = QUuid::createUuid();
+    seedReferences(accountId, categoryId, TransactionType::Expense);
+    QVERIFY(m_transactions->save(makeTransaction(
+        id, TransactionType::Expense, 100, accountId, categoryId,
+        QDateTime::currentDateTimeUtc())));
+
+    QCOMPARE(m_transactions->removeById(id),
+             RemoveTransactionResult::Removed);
+    QVERIFY(!m_transactions->findById(id).has_value());
+    QCOMPARE(m_transactions->removeById(id),
+             RemoveTransactionResult::NotFound);
 }
 
 void SqliteTransactionRepositoryTest::returnsAllTransactionsNewestFirst()

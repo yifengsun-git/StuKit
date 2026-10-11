@@ -248,6 +248,9 @@ void AccountingPresentationTest::appliesCustomFixedOffset()
     QSignalSpy timeZoneSpy(
         &viewModel, &AccountingOverviewViewModel::timeZoneChanged);
 
+    QVERIFY(!viewModel.availableTimeZoneIds().isEmpty());
+    QVERIFY(viewModel.availableTimeZoneIds().contains(QStringLiteral("UTC")));
+
     viewModel.load();
     QVERIFY(viewModel.isEmpty());
 

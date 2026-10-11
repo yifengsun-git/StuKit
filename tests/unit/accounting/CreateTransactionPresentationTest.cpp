@@ -46,9 +46,15 @@ struct Fixture
     InMemoryCategoryRepository categories;
     InMemoryTransactionRepository transactions;
     CreateTransaction createTransaction{transactions, accounts, categories};
+    UpdateTransaction updateTransaction{transactions, accounts, categories};
+    DeleteTransaction deleteTransaction{transactions};
+    GetTransaction getTransaction{transactions};
     GetAccountingSetup getSetup{accounts, categories};
     CreateTransactionViewModel viewModel{
         createTransaction,
+        updateTransaction,
+        deleteTransaction,
+        getTransaction,
         getSetup,
         QTimeZone::fromSecondsAheadOfUtc(8 * 60 * 60)};
 };
@@ -83,6 +89,8 @@ private slots:
     void rejectsInvalidInputAndPreservesForm();
     void rejectsDaylightSavingGap();
     void reportsSetupQueryFailure();
+    void editsExistingTransactionInCustomTimeZone();
+    void deletesTransactionAndReportsFailure();
 };
 
 void CreateTransactionPresentationTest::filtersArchivedAndMismatchedOptions()
@@ -196,6 +204,67 @@ void CreateTransactionPresentationTest::reportsSetupQueryFailure()
              QStringLiteral("无法读取账户和分类"));
     QCOMPARE(fixture.viewModel.availableAccounts()->rowCount(), 0);
     QCOMPARE(fixture.viewModel.availableCategories()->rowCount(), 0);
+}
+
+void CreateTransactionPresentationTest::editsExistingTransactionInCustomTimeZone()
+{
+    Fixture fixture;
+    addCompleteSetup(fixture);
+    fillValidExpenseForm(fixture);
+    QVERIFY(fixture.viewModel.submit());
+    const QUuid id = fixture.transactions.findAll().front().id();
+    QSignalSpy updatedSpy(
+        &fixture.viewModel,
+        &CreateTransactionViewModel::transactionUpdated);
+
+    QVERIFY(fixture.viewModel.beginEditing(
+        id.toString(QUuid::WithoutBraces)));
+    QVERIFY(fixture.viewModel.isEditing());
+    QCOMPARE(fixture.viewModel.editingTransactionId(),
+             id.toString(QUuid::WithoutBraces));
+    QCOMPARE(fixture.viewModel.amountText(), QStringLiteral("25.50"));
+    QCOMPARE(fixture.viewModel.occurredDateText(),
+             QStringLiteral("2026-10-10"));
+    QCOMPARE(fixture.viewModel.occurredTimeText(), QStringLiteral("12:34"));
+    QCOMPARE(fixture.viewModel.note(), QStringLiteral("午饭"));
+    QCOMPARE(fixture.viewModel.submitButtonText(),
+             QStringLiteral("保存修改"));
+
+    fixture.viewModel.setAmountText(QStringLiteral("30.00"));
+    fixture.viewModel.setNote(QStringLiteral("晚饭"));
+    QVERIFY(fixture.viewModel.submit());
+    QCOMPARE(updatedSpy.count(), 1);
+    QVERIFY(!fixture.viewModel.isEditing());
+    const auto stored = fixture.transactions.findById(id);
+    QVERIFY(stored.has_value());
+    QCOMPARE(stored->amount(), Money::fromCents(3000));
+    QCOMPARE(stored->note(), QStringLiteral("晚饭"));
+    QCOMPARE(fixture.transactions.findAll().size(), std::size_t{1});
+}
+
+void CreateTransactionPresentationTest::deletesTransactionAndReportsFailure()
+{
+    Fixture fixture;
+    addCompleteSetup(fixture);
+    fillValidExpenseForm(fixture);
+    QVERIFY(fixture.viewModel.submit());
+    const QUuid id = fixture.transactions.findAll().front().id();
+    QSignalSpy deletedSpy(
+        &fixture.viewModel,
+        &CreateTransactionViewModel::transactionDeleted);
+
+    fixture.transactions.setRemoveShouldSucceed(false);
+    QVERIFY(!fixture.viewModel.deleteTransaction(
+        id.toString(QUuid::WithoutBraces)));
+    QCOMPARE(fixture.viewModel.errorMessage(),
+             QStringLiteral("无法删除账单"));
+    QVERIFY(fixture.transactions.findById(id).has_value());
+
+    fixture.transactions.setRemoveShouldSucceed(true);
+    QVERIFY(fixture.viewModel.deleteTransaction(
+        id.toString(QUuid::WithoutBraces)));
+    QCOMPARE(deletedSpy.count(), 1);
+    QVERIFY(!fixture.transactions.findById(id).has_value());
 }
 
 QTEST_APPLESS_MAIN(CreateTransactionPresentationTest)

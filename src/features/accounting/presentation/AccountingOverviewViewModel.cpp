@@ -44,6 +44,17 @@ QString AccountingOverviewViewModel::timeZoneId() const
     return QString::fromUtf8(m_timeZone.id());
 }
 
+QStringList AccountingOverviewViewModel::availableTimeZoneIds() const
+{
+    QStringList ids;
+    const QList<QByteArray> availableIds = QTimeZone::availableTimeZoneIds();
+    ids.reserve(availableIds.size());
+    for (const QByteArray &id : availableIds) {
+        ids.push_back(QString::fromUtf8(id));
+    }
+    return ids;
+}
+
 const QTimeZone &AccountingOverviewViewModel::timeZone() const noexcept
 {
     return m_timeZone;
