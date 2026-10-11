@@ -5,9 +5,10 @@
 本文说明 StuKit 中各个 C++ 头文件和源文件的职责、依赖关系以及不能承担的职责。
 它适合在阅读代码、排查编译错误或添加新功能前快速查阅。
 
-当前内容对应第二十七课完成后的代码，包括三版 SQLite 迁移、三个 Repository
+当前内容对应第二十八课完成后的代码，包括三版 SQLite 迁移、三个 Repository
 接口、创建与查询用例、记账 Presentation，以及从 QML 创建账户、分类和账单并
-持久化到真实 SQLite 的端到端链路、账户余额、月度流水筛选和安全备份恢复。
+持久化到真实 SQLite 的端到端链路、账户余额、月度流水筛选、安全备份恢复和
+全部流水 CSV 导出。
 
 ## 2. `.h` 和 `.cpp` 分别做什么
 
@@ -37,12 +38,12 @@ main.cpp
 AccountingModule
   -> UserSettings
   -> SqliteDatabase / SqliteBackupService / 三个 SQLite Repository
-  -> 创建与查询用例
+  -> 创建、查询与导出数据用例
   -> AccountingOverviewViewModel / AccountingSetupViewModel
   -> CreateTransactionViewModel / AccountBalancesViewModel
 
 DataMaintenanceViewModel
-  -> AccountingModule::backupDatabase / restoreDatabase
+  -> AccountingModule::backupDatabase / restoreDatabase / exportTransactions
   -> QML 文件选择与状态提示
 
 CreateAccount
@@ -61,6 +62,14 @@ GetMonthlyOverview
   -> IAccountRepository::findAll / ICategoryRepository::findAll
   -> 用户自定义 QTimeZone
   -> MonthlyOverview / MonthlyTransactionItem
+
+GetTransactionExportData
+  -> 三个 Repository::findAll
+  -> TransactionExportData / TransactionExportItem
+
+CsvTransactionWriter
+  -> TransactionExportData / 用户自定义 QTimeZone
+  -> UTF-8 CSV / QSaveFile
 
 GetAccountingSetup
   -> IAccountRepository::findAll
@@ -133,14 +142,15 @@ Category
 
 ```text
 Presentation/QML -> Application -> Domain
-Infrastructure --------------------> Domain
+Infrastructure --> Application -> Domain
+Infrastructure ------------------> Domain
 ```
 
 记账 QML 已通过根属性连接五个 ViewModel：`AccountingOverviewViewModel` 读取月度
 汇总和流水，`AccountingSetupViewModel` 读取并创建账户与分类，
 `CreateTransactionViewModel` 收集并提交新增或编辑账单表单并编排删除操作，
 `AccountBalancesViewModel` 提供账户当前余额与活动账户总资产，
-`DataMaintenanceViewModel` 编排备份、恢复和界面重绑定。全新数据库会显示首次设置引导，
+`DataMaintenanceViewModel` 编排备份、恢复、CSV 导出和界面重绑定。全新数据库会显示首次设置引导，
 不会自动写入演示数据。账户与分类创建入口保持常驻，首次设置完成后仍可继续添加。
 
 ## 4. 程序入口
@@ -187,6 +197,7 @@ Infrastructure --------------------> Domain
 5. 创建四个记账 ViewModel 并连接基础数据、时区和账单变更信号。
 6. 加载初始数据并保存后续时区变化。
 7. 编排数据库备份、恢复前安全快照、连接释放、替换、重新初始化和失败回退。
+8. 组合导出查询与 CSV 写入器，使用当前用户记账时区导出全部流水。
 
 成员按数据库、Repository、用例、ViewModel 顺序声明，并反向销毁，确保数据库连接
 最后关闭。其他层不能依赖这个类。
@@ -196,7 +207,7 @@ Infrastructure --------------------> Domain
 这是数据维护操作与 QML 之间的桥梁：
 
 - 将 `FileDialog` 返回的本地 `QUrl` 转换为路径。
-- 调用 `AccountingModule` 执行备份或恢复。
+- 调用 `AccountingModule` 执行备份、恢复或 CSV 导出。
 - 提供忙碌、成功和错误状态。
 - 恢复尝试后通知 `main.cpp` 重新绑定组合根中的记账 ViewModel。
 
@@ -452,6 +463,19 @@ SQLite 实现。
 用例不读取设备系统时区。固定偏移或地区时区由调用者显式传入，因此 Windows 和
 Android 可以使用同一用户设置。
 
+### `GetTransactionExportData.h/.cpp`
+
+为跨软件导出准备稳定的数据快照：
+
+1. 分别读取全部流水、账户和分类。
+2. 建立账户、分类 UUID 到名称的内存索引，包括已归档项。
+3. 按发生时间倒序、UUID 升序建立稳定顺序。
+4. 将原始 `Transaction` 与可读名称组装为 `TransactionExportItem`。
+5. 任一查询失败或关联缺失时返回 `StorageFailure`，不产生部分导出数据。
+
+该用例不知道 CSV 列、文本编码或目标文件路径，因此将来可以复用于 JSON 导出等
+其他表现形式。
+
 ### `GetAccountingSetup.h` 与 `GetAccountingSetup.cpp`
 
 统一读取账户和分类，并返回 `AccountingSetup`。任意一次 Repository 查询失败时
@@ -480,7 +504,8 @@ src/features/accounting/infrastructure/
 ```
 
 Infrastructure 负责数据库、文件和平台 API 等外部技术细节。它可以依赖 Domain，
-但 Domain 不能反向依赖 Infrastructure。
+也可以消费 Application 定义的输出 DTO，但 Domain 和 Application 不能反向依赖
+Infrastructure。
 
 ### `database/SqliteDatabase.h`
 
@@ -522,6 +547,20 @@ Infrastructure 负责数据库、文件和平台 API 等外部技术细节。它
 
 它不知道页面、当前月份或确认对话框，也不负责重建 Repository 和 ViewModel；这些
 跨对象生命周期操作由 `AccountingModule` 编排。
+
+### `export/CsvTransactionWriter.h/.cpp`
+
+将 `TransactionExportData` 写成稳定的 UTF-8 CSV：
+
+- 第一行输出固定中文列名，并添加 UTF-8 BOM 方便 Windows 表格软件识别中文。
+- 金额直接从整数分格式化为两位小数，不经过浮点数。
+- 同时输出带毫秒 UTC 时间、用户记账时区时间和时区 ID。
+- 每个字段统一加双引号，字段中的双引号重复一次，安全容纳逗号和换行。
+- 使用 CRLF 行尾并通过 `QSaveFile` 原子提交。
+- 默认拒绝覆盖已有文件，只有调用者明确要求时才替换。
+
+写入器不查询数据库，也不决定导出哪些流水。它消费已经完成关联的 Application DTO，
+因此文件格式逻辑可以独立测试。
 
 ### `repositories/SqliteAccountRepository.h`
 
@@ -744,6 +783,7 @@ tests/unit/accounting/
 | `ManageSetupTest.cpp` | 账户/分类补丁更新、字段保留、不存在及存储失败。 |
 | `GetMonthlyOverviewTest.cpp` | 时区边界、跨年、汇总、关联名称、归档项、查询次数和错误。 |
 | `GetAccountBalancesTest.cpp` | 期初余额、收支累计、归档口径、查询失败、缺失关联和整数溢出。 |
+| `GetTransactionExportDataTest.cpp` | 全量关联、已归档名称、稳定排序、查询失败和缺失关联。 |
 | `AccountingPresentationTest.cpp` | 金额、可读名称、完整/简短时间、页面导航、筛选状态及汇总不变性。 |
 | `AccountBalancesPresentationTest.cpp` | 余额角色、总资产格式、错误映射及失败后清理旧状态。 |
 | `TransactionFilterProxyModelTest.cpp` | 类型、账户、分类、关键字、组合条件、清空和源模型重置。 |
@@ -778,6 +818,12 @@ SQLite Repository 组装起来验证跨层流程。测试先销毁 Repository，
 验证一致快照包含真实数据、已有目标默认受保护、明确覆盖后可原子替换、损坏文件
 会被拒绝、未来迁移版本会被拒绝，以及关闭连接后能用有效备份替换数据库。
 
+### `tests/integration/accounting/CsvTransactionWriterTest.cpp`
+
+验证 UTF-8 BOM、固定表头、自定义时区、精确金额、中文、逗号、引号和多行备注转义；
+还验证空数据、已有目标保护、明确覆盖和无效输入。测试读取真实临时文件，但不需要
+启动图形界面。
+
 ### `tests/integration/accounting/SqliteCategoryRepositoryTest.cpp`
 
 验证收入与支出分类的保存、查询、同 UUID 更新、稳定排序和缺失结果，并将
@@ -801,7 +847,8 @@ ViewModel 可用、自定义固定时区可持久化、无效设置回退到 UTC
 保持最新状态；并验证余额随期初值及账单新增、编辑、删除同步变化，重启后仍可从
 真实 SQLite 流水重新推导，归档账户不会计入活动总资产。它还验证真实数据库可以
 备份、修改后恢复，恢复前安全快照存在，旧 ViewModel 被销毁并重新创建，以及无效
-候选文件不会触碰当前数据。
+候选文件不会触碰当前数据；同时验证 QML 使用的数据维护 ViewModel 能通过组合根把
+真实 SQLite 流水导出为 CSV。
 
 ## 11. CMake 文件如何组织 C++ 代码
 
@@ -837,12 +884,14 @@ StuKitAccountingApplication
 ```
 
 它编译账户、分类和账单的创建/更新用例，以及 GetMonthlyOverview、
-GetAccountingSetup 和 GetAccountBalances，并链接 `StuKitAccountingDomain`。依赖不能反过来。
+GetAccountingSetup、GetAccountBalances 和 GetTransactionExportData，并链接
+`StuKitAccountingDomain`。依赖不能反过来。
 
 ### `src/features/accounting/infrastructure/CMakeLists.txt`
 
-创建 `StuKitAccountingInfrastructure`，编译 `SqliteDatabase`、`SqliteBackupService`
-和三个 SQLite Repository，并链接 `Qt6::Sql` 和 `StuKitAccountingDomain`。
+创建 `StuKitAccountingInfrastructure`，编译 `SqliteDatabase`、`SqliteBackupService`、
+`CsvTransactionWriter` 和三个 SQLite Repository，并链接 `Qt6::Sql`、
+`StuKitAccountingApplication` 和 `StuKitAccountingDomain`。
 
 ### `src/features/accounting/presentation/CMakeLists.txt`
 
@@ -865,8 +914,8 @@ Infrastructure 与 Presentation，负责把两条依赖链组装起来。
 
 ### `tests/integration/accounting/CMakeLists.txt`
 
-分别创建数据库迁移、备份服务、账户、分类和账单 Repository 测试目标。三个 Repository
-集成测试额外链接 Application，用于验证创建用例到 SQLite 的完整调用链。
+分别创建数据库迁移、备份服务、CSV 写入器、账户、分类和账单 Repository 测试目标。
+三个 Repository 集成测试额外链接 Application，用于验证创建用例到 SQLite 的完整调用链。
 
 ## 12. 建议的代码阅读顺序
 
@@ -897,10 +946,12 @@ Infrastructure 与 Presentation，负责把两条依赖链组装起来。
 23. `AccountingSetupTest.cpp`：理解基础数据输入、查询、模型和错误映射。
 24. `UserSettings.h/.cpp`：理解自定义时区如何跨启动保存。
 25. `SqliteBackupService.h/.cpp`：理解一致快照、验证和原子文件替换。
-26. `AccountingModule.h/.cpp`：理解信号连接、依赖组装、恢复回退和资源析构顺序。
-27. `DataMaintenanceViewModel.h/.cpp`：理解文件 URL、操作状态和 QML 对象重绑定通知。
-28. `AccountingHomePage.qml`：理解 QML 如何只绑定状态、选择文件和发送操作。
-29. `main.cpp`：理解标准路径、根属性注入、恢复后重绑定和应用启动。
+26. `GetTransactionExportData.h/.cpp`：理解全量查询、名称关联和稳定排序。
+27. `CsvTransactionWriter.h/.cpp`：理解 CSV 转义、编码、时区与原子写入。
+28. `AccountingModule.h/.cpp`：理解信号连接、依赖组装、恢复回退和资源析构顺序。
+29. `DataMaintenanceViewModel.h/.cpp`：理解文件 URL、操作状态和 QML 对象重绑定通知。
+30. `AccountingHomePage.qml`：理解 QML 如何只绑定状态、选择文件和发送操作。
+31. `main.cpp`：理解标准路径、根属性注入、恢复后重绑定和应用启动。
 
 ## 13. 修改代码时如何判断文件归属
 
@@ -917,6 +968,5 @@ Infrastructure 与 Presentation，负责把两条依赖链组装起来。
 ## 14. 后续更新规则
 
 每完成一课并新增 C++ 文件，都应在本文补充它的职责、依赖和禁止承担的职责。
-下一阶段将实现全量流水 CSV 导出。查询和关联名称组装放在 Application，CSV 编码、
-转义与原子文件提交放在 Infrastructure，文件选择继续留在 QML 和应用边界。CSV 只
-用于查看与分析，不替代可完整恢复的 SQLite 备份。
+下一阶段将建立 Windows Release 部署流程。应用安装规则和部署命令属于构建边界，
+不应进入 Domain、Application 或 Repository；部署目录属于生成产物，不提交 Git。
