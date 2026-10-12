@@ -154,3 +154,38 @@ add_test(
     NAME schedule.get_weekly_schedule
     COMMAND StuKitGetWeeklyScheduleTest
 )
+
+add_executable(StuKitGetAcademicTermsTest
+    GetAcademicTermsTest.cpp
+    support/InMemoryAcademicTermRepository.h
+)
+
+target_link_libraries(StuKitGetAcademicTermsTest
+    PRIVATE
+        Qt6::Test
+        StuKitScheduleApplication
+)
+
+add_test(
+    NAME schedule.get_academic_terms
+    COMMAND StuKitGetAcademicTermsTest
+)
+
+add_executable(StuKitSchedulePresentationTest
+    SchedulePresentationTest.cpp
+    support/InMemoryAcademicTermRepository.h
+    support/InMemoryCourseMeetingRepository.h
+    support/InMemoryCourseRepository.h
+    support/ScheduleApplicationTestData.h
+)
+
+target_link_libraries(StuKitSchedulePresentationTest
+    PRIVATE
+        Qt6::Test
+        StuKitSchedulePresentation
+)
+
+add_test(
+    NAME schedule.presentation
+    COMMAND StuKitSchedulePresentationTest
+)
