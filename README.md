@@ -58,8 +58,10 @@ UTC-14:00 到 UTC+14:00 的固定偏移，选择后会保存并同步到月度�
 记账数据并顺序升级，备份验证和未来版本保护已同步。三个课表 SQLite Repository
 现已实现，支持 UPSERT、按关联筛选、稳定排序、外键错误和损坏行拒绝，Repository
 重建后数据仍可恢复。课表 Application 已提供学期、课程和上课安排保存，以及指定
-教学周查询；保存前会校验跨实体关系、学期周数并阻止冲突数据落库。全工程共 42 个
-测试。下一步建立课表 Presentation 列表模型与 ViewModel。
+教学周查询；保存前会校验跨实体关系、学期周数并阻止冲突数据落库。课表
+Presentation 现已提供学期选择、当前教学周计算、上下周切换、日期范围、空状态和
+错误状态，并将课程转换为 QML 可绑定的列表模型。全工程共 44 个测试。下一步接入
+真实 SQLite 组合根并制作学期与课程管理 UI。
 Windows Release 部署仍在课表 MVP 完成后集中处理。
 
 ## 技术方向
@@ -117,6 +119,7 @@ Windows Release 部署仍在课表 MVP 完成后集中处理。
 - [第三十六课：课表 SQLite Repository](docs/lessons/36-schedule-sqlite-repositories.md)
 - [第三十七课：课表 Application 用例](docs/lessons/37-schedule-application-use-cases.md)
 - [第三十八课：课表 Presentation 与周视图模型](docs/lessons/38-schedule-presentation.md)
+- [第三十九课：学期与课程管理 UI](docs/lessons/39-schedule-term-course-ui.md)
 
 ## 开发原则
 

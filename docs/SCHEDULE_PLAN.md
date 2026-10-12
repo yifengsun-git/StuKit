@@ -174,7 +174,7 @@ AcademicTerm 1 ---- N Course 1 ---- N CourseMeeting
 
 ## 9. 开发阶段与课程安排
 
-当前进度：第 33～37 课已完成，下一步进入第 38 课 Presentation。
+当前进度：第 33～38 课已完成，下一步进入第 39 课学期与课程管理 UI。
 
 | 课程 | 目标 | 主要结果 |
 | --- | --- | --- |
@@ -183,7 +183,7 @@ AcademicTerm 1 ---- N Course 1 ---- N CourseMeeting
 | 35 | SQLite 迁移 | 新表、索引、升级测试 |
 | 36 | SQLite Repository | 学期、课程和安排持久化 |
 | 37 | 课表 Application | CRUD、当前学期和指定周查询 |
-| 38 | Presentation | 周课表模型、编辑 ViewModel、错误状态 |
+| 38 | Presentation | 周课表模型、导航 ViewModel、错误状态 |
 | 39 | 学期与课程管理 UI | 基础资料和课程表单 |
 | 40 | 周课表界面 | 周切换、日/节次布局、空状态 |
 | 41 | 冲突交互与响应式 | 冲突提示、宽窄布局、触摸检查 |

@@ -1,53 +1,95 @@
 # 第三十八课：课表 Presentation 与周视图模型
 
-## 本课目标
+## 本课成果
 
-在不编写完整课表页面的前提下，建立 QML 与课表 Application 之间的状态桥梁。
-本课继续先写 C++ 和自动测试，第 39、40 课再接入具体管理表单与周课表界面。
+本课建立了课表 Application 与未来 QML 页面之间的状态桥梁。现在 C++ Presentation
+已经能够选择学期、计算教学周、切换周次，并把指定周课程转换为 QML 可读取的模型。
 
-## 1. 周课表列表模型
+新增内容：
 
-计划建立 `WeeklyScheduleListModel`，将 `WeeklyScheduleItem` 暴露为稳定角色：
+- `GetAcademicTerms`：读取并稳定排序全部学期。
+- `WeeklyScheduleListModel`：向 QML 暴露周课表角色。
+- `ScheduleViewModel`：管理学期、教学周、课程列表、空状态和错误状态。
+- 两组独立 Qt Test：验证学期查询和完整 Presentation 行为。
+
+## 1. 为什么补充 GetAcademicTerms
+
+`ScheduleViewModel` 需要学期列表，但 Presentation 不应直接查询 Repository。直接查询
+会让界面层重新承担存储编排，也会使将来的学期排序规则散落在页面代码中。
+
+因此新增了很小的 `GetAcademicTerms` Application 用例。它将活动学期排在已归档学期
+之前，同一状态下按开始日期倒序排列，并把 Repository 失败转换为稳定错误类型。
+
+## 2. WeeklyScheduleListModel
+
+`WeeklyScheduleListModel` 继承 `QAbstractListModel`，将 Application 返回的
+`WeeklyScheduleItem` 暴露为以下角色：
 
 - `courseId`、`meetingId`。
 - `courseName`、`teacher`、`location`、`color`。
 - `weekday`、`weekdayText`。
 - `startPeriod`、`endPeriod`、`periodText`。
 
-模型只负责数据转换和通知 QML，不查询数据库，也不重新判断单双周。
+例如星期三转换为“周三”，第 3～4 节转换为“第 3～4 节”。模型不查询数据库，也不
+判断单双周；这些工作已经由 Application 完成。
 
-## 2. 课表 ViewModel
+## 3. ScheduleViewModel
 
-计划建立 `ScheduleViewModel`，负责：
+`ScheduleViewModel` 通过构造函数接收 `GetAcademicTerms` 和 `GetWeeklySchedule`，并
+提供以下页面状态：
 
-- 加载可用学期并选中当前学期。
-- 根据学期开始日期计算当前教学周。
-- 加载指定教学周的课表。
-- 上一周、下一周和返回当前周。
-- 暴露学期名、周次范围、空状态、加载状态和错误文本。
-- 学期或课程数据修改后统一刷新。
+- 学期选项、当前学期 UUID、名称和总周数。
+- 当前选择周、周标签和这一周的实际日期范围。
+- 是否可以前往上一周或下一周。
+- 当前日期是否位于所选学期、是否正在显示当前教学周。
+- 课程模型、空状态、同步加载状态和用户可读错误。
 
-当前学期选择需要持久化时，由应用组合根或用户设置负责；ViewModel 不直接读写
-`QSettings`。
+首次加载时的选择顺序为：保留原选择、使用外部传入的首选学期、选择包含今天的活动
+学期、选择最近的活动学期，最后才选择已归档学期。当前日期不在学期范围时默认显示
+第 1 周，不会生成 0 或超过总周数的查询。
 
-## 3. 错误映射
+## 4. 周次与日期计算
 
-Application 的稳定错误枚举将在 Presentation 转换为用户可读文本。失败后要清理已经
-过期的列表，避免页面同时显示旧课程和新错误。指定周没有课程仍然是正常空状态。
+教学周只依赖学期开始日期和注入的“今天”：
 
-## 4. 响应式后手
+```text
+教学周 = 开始日期到今天的天数 / 7 + 1
+```
 
-列表模型不绑定桌面网格坐标。它提供星期和节次等语义数据，宽屏 QML 可以排成周网格，
-Android 窄屏则可以切换为按天列表，两种布局复用同一个 ViewModel。
+只有结果位于 `1..totalWeeks` 时，“返回当前周”才可用。把 `today` 通过构造函数传入，
+既避免依赖设备时钟的测试不稳定，也为将来的日期模拟和 Android 复用留下空间。
 
-## 5. 自动测试计划
+## 5. 错误与旧数据清理
 
-- 每个模型角色与可读文本。
-- 初次加载、空课表和错误清理。
-- 上一周、下一周及边界限制。
-- 当前教学周的日期计算。
-- 切换学期后周数和列表同步刷新。
-- Repository 失败映射为稳定页面状态。
-- Application 与 Presentation 的依赖方向不反转。
+- 学期查询失败：清空学期、选择和课程，显示“无法读取学期数据”。
+- 周课表查询失败：保留学期和周次，清空旧课程，显示“无法读取课表数据”。
+- 无学期或指定周无课程：属于正常空状态，不显示错误。
+- 选择无效 UUID：保留当前有效选择，显示“所选学期不存在”。
 
-完成后，第 39 课进入学期与课程管理 UI。
+失败时清理旧课程很重要，否则页面会同时显示新错误和上一次成功加载的数据。
+
+## 6. 自动测试
+
+测试覆盖：
+
+- 活动/归档学期排序和存储失败。
+- 所有模型角色及中文可读文本。
+- 自动选择当前学期和计算当前教学周。
+- 周日期范围、上一周、下一周和边界限制。
+- 归档学期标签和主动切换学期。
+- 空学期、当前日期不在学期内及无效选择。
+- Repository 失败后清理旧状态并在恢复后重新加载。
+
+MSVC Debug 构建成功，全工程 44/44 项 CTest 通过。
+
+## 本课小结
+
+当前依赖链保持为：
+
+```text
+QML（后续课程） -> ScheduleViewModel -> Application -> Domain
+                                  Infrastructure -> Domain
+```
+
+下一课进入学期与课程管理 UI，并在应用组合根中组装真实 SQLite Repository、用例和
+课表 ViewModel。

@@ -5,15 +5,15 @@
 本文说明 StuKit 中各个 C++ 头文件和源文件的职责、依赖关系以及不能承担的职责。
 它适合在阅读代码、排查编译错误或添加新功能前快速查阅。
 
-当前内容对应第三十七课完成后的代码，包括四版 SQLite 迁移、三个记账 Repository
+当前内容对应第三十八课完成后的代码，包括四版 SQLite 迁移、三个记账 Repository
 接口、创建与查询用例、记账 Presentation，以及从 QML 创建账户、分类和账单并
 持久化到真实 SQLite 的端到端链路、账户余额、月度流水筛选、安全备份恢复和
 全部流水 CSV 导出，以及可自定义时间、账户和分类范围的记账分析聚合、ViewModel
 和通用图表系列模型，以及柱状图、折线图、排行、环形图、自定义筛选面板和完整页面
 QML 集成测试。记账与分析 MVP 已完成；课表模块已经建立学期、课程、上课安排、
 星期和单双周 Domain 模型、三个 Repository 契约、课程冲突检测用例、版本 4
-课表数据库表、三个课表 SQLite Repository 和集成测试，以及学期、课程、安排保存和
-指定教学周查询用例。
+课表数据库表、三个课表 SQLite Repository 和集成测试，学期、课程、安排保存和
+指定教学周查询用例，以及课表学期选择、周次导航和 QML 列表模型。
 
 ## 2. `.h` 和 `.cpp` 分别做什么
 
@@ -473,6 +473,12 @@ Application 负责组织一次完整的用户目标。它可以调用实体和 R
 再组装包含可读课程信息的 `WeeklyScheduleItem`。结果按星期、节次、课程名和 UUID
 稳定排序。它返回普通 C++ DTO，不依赖 QML 模型。
 
+### `schedule/GetAcademicTerms.h/.cpp`
+
+读取全部学期并建立跨 Repository 实现一致的顺序：活动学期在前，再按开始日期倒序、
+名称和 UUID 排列。成功空列表表示用户尚未创建学期；查询失败返回 `StorageFailure`。
+Presentation 通过该用例获得选项，不直接访问 Repository。
+
 ### `CreateAccount.h`
 
 声明创建资金账户用例所需的类型：
@@ -755,10 +761,24 @@ Category。
 
 ```text
 src/features/accounting/presentation/
+src/features/schedule/presentation/
 ```
 
 Presentation 把 Application 结果转换为 QML 容易消费的属性、信号和模型。它可以
 依赖 Application，但不执行 SQL，也不重新实现月度统计。
+
+### `schedule/WeeklyScheduleListModel.h/.cpp`
+
+把 `WeeklyScheduleItem` 暴露为课程、教师、教室、颜色、星期和节次角色，并提供“周三”
+和“第 3～4 节”等中文可读文本。模型只保存 Application DTO，不查询 Repository，
+也不重新计算单双周。
+
+### `schedule/ScheduleViewModel.h/.cpp`
+
+管理课表首页需要的学期与教学周状态：自动选择包含今天的活动学期、计算当前教学周、
+切换上下周、返回当前周、生成周日期范围并加载课程模型。它把 Application 错误映射
+成用户提示，并在查询失败时清理旧课程。构造函数显式注入“今天”，让日期逻辑可重复
+测试且不绑定设备系统时钟。
 
 ### `MoneyFormatter.h/.cpp`
 
@@ -965,6 +985,8 @@ tests/unit/schedule/
 | `SaveCourseTest.cpp` | 课程创建、更新、学期约束、禁止跨学期移动和失败分类。 |
 | `SaveCourseMeetingTest.cpp` | 安排创建、编辑、冲突不落库、单双周错开和错误映射。 |
 | `GetWeeklyScheduleTest.cpp` | 指定周过滤、可读 DTO、稳定排序、损坏关联和固定查询次数。 |
+| `GetAcademicTermsTest.cpp` | 成功空列表、活动/归档学期顺序和 Repository 失败。 |
+| `SchedulePresentationTest.cpp` | 模型角色、当前周、周导航、学期切换、空状态和失败恢复。 |
 
 测试代码不是产品功能，但它定义了当前代码必须持续满足的行为。修改业务代码后，
 应运行全部测试，而不是只运行本次新增的测试。
@@ -1083,15 +1105,21 @@ Qt SQL 或 Qt Quick。
 
 ### `src/features/schedule/application/CMakeLists.txt`
 
-创建 `StuKitScheduleApplication`，编译 `DetectScheduleConflicts`、三个保存用例和指定周
-查询用例，并公开 Application 头文件目录。它只链接 `StuKitScheduleDomain`，不能
-反向依赖 SQLite 或 QML。
+创建 `StuKitScheduleApplication`，编译 `DetectScheduleConflicts`、三个保存用例、学期
+列表和指定周查询用例，并公开 Application 头文件目录。它只链接
+`StuKitScheduleDomain`，不能反向依赖 SQLite 或 QML。
 
 ### `src/features/schedule/infrastructure/CMakeLists.txt`
 
 创建 `StuKitScheduleInfrastructure`，编译三个 SQLite Repository。该目标只链接
 `Qt6::Sql` 和 `StuKitScheduleDomain`，不链接任何记账业务目标。数据库连接由最外层
 组合代码传入。
+
+### `src/features/schedule/presentation/CMakeLists.txt`
+
+创建 `StuKitSchedulePresentation`，编译 `WeeklyScheduleListModel` 和
+`ScheduleViewModel`。它只链接 `Qt6::Core` 与 `StuKitScheduleApplication`，不链接
+Qt SQL 或 Qt Quick，因此同一状态层可以服务 Windows 周网格和 Android 按天列表。
 
 ### `src/features/accounting/application/CMakeLists.txt`
 
@@ -1135,9 +1163,9 @@ Infrastructure 与 Presentation，负责把两条依赖链组装起来。
 
 ### `tests/unit/schedule/CMakeLists.txt`
 
-为课表 Domain、Repository、冲突检测和四个 Application 用例建立九个独立 Qt Test
-目标。Repository 测试链接 `StuKitScheduleDomain`，用例测试链接
-`StuKitScheduleApplication`。
+为课表 Domain、Repository、冲突检测、Application 用例和 Presentation 建立十一个
+独立 Qt Test 目标。Repository 测试链接 `StuKitScheduleDomain`，用例测试链接
+`StuKitScheduleApplication`，表现层测试链接 `StuKitSchedulePresentation`。
 
 ### `tests/unit/accounting/CMakeLists.txt`
 
@@ -1225,6 +1253,10 @@ Application/Domain/Presentation，但不链接 SQLite Infrastructure。
 59. `SaveCourse.h/.cpp` 与测试：理解创建/更新入口和所属学期不变量。
 60. `SaveCourseMeeting.h/.cpp` 与测试：理解冲突作为正常业务结果且不发生部分保存。
 61. `GetWeeklySchedule.h/.cpp` 与测试：理解单双周过滤、DTO 组装和稳定排序。
+62. `GetAcademicTerms.h/.cpp` 与测试：理解成功空列表、失败和稳定学期顺序。
+63. `WeeklyScheduleListModel.h/.cpp`：理解 Application DTO 如何成为 QML 角色。
+64. `ScheduleViewModel.h/.cpp`：理解当前学期选择、周次边界、日期范围和错误清理。
+65. `SchedulePresentationTest.cpp`：观察 Presentation 如何脱离 QML 与真实数据库测试。
 
 ## 13. 修改代码时如何判断文件归属
 
@@ -1241,6 +1273,6 @@ Application/Domain/Presentation，但不链接 SQLite Infrastructure。
 ## 14. 后续更新规则
 
 每完成一课并新增 C++ 文件，都应在本文补充它的职责、依赖和禁止承担的职责。
-记账和分析 MVP 已完成；课表 Domain、冲突检测、版本 4 迁移和三个 SQLite Repository
-和四个课表 Application 用例也已建立。下一课实现课表 Presentation 列表模型与
-ViewModel，仍由 Application 保持业务规则的唯一来源。
+记账和分析 MVP 已完成；课表 Domain、冲突检测、版本 4 迁移、三个 SQLite Repository、
+课表 Application 用例和基础 Presentation 也已建立。下一课将它们接入真实 SQLite
+组合根，并实现学期与课程管理 UI；Application 继续作为业务规则的唯一来源。
