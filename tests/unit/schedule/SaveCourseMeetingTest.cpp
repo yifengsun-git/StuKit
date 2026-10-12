@@ -55,6 +55,7 @@ private slots:
     void updatesMeetingAndExcludesItselfFromConflicts();
     void reportsMissingMeeting();
     void reportsValidationAndRelationErrors();
+    void rejectsArchivedTerm();
     void reportsStorageFailure();
 };
 
@@ -197,6 +198,22 @@ void SaveCourseMeetingTest::reportsValidationAndRelationErrors()
     QCOMPARE(
         std::get<SaveCourseMeetingError>(useCase.execute(request)),
         SaveCourseMeetingError::MeetingExceedsTerm);
+}
+
+void SaveCourseMeetingTest::rejectsArchivedTerm()
+{
+    Scenario scenario;
+    QVERIFY(scenario.terms.save(applicationTestTerm(
+        scenario.termId, 18, true)));
+    SaveCourseMeeting useCase(
+        scenario.terms, scenario.courses, scenario.meetings);
+
+    const auto result = useCase.execute(scenario.request());
+
+    QCOMPARE(
+        std::get<SaveCourseMeetingError>(result),
+        SaveCourseMeetingError::TermArchived);
+    QVERIFY(scenario.meetings.findAll()->empty());
 }
 
 void SaveCourseMeetingTest::reportsStorageFailure()

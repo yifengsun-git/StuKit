@@ -1,5 +1,7 @@
 #include "AccountingModule.h"
 
+#include "ScheduleModule.h"
+
 #include "AccountBalancesViewModel.h"
 #include "AccountingAnalyticsViewModel.h"
 #include "AccountingOverviewViewModel.h"
@@ -43,7 +45,8 @@ AccountingModule::AccountingModule(
 
 AccountingModule::~AccountingModule() = default;
 
-bool AccountingModule::initialize(const QDate &selectedMonth)
+bool AccountingModule::initialize(
+    const QDate &selectedMonth, const QDate &scheduleToday)
 {
     reset();
     m_lastError.clear();
@@ -54,6 +57,10 @@ bool AccountingModule::initialize(const QDate &selectedMonth)
     }
     if (!selectedMonth.isValid()) {
         m_lastError = QStringLiteral("Selected month is invalid");
+        return false;
+    }
+    if (!scheduleToday.isValid()) {
+        m_lastError = QStringLiteral("Schedule date is invalid");
         return false;
     }
 
@@ -156,6 +163,12 @@ bool AccountingModule::initialize(const QDate &selectedMonth)
         *m_getTransaction,
         *m_getAccountingSetup,
         m_overviewViewModel->timeZone());
+    m_scheduleModule = std::make_unique<ScheduleModule>(connection);
+    if (!m_scheduleModule->initialize(scheduleToday)) {
+        m_lastError = m_scheduleModule->lastError();
+        reset();
+        return false;
+    }
 
     QObject::connect(
         m_overviewViewModel.get(),
@@ -290,6 +303,9 @@ bool AccountingModule::restoreDatabase(const QString &backupPath)
         m_overviewViewModel->selectedMonth(),
         1);
     const QString activeDatabasePath = m_databasePath;
+    const QDate scheduleToday = m_scheduleModule != nullptr
+        ? m_scheduleModule->today()
+        : QDate::currentDate();
     const QString safetyDirectory = QDir(m_appDataDirectory).filePath(
         QStringLiteral("backups"));
     if (!QDir().mkpath(safetyDirectory)) {
@@ -317,7 +333,7 @@ bool AccountingModule::restoreDatabase(const QString &backupPath)
         accounting::SqliteBackupService::replaceDatabase(
             backupPath, activeDatabasePath);
     if (!replacement.succeeded()) {
-        const bool reopened = initialize(selectedMonth);
+        const bool reopened = initialize(selectedMonth, scheduleToday);
         const QString reopenDetail = reopened
             ? QString{}
             : QStringLiteral("; reopening current data failed: %1")
@@ -327,7 +343,7 @@ bool AccountingModule::restoreDatabase(const QString &backupPath)
         return false;
     }
 
-    if (initialize(selectedMonth)) {
+    if (initialize(selectedMonth, scheduleToday)) {
         return true;
     }
 
@@ -343,7 +359,8 @@ bool AccountingModule::restoreDatabase(const QString &backupPath)
         return false;
     }
 
-    const bool rollbackInitialized = initialize(selectedMonth);
+    const bool rollbackInitialized = initialize(
+        selectedMonth, scheduleToday);
     const QString rollbackInitializationError = m_lastError;
     m_lastError = rollbackInitialized
         ? QStringLiteral(
@@ -393,6 +410,11 @@ AccountingModule::transactionEditorViewModel() const noexcept
     return m_transactionEditorViewModel.get();
 }
 
+ScheduleModule *AccountingModule::scheduleModule() const noexcept
+{
+    return m_scheduleModule.get();
+}
+
 accounting::presentation::AccountingSetupViewModel *
 AccountingModule::setupViewModel() const noexcept
 {
@@ -434,6 +456,7 @@ const QString &AccountingModule::lastError() const noexcept
 
 void AccountingModule::reset()
 {
+    m_scheduleModule.reset();
     m_transactionEditorViewModel.reset();
     m_analyticsViewModel.reset();
     m_setupViewModel.reset();

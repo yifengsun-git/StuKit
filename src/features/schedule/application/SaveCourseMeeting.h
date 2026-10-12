@@ -30,6 +30,7 @@ enum class SaveCourseMeetingError
     MeetingNotFound,
     CourseNotFound,
     TermNotFound,
+    TermArchived,
     MeetingExceedsTerm,
     StorageFailure
 };
@@ -49,6 +50,8 @@ public:
         const SaveCourseMeetingRequest &request) const;
 
 private:
+    IAcademicTermRepository &m_termRepository;
+    ICourseRepository &m_courseRepository;
     ICourseMeetingRepository &m_meetingRepository;
     DetectScheduleConflicts m_detectConflicts;
 };

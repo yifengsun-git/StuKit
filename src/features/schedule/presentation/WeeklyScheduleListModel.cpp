@@ -61,7 +61,7 @@ QHash<int, QByteArray> WeeklyScheduleListModel::roleNames() const
         {CourseNameRole, QByteArrayLiteral("courseName")},
         {TeacherRole, QByteArrayLiteral("teacher")},
         {LocationRole, QByteArrayLiteral("location")},
-        {ColorRole, QByteArrayLiteral("color")},
+        {ColorRole, QByteArrayLiteral("courseColor")},
         {WeekdayRole, QByteArrayLiteral("weekday")},
         {WeekdayTextRole, QByteArrayLiteral("weekdayText")},
         {StartPeriodRole, QByteArrayLiteral("startPeriod")},

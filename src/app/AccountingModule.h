@@ -40,6 +40,8 @@ class CreateTransactionViewModel;
 
 namespace stukit::app {
 
+class ScheduleModule;
+
 class AccountingModule final
 {
 public:
@@ -52,7 +54,8 @@ public:
     AccountingModule &operator=(AccountingModule &&) = delete;
 
     [[nodiscard]] bool initialize(
-        const QDate &selectedMonth = QDate::currentDate());
+        const QDate &selectedMonth = QDate::currentDate(),
+        const QDate &scheduleToday = QDate::currentDate());
     [[nodiscard]] bool backupDatabase(
         const QString &destinationPath,
         bool replaceExisting = false);
@@ -71,6 +74,7 @@ public:
     setupViewModel() const noexcept;
     [[nodiscard]] accounting::presentation::CreateTransactionViewModel *
     transactionEditorViewModel() const noexcept;
+    [[nodiscard]] ScheduleModule *scheduleModule() const noexcept;
     [[nodiscard]] const QString &databasePath() const noexcept;
     [[nodiscard]] const QString &lastSafetyBackupPath() const noexcept;
     [[nodiscard]] const QString &lastError() const noexcept;
@@ -83,6 +87,8 @@ private:
     QString m_databasePath;
     QString m_lastSafetyBackupPath;
     QString m_lastError;
+
+    std::unique_ptr<ScheduleModule> m_scheduleModule;
 
     std::unique_ptr<accounting::SqliteDatabase> m_database;
     std::unique_ptr<accounting::SqliteBackupService> m_backupService;

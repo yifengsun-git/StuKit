@@ -1,4 +1,8 @@
 add_library(StuKitSchedulePresentation STATIC
+    ScheduleManagementModels.cpp
+    ScheduleManagementModels.h
+    ScheduleManagementViewModel.cpp
+    ScheduleManagementViewModel.h
     ScheduleViewModel.cpp
     ScheduleViewModel.h
     WeeklyScheduleListModel.cpp

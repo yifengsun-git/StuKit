@@ -3,6 +3,8 @@ add_library(StuKitAppCore STATIC
     AccountingModule.h
     DataMaintenanceViewModel.cpp
     DataMaintenanceViewModel.h
+    ScheduleModule.cpp
+    ScheduleModule.h
     UserSettings.cpp
     UserSettings.h
 )
@@ -17,6 +19,8 @@ target_link_libraries(StuKitAppCore
         Qt6::Core
         StuKitAccountingInfrastructure
         StuKitAccountingPresentation
+        StuKitScheduleInfrastructure
+        StuKitSchedulePresentation
 )
 
 target_compile_features(StuKitAppCore

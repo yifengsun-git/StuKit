@@ -12,7 +12,10 @@ ApplicationWindow
     required property var accountingSetup
     required property var accountingTransactionEditor
     required property var dataMaintenance
+    required property var scheduleOverview
+    required property var scheduleManagement
     required property string accountingStartupError
+    required property string scheduleStartupError
 
     property int currentPage: 0
 
@@ -171,6 +174,10 @@ ApplicationWindow
             viewModel: window.accountingAnalytics
             startupError: window.accountingStartupError
         }
-        ScheduleHomePage {}
+        ScheduleHomePage {
+            viewModel: window.scheduleOverview
+            managementViewModel: window.scheduleManagement
+            startupError: window.scheduleStartupError
+        }
     }
 }

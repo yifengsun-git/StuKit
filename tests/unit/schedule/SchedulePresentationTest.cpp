@@ -1,5 +1,11 @@
 #include "GetAcademicTerms.h"
+#include "GetScheduleSetup.h"
 #include "GetWeeklySchedule.h"
+#include "SaveAcademicTerm.h"
+#include "SaveCourse.h"
+#include "SaveCourseMeeting.h"
+#include "ScheduleManagementModels.h"
+#include "ScheduleManagementViewModel.h"
 #include "ScheduleViewModel.h"
 #include "WeeklyScheduleListModel.h"
 #include "support/InMemoryAcademicTermRepository.h"
@@ -39,7 +45,11 @@ struct Fixture
     InMemoryCourseRepository courses;
     InMemoryCourseMeetingRepository meetings;
     GetAcademicTerms getTerms{terms};
+    GetScheduleSetup getSetup{terms, courses, meetings};
     GetWeeklySchedule getSchedule{terms, courses, meetings};
+    SaveAcademicTerm saveTerm{terms, courses, meetings};
+    SaveCourse saveCourse{terms, courses};
+    SaveCourseMeeting saveMeeting{terms, courses, meetings};
 };
 
 } // namespace
@@ -55,6 +65,9 @@ private slots:
     void handlesEmptyTermList();
     void clearsStaleScheduleOnFailureAndRecovers();
     void clearsSelectionWhenTermQueryFails();
+    void managesTermsCoursesAndMeetings();
+    void reportsMeetingConflictsWithoutSaving();
+    void clearsManagementModelsOnFailure();
 };
 
 void SchedulePresentationTest::exposesReadableModelRoles()
@@ -302,6 +315,149 @@ void SchedulePresentationTest::clearsSelectionWhenTermQueryFails()
     QVERIFY(viewModel.selectedTermId().isEmpty());
     QCOMPARE(viewModel.selectedWeek(), 0);
     QVERIFY(viewModel.isEmpty());
+}
+
+void SchedulePresentationTest::managesTermsCoursesAndMeetings()
+{
+    Fixture fixture;
+    ScheduleManagementViewModel viewModel(
+        fixture.getSetup,
+        fixture.saveTerm,
+        fixture.saveCourse,
+        fixture.saveMeeting);
+    QSignalSpy dataSpy(
+        &viewModel, &ScheduleManagementViewModel::dataChanged);
+    viewModel.load();
+    QVERIFY(!viewModel.hasTerms());
+
+    QVERIFY(viewModel.saveTerm(
+        {},
+        QStringLiteral("2026 秋季学期"),
+        QStringLiteral("2026-09-07"),
+        18,
+        false));
+    QVERIFY(viewModel.hasTerms());
+    QCOMPARE(viewModel.terms()->rowCount(), 1);
+    QVERIFY(!viewModel.selectedTermId().isEmpty());
+    QCOMPARE(viewModel.selectedTermTotalWeeks(), 18);
+    const QString termId = viewModel.selectedTermId();
+    QVERIFY(!viewModel.saveTerm(
+        QStringLiteral("invalid-id"),
+        QStringLiteral("不应创建"),
+        QStringLiteral("2026-09-07"),
+        18,
+        false));
+    QCOMPARE(viewModel.terms()->rowCount(), 1);
+
+    QVERIFY(viewModel.saveCourseDetails(
+        {},
+        termId,
+        QStringLiteral("高等数学"),
+        QStringLiteral("王老师"),
+        QStringLiteral("A101"),
+        QStringLiteral("#3b82f6")));
+    QVERIFY(viewModel.hasCourses());
+    QCOMPARE(viewModel.courses()->rowCount(), 1);
+    const QString courseId = viewModel.selectedCourseId();
+    const QModelIndex courseIndex = viewModel.courses()->index(0, 0);
+    QCOMPARE(
+        viewModel.courses()->data(
+            courseIndex, CourseListModel::ColorRole).toString(),
+        QStringLiteral("#3B82F6"));
+
+    QVERIFY(viewModel.saveMeetingDetails(
+        {}, courseId, 1, 1, 2, 1, 18, 0));
+    QVERIFY(viewModel.hasMeetings());
+    QCOMPARE(viewModel.meetings()->rowCount(), 1);
+    const QModelIndex meetingIndex = viewModel.meetings()->index(0, 0);
+    QCOMPARE(
+        viewModel.meetings()->data(
+            meetingIndex,
+            CourseMeetingListModel::WeekdayTextRole).toString(),
+        QStringLiteral("周一"));
+    QVERIFY(viewModel.meetings()->data(
+        meetingIndex,
+        CourseMeetingListModel::SummaryRole).toString().contains(
+            QStringLiteral("第 1～2 节")));
+
+    QVERIFY(viewModel.setTermArchived(termId, true));
+    QVERIFY(viewModel.selectedTermArchived());
+    QVERIFY(!viewModel.saveCourseDetails(
+        {},
+        termId,
+        QStringLiteral("线性代数"),
+        {},
+        {},
+        QStringLiteral("#10B981")));
+    QCOMPARE(
+        viewModel.errorMessage(),
+        QStringLiteral("已归档学期不能新增或修改课程"));
+    QCOMPARE(dataSpy.count(), 4);
+}
+
+void SchedulePresentationTest::reportsMeetingConflictsWithoutSaving()
+{
+    Fixture fixture;
+    ScheduleManagementViewModel viewModel(
+        fixture.getSetup,
+        fixture.saveTerm,
+        fixture.saveCourse,
+        fixture.saveMeeting);
+    viewModel.load();
+    QVERIFY(viewModel.saveTerm(
+        {}, QStringLiteral("测试学期"), QStringLiteral("2026-09-07"),
+        18, false));
+    const QString termId = viewModel.selectedTermId();
+    QVERIFY(viewModel.saveCourseDetails(
+        {}, termId, QStringLiteral("高等数学"), {}, {},
+        QStringLiteral("#3B82F6")));
+    const QString firstCourseId = viewModel.selectedCourseId();
+    QVERIFY(viewModel.saveMeetingDetails(
+        {}, firstCourseId, 1, 1, 2, 1, 18, 0));
+
+    QVERIFY(viewModel.saveCourseDetails(
+        {}, termId, QStringLiteral("大学英语"), {}, {},
+        QStringLiteral("#EF4444")));
+    const QString secondCourseId = viewModel.selectedCourseId();
+    QVERIFY(!viewModel.saveMeetingDetails(
+        {}, secondCourseId, 1, 2, 3, 1, 18, 0));
+
+    QVERIFY(viewModel.hasConflicts());
+    QCOMPARE(viewModel.conflicts().size(), 1);
+    QCOMPARE(
+        viewModel.conflicts().front().toMap()
+            .value(QStringLiteral("courseName")).toString(),
+        QStringLiteral("高等数学"));
+    QCOMPARE(viewModel.meetings()->rowCount(), 0);
+    QCOMPARE(fixture.meetings.findAll()->size(), std::size_t{1});
+}
+
+void SchedulePresentationTest::clearsManagementModelsOnFailure()
+{
+    Fixture fixture;
+    QVERIFY(fixture.terms.save(makeTerm(
+        QUuid::createUuid(),
+        QStringLiteral("测试学期"),
+        QDate(2026, 9, 7),
+        18)));
+    ScheduleManagementViewModel viewModel(
+        fixture.getSetup,
+        fixture.saveTerm,
+        fixture.saveCourse,
+        fixture.saveMeeting);
+    viewModel.load();
+    QCOMPARE(viewModel.terms()->rowCount(), 1);
+
+    fixture.courses.setQueryShouldSucceed(false);
+    viewModel.load();
+
+    QVERIFY(viewModel.hasError());
+    QCOMPARE(
+        viewModel.errorMessage(),
+        QStringLiteral("无法读取课表管理数据"));
+    QCOMPARE(viewModel.terms()->rowCount(), 0);
+    QCOMPARE(viewModel.courses()->rowCount(), 0);
+    QCOMPARE(viewModel.meetings()->rowCount(), 0);
 }
 
 QTEST_APPLESS_MAIN(SchedulePresentationTest)

@@ -38,6 +38,7 @@ set(STUKIT_QML_FILES
     src/features/analytics/qml/components/RankingBars.qml
     src/features/accounting/qml/AccountingHomePage.qml
     src/features/schedule/qml/ScheduleHomePage.qml
+    src/features/schedule/qml/components/ScheduleManagementPanel.qml
     src/shared/qml/theme/AppTheme.qml
     src/shared/qml/components/FeaturePlaceholder.qml
 )
@@ -95,6 +96,11 @@ set_source_files_properties(
 set_source_files_properties(
     src/features/schedule/qml/ScheduleHomePage.qml
     PROPERTIES QT_RESOURCE_ALIAS ScheduleHomePage.qml
+)
+
+set_source_files_properties(
+    src/features/schedule/qml/components/ScheduleManagementPanel.qml
+    PROPERTIES QT_RESOURCE_ALIAS ScheduleManagementPanel.qml
 )
 
 set_source_files_properties(

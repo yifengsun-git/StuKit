@@ -5,6 +5,9 @@
 #include "AccountingSetupViewModel.h"
 #include "CreateTransactionViewModel.h"
 #include "DataMaintenanceViewModel.h"
+#include "ScheduleManagementViewModel.h"
+#include "ScheduleModule.h"
+#include "ScheduleViewModel.h"
 
 #include <QCoreApplication>
 #include <QDebug>
@@ -67,6 +70,23 @@ int main(int argc, char *argv[])
     initialProperties.insert(
         QStringLiteral("dataMaintenance"),
         QVariant::fromValue(static_cast<QObject *>(&dataMaintenance)));
+    initialProperties.insert(
+        QStringLiteral("scheduleOverview"),
+        QVariant::fromValue(static_cast<QObject *>(
+            accountingModule.scheduleModule() != nullptr
+                ? accountingModule.scheduleModule()->overviewViewModel()
+                : nullptr)));
+    initialProperties.insert(
+        QStringLiteral("scheduleManagement"),
+        QVariant::fromValue(static_cast<QObject *>(
+            accountingModule.scheduleModule() != nullptr
+                ? accountingModule.scheduleModule()->managementViewModel()
+                : nullptr)));
+    initialProperties.insert(
+        QStringLiteral("scheduleStartupError"),
+        accountingModule.scheduleModule() == nullptr
+            ? QStringLiteral("课表数据暂时无法打开")
+            : QString{});
     engine.setInitialProperties(initialProperties);
 
     QObject::connect(
@@ -105,6 +125,25 @@ int main(int argc, char *argv[])
                     "accountingTransactionEditor",
                     QVariant::fromValue(static_cast<QObject *>(
                         accountingModule.transactionEditorViewModel())));
+                rootObject->setProperty(
+                    "scheduleOverview",
+                    QVariant::fromValue(static_cast<QObject *>(
+                        accountingModule.scheduleModule() != nullptr
+                            ? accountingModule.scheduleModule()
+                                  ->overviewViewModel()
+                            : nullptr)));
+                rootObject->setProperty(
+                    "scheduleManagement",
+                    QVariant::fromValue(static_cast<QObject *>(
+                        accountingModule.scheduleModule() != nullptr
+                            ? accountingModule.scheduleModule()
+                                  ->managementViewModel()
+                            : nullptr)));
+                rootObject->setProperty(
+                    "scheduleStartupError",
+                    accountingModule.scheduleModule() == nullptr
+                        ? QStringLiteral("课表数据暂时无法打开")
+                        : QString{});
             });
     }
 

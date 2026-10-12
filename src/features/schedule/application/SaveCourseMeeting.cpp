@@ -8,7 +8,9 @@ SaveCourseMeeting::SaveCourseMeeting(
     IAcademicTermRepository &termRepository,
     ICourseRepository &courseRepository,
     ICourseMeetingRepository &meetingRepository)
-    : m_meetingRepository(meetingRepository)
+    : m_termRepository(termRepository)
+    , m_courseRepository(courseRepository)
+    , m_meetingRepository(meetingRepository)
     , m_detectConflicts(
           termRepository, courseRepository, meetingRepository)
 {
@@ -33,6 +35,31 @@ SaveCourseMeetingResult SaveCourseMeeting::execute(
         if (existing == meetings->cend()) {
             return SaveCourseMeetingError::MeetingNotFound;
         }
+    }
+
+    const auto courses = m_courseRepository.findAll();
+    const auto terms = m_termRepository.findAll();
+    if (!courses.has_value() || !terms.has_value()) {
+        return SaveCourseMeetingError::StorageFailure;
+    }
+    const auto course = std::ranges::find_if(
+        *courses,
+        [&request](const Course &candidate) {
+            return candidate.id() == request.courseId;
+        });
+    if (course == courses->cend()) {
+        return SaveCourseMeetingError::CourseNotFound;
+    }
+    const auto term = std::ranges::find_if(
+        *terms,
+        [&course](const AcademicTerm &candidate) {
+            return candidate.id() == course->termId();
+        });
+    if (term == terms->cend()) {
+        return SaveCourseMeetingError::TermNotFound;
+    }
+    if (term->isArchived()) {
+        return SaveCourseMeetingError::TermArchived;
     }
 
     const auto detection = m_detectConflicts.execute(
