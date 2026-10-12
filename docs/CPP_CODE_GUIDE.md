@@ -5,7 +5,7 @@
 本文说明 StuKit 中各个 C++ 头文件和源文件的职责、依赖关系以及不能承担的职责。
 它适合在阅读代码、排查编译错误或添加新功能前快速查阅。
 
-当前内容对应第三十八课完成后的代码，包括四版 SQLite 迁移、三个记账 Repository
+当前内容对应第三十九课完成后的代码，包括四版 SQLite 迁移、三个记账 Repository
 接口、创建与查询用例、记账 Presentation，以及从 QML 创建账户、分类和账单并
 持久化到真实 SQLite 的端到端链路、账户余额、月度流水筛选、安全备份恢复和
 全部流水 CSV 导出，以及可自定义时间、账户和分类范围的记账分析聚合、ViewModel
@@ -13,7 +13,7 @@
 QML 集成测试。记账与分析 MVP 已完成；课表模块已经建立学期、课程、上课安排、
 星期和单双周 Domain 模型、三个 Repository 契约、课程冲突检测用例、版本 4
 课表数据库表、三个课表 SQLite Repository 和集成测试，学期、课程、安排保存和
-指定教学周查询用例，以及课表学期选择、周次导航和 QML 列表模型。
+指定教学周查询用例，课表学期选择、周次导航、管理模型、真实组合根和 QML 管理界面。
 
 ## 2. `.h` 和 `.cpp` 分别做什么
 
@@ -210,7 +210,7 @@ Infrastructure ------------------> Domain
 - 页面布局。
 - 金额计算。
 
-对象的具体创建集中在 `AccountingModule`；`main.cpp` 只安排应用启动，不包含业务
+对象的具体创建集中在应用组合根；`main.cpp` 只安排应用启动，不包含业务
 规则或 SQL。`STUKIT_APP_DATA_DIR` 只用于开发测试显式覆盖数据目录，默认仍使用
 跨平台标准路径。
 
@@ -228,13 +228,20 @@ Infrastructure ------------------> Domain
 2. 执行数据库迁移。
 3. 创建备份服务和三个 SQLite Repository。
 4. 创建账户、分类、账单 CRUD 与月度查询用例。
-5. 创建四个记账 ViewModel 并连接基础数据、时区和账单变更信号。
+5. 创建五个记账 ViewModel 并连接基础数据、时区和账单变更信号。
 6. 加载初始数据并保存后续时区变化。
 7. 编排数据库备份、恢复前安全快照、连接释放、替换、重新初始化和失败回退。
 8. 组合导出查询与 CSV 写入器，使用当前用户记账时区导出全部流水。
+9. 持有 `ScheduleModule`，保证共享数据库恢复前先释放课表连接副本。
 
 成员按数据库、Repository、用例、ViewModel 顺序声明，并反向销毁，确保数据库连接
 最后关闭。其他层不能依赖这个类。
+
+### `src/app/ScheduleModule.h/.cpp`
+
+课表模块组合根。它接收已经迁移并打开的共享 `QSqlDatabase`，创建三个课表 SQLite
+Repository、查询与保存用例，以及周课表和管理 ViewModel。管理数据保存成功后会自动
+刷新周课表。它不创建第二个数据库文件，也不拥有连接的打开和关闭职责。
 
 ### `src/app/DataMaintenanceViewModel.h/.cpp`
 
@@ -243,7 +250,7 @@ Infrastructure ------------------> Domain
 - 将 `FileDialog` 返回的本地 `QUrl` 转换为路径。
 - 调用 `AccountingModule` 执行备份、恢复或 CSV 导出。
 - 提供忙碌、成功和错误状态。
-- 恢复尝试后通知 `main.cpp` 重新绑定组合根中的记账 ViewModel。
+- 恢复尝试后通知 `main.cpp` 重新绑定组合根中的记账和课表 ViewModel。
 
 它不直接运行 SQL 或复制文件。以后 Android 返回内容 URI 时，应在平台适配边界先
 取得可读写的本地临时文件，再复用相同的数据库维护流程。
@@ -464,8 +471,8 @@ Application 负责组织一次完整的用户目标。它可以调用实体和 R
 ### `schedule/SaveCourseMeeting.h/.cpp`
 
 创建或修改上课安排。用例先确认被编辑安排存在，再复用 `DetectScheduleConflicts` 完成
-课程、学期、总周数和冲突检查。成功、冲突及错误是三种独立 `std::variant` 结果；
-发生冲突时返回明细但不保存。
+课程、学期、归档状态、总周数和冲突检查。已归档学期不能修改安排。成功、冲突及
+错误是三种独立 `std::variant` 结果；发生冲突时返回明细但不保存。
 
 ### `schedule/GetWeeklySchedule.h/.cpp`
 
@@ -478,6 +485,12 @@ Application 负责组织一次完整的用户目标。它可以调用实体和 R
 读取全部学期并建立跨 Repository 实现一致的顺序：活动学期在前，再按开始日期倒序、
 名称和 UUID 排列。成功空列表表示用户尚未创建学期；查询失败返回 `StorageFailure`。
 Presentation 通过该用例获得选项，不直接访问 Repository。
+
+### `schedule/GetScheduleSetup.h/.cpp`
+
+一次读取全部学期、课程和上课安排，为管理页面提供一致快照。任一 Repository 查询
+失败时返回 `StorageFailure`，不会把部分数据交给 Presentation；三个成功空列表表示
+用户尚未创建课表数据。
 
 ### `CreateAccount.h`
 
@@ -780,6 +793,17 @@ Presentation 把 Application 结果转换为 QML 容易消费的属性、信号�
 成用户提示，并在查询失败时清理旧课程。构造函数显式注入“今天”，让日期逻辑可重复
 测试且不绑定设备系统时钟。
 
+### `schedule/ScheduleManagementModels.h/.cpp`
+
+包含学期、课程和上课安排三个列表模型。它们暴露原始 UUID、日期、周数、颜色和稳定
+枚举值，同时提供 ISO 日期、星期、单双周和安排摘要等可读角色。模型不保存数据。
+
+### `schedule/ScheduleManagementViewModel.h/.cpp`
+
+管理学期和课程选择，并把 QML 表单输入交给 `SaveAcademicTerm`、`SaveCourse` 和
+`SaveCourseMeeting`。成功后重新加载完整快照并通知周课表刷新；失败时映射稳定错误。
+冲突以结构化 `QVariantList` 暴露，包含课程名、节次和首次冲突周，不会被误当成已保存。
+
 ### `MoneyFormatter.h/.cpp`
 
 把整数分格式化成固定两位小数文本。实现始终使用整数除法和取余，不把 Money
@@ -986,7 +1010,7 @@ tests/unit/schedule/
 | `SaveCourseMeetingTest.cpp` | 安排创建、编辑、冲突不落库、单双周错开和错误映射。 |
 | `GetWeeklyScheduleTest.cpp` | 指定周过滤、可读 DTO、稳定排序、损坏关联和固定查询次数。 |
 | `GetAcademicTermsTest.cpp` | 成功空列表、活动/归档学期顺序和 Repository 失败。 |
-| `SchedulePresentationTest.cpp` | 模型角色、当前周、周导航、学期切换、空状态和失败恢复。 |
+| `SchedulePresentationTest.cpp` | 周课表和管理模型、周导航、三级创建、归档限制、冲突及失败恢复。 |
 
 测试代码不是产品功能，但它定义了当前代码必须持续满足的行为。修改业务代码后，
 应运行全部测试，而不是只运行本次新增的测试。
@@ -1058,6 +1082,12 @@ ViewModel 可用、自定义固定时区可持久化、无效设置回退到 UTC
 候选文件不会触碰当前数据；同时验证 QML 使用的数据维护 ViewModel 能通过组合根把
 真实 SQLite 流水导出为 CSV。
 
+### `tests/integration/app/ScheduleModuleTest.cpp`
+
+使用共享临时 SQLite 验证学期、课程和安排通过正式组合根创建，应用重启后完整恢复，
+并立即刷新指定周课表。它还验证数据库恢复会销毁旧课表 ViewModel，并从备份中的数据
+重建新对象，避免界面继续持有失效连接。
+
 ### `tests/integration/qml/AnalyticsQmlIntegrationTest.cpp`
 
 使用 `QQmlEngine` 实例化正式分析页面和组件，并连接真实
@@ -1106,7 +1136,7 @@ Qt SQL 或 Qt Quick。
 ### `src/features/schedule/application/CMakeLists.txt`
 
 创建 `StuKitScheduleApplication`，编译 `DetectScheduleConflicts`、三个保存用例、学期
-列表和指定周查询用例，并公开 Application 头文件目录。它只链接
+列表、管理快照和指定周查询用例，并公开 Application 头文件目录。它只链接
 `StuKitScheduleDomain`，不能反向依赖 SQLite 或 QML。
 
 ### `src/features/schedule/infrastructure/CMakeLists.txt`
@@ -1117,9 +1147,10 @@ Qt SQL 或 Qt Quick。
 
 ### `src/features/schedule/presentation/CMakeLists.txt`
 
-创建 `StuKitSchedulePresentation`，编译 `WeeklyScheduleListModel` 和
-`ScheduleViewModel`。它只链接 `Qt6::Core` 与 `StuKitScheduleApplication`，不链接
-Qt SQL 或 Qt Quick，因此同一状态层可以服务 Windows 周网格和 Android 按天列表。
+创建 `StuKitSchedulePresentation`，编译周课表模型、三个管理模型、`ScheduleViewModel`
+和 `ScheduleManagementViewModel`。它只链接 `Qt6::Core` 与
+`StuKitScheduleApplication`，不链接 Qt SQL 或 Qt Quick，因此同一状态层可以服务
+Windows 周网格和 Android 按天列表。
 
 ### `src/features/accounting/application/CMakeLists.txt`
 
@@ -1154,8 +1185,9 @@ GetTransactionExportData，并链接
 
 ### `src/app/CMakeLists.txt`
 
-创建 `StuKitAppCore`，编译组合根、用户设置和数据维护 ViewModel。只有这个最外层目标同时链接
-Infrastructure 与 Presentation，负责把两条依赖链组装起来。
+创建 `StuKitAppCore`，编译组合根、`ScheduleModule`、用户设置和数据维护 ViewModel。
+只有这个最外层目标同时链接记账与课表 Infrastructure、Presentation，负责把依赖链
+组装起来。
 
 ### `tests/CMakeLists.txt`
 
@@ -1181,6 +1213,11 @@ Infrastructure 与 Presentation，负责把两条依赖链组装起来。
 创建学期、课程和上课安排三个 SQLite Repository 测试目标，并注册三个
 `schedule.sqlite_...` CTest。测试额外链接现有数据库迁移器来创建临时版本 4 数据库，
 产品中的课表 Infrastructure 不因此依赖记账业务层。
+
+### `tests/integration/app/CMakeLists.txt`
+
+分别创建记账组合根和课表组合根测试。课表目标链接 `StuKitAppCore`，使用正式 SQLite、
+Application 和 Presentation 验证跨重启持久化及备份恢复生命周期。
 
 ### `tests/integration/qml/CMakeLists.txt`
 
@@ -1257,6 +1294,12 @@ Application/Domain/Presentation，但不链接 SQLite Infrastructure。
 63. `WeeklyScheduleListModel.h/.cpp`：理解 Application DTO 如何成为 QML 角色。
 64. `ScheduleViewModel.h/.cpp`：理解当前学期选择、周次边界、日期范围和错误清理。
 65. `SchedulePresentationTest.cpp`：观察 Presentation 如何脱离 QML 与真实数据库测试。
+66. `GetScheduleSetup.h/.cpp`：理解管理页面如何获得三类数据的一致快照。
+67. 三个 Schedule Management 模型：理解编辑表单需要的原始与可读角色。
+68. `ScheduleManagementViewModel.h/.cpp`：理解三级选择、保存、错误和冲突明细。
+69. `ScheduleModule.h/.cpp`：理解课表依赖组装和共享数据库生命周期。
+70. `ScheduleModuleTest.cpp`：理解真实 SQLite、应用重启和备份恢复如何共同验收。
+71. `ScheduleHomePage.qml` 与 `ScheduleManagementPanel.qml`：理解浏览和管理职责拆分。
 
 ## 13. 修改代码时如何判断文件归属
 
@@ -1274,5 +1317,5 @@ Application/Domain/Presentation，但不链接 SQLite Infrastructure。
 
 每完成一课并新增 C++ 文件，都应在本文补充它的职责、依赖和禁止承担的职责。
 记账和分析 MVP 已完成；课表 Domain、冲突检测、版本 4 迁移、三个 SQLite Repository、
-课表 Application 用例和基础 Presentation 也已建立。下一课将它们接入真实 SQLite
-组合根，并实现学期与课程管理 UI；Application 继续作为业务规则的唯一来源。
+课表 Application、Presentation、真实组合根和学期/课程/安排管理 UI 也已建立。
+下一课实现响应式周课表主界面；Application 继续作为业务规则的唯一来源。
