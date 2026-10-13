@@ -32,40 +32,22 @@ Item {
         courseNameField.text = ""
         courseTeacherField.text = ""
         courseLocationField.text = ""
+        courseAssessmentField.text = ""
+        courseTeachingPlanField.text = ""
         courseColorField.text = "#3B82F6"
         courseDialog.open()
     }
 
-    function openCourseEditor(courseId, name, teacher, location, color) {
+    function openCourseEditor(courseId, name, teacher, location, color,
+                              assessmentStandard, teachingPlan) {
         courseDialog.courseId = courseId
         courseNameField.text = name
         courseTeacherField.text = teacher
         courseLocationField.text = location
+        courseAssessmentField.text = assessmentStandard
+        courseTeachingPlanField.text = teachingPlan
         courseColorField.text = color
         courseDialog.open()
-    }
-
-    function openNewMeeting() {
-        meetingDialog.meetingId = ""
-        weekdayBox.currentIndex = 0
-        startPeriodField.value = 1
-        endPeriodField.value = 2
-        startWeekField.value = 1
-        endWeekField.value = Math.max(1, root.viewModel.selectedTermTotalWeeks)
-        weekPatternBox.currentIndex = 0
-        meetingDialog.open()
-    }
-
-    function openMeetingEditor(meetingId, weekday, startPeriod, endPeriod,
-                               startWeek, endWeek, weekPattern) {
-        meetingDialog.meetingId = meetingId
-        weekdayBox.currentIndex = Math.max(0, weekday - 1)
-        startPeriodField.value = startPeriod
-        endPeriodField.value = endPeriod
-        startWeekField.value = startWeek
-        endWeekField.value = endWeek
-        weekPatternBox.currentIndex = weekPattern
-        meetingDialog.open()
     }
 
     ScrollView {
@@ -101,7 +83,7 @@ Item {
                             font.pixelSize: AppTheme.fontSizeSubtitle
                         }
 
-                        Button {
+                        AppButton {
                             text: qsTr("新增学期")
                             onClicked: root.openNewTerm()
                         }
@@ -143,7 +125,7 @@ Item {
                                 anchors.fill: parent
                                 anchors.margins: AppTheme.spacingSmall
 
-                                Button {
+                                AppButton {
                                     Layout.fillWidth: true
                                     flat: true
                                     text: termDelegate.archived
@@ -157,7 +139,7 @@ Item {
                                         termDelegate.termId)
                                 }
 
-                                Button {
+                                AppButton {
                                     text: qsTr("编辑")
                                     onClicked: root.openTermEditor(
                                         termDelegate.termId,
@@ -167,7 +149,7 @@ Item {
                                         termDelegate.archived)
                                 }
 
-                                Button {
+                                AppButton {
                                     text: termDelegate.archived
                                         ? qsTr("恢复") : qsTr("归档")
                                     onClicked: root.viewModel.setTermArchived(
@@ -206,7 +188,7 @@ Item {
                             font.pixelSize: AppTheme.fontSizeSubtitle
                         }
 
-                        Button {
+                        AppButton {
                             text: qsTr("新增课程")
                             enabled: !root.viewModel.selectedTermArchived
                             onClicked: root.openNewCourse()
@@ -216,7 +198,7 @@ Item {
                     Label {
                         text: root.viewModel.selectedTermArchived
                             ? qsTr("已归档学期只允许查看历史课程。")
-                            : qsTr("选择课程后可以维护它的多个上课安排。")
+                            : qsTr("这里只维护课程资料；返回课表后点击“编辑课表”进行排课。")
                         color: AppTheme.textSecondaryColor
                     }
 
@@ -233,6 +215,8 @@ Item {
                             required property string name
                             required property string teacher
                             required property string location
+                            required property string assessmentStandard
+                            required property string teachingPlan
                             required property string courseColor
 
                             width: ListView.view.width
@@ -256,7 +240,7 @@ Item {
                                     color: courseDelegate.courseColor
                                 }
 
-                                Button {
+                                AppButton {
                                     Layout.fillWidth: true
                                     flat: true
                                     text: [courseDelegate.name,
@@ -268,7 +252,7 @@ Item {
                                         courseDelegate.courseId)
                                 }
 
-                                Button {
+                                AppButton {
                                     text: qsTr("编辑")
                                     enabled: !root.viewModel.selectedTermArchived
                                     onClicked: root.openCourseEditor(
@@ -276,7 +260,9 @@ Item {
                                         courseDelegate.name,
                                         courseDelegate.teacher,
                                         courseDelegate.location,
-                                        courseDelegate.courseColor)
+                                        courseDelegate.courseColor,
+                                        courseDelegate.assessmentStandard,
+                                        courseDelegate.teachingPlan)
                                 }
                             }
                         }
@@ -286,74 +272,100 @@ Item {
 
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: meetingSection.implicitHeight
+                Layout.preferredHeight: periodSection.implicitHeight
                     + AppTheme.spacingMedium * 2
                 radius: AppTheme.radiusMedium
                 color: AppTheme.surfaceColor
                 border.color: AppTheme.borderColor
-                visible: root.viewModel && root.viewModel.hasCourses
 
                 ColumnLayout {
-                    id: meetingSection
+                    id: periodSection
                     anchors.fill: parent
                     anchors.margins: AppTheme.spacingMedium
                     spacing: AppTheme.spacingSmall
 
-                    RowLayout {
+                    Label {
                         Layout.fillWidth: true
-
-                        Label {
-                            Layout.fillWidth: true
-                            text: qsTr("上课安排")
-                            color: AppTheme.textPrimaryColor
-                            font.bold: true
-                            font.pixelSize: AppTheme.fontSizeSubtitle
-                        }
-
-                        Button {
-                            text: qsTr("新增安排")
-                            enabled: !root.viewModel.selectedTermArchived
-                            onClicked: root.openNewMeeting()
-                        }
+                        text: qsTr("节次时间")
+                        color: AppTheme.textPrimaryColor
+                        font.bold: true
+                        font.pixelSize: AppTheme.fontSizeSubtitle
                     }
 
-                    ListView {
+                    Label {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: Math.min(contentHeight, 180)
-                        model: root.viewModel ? root.viewModel.meetings : null
-                        spacing: AppTheme.spacingExtraSmall
-                        clip: true
+                        text: qsTr("自定义名称和起止时间只影响显示；课程冲突仍按节次编号判断。")
+                        color: AppTheme.textSecondaryColor
+                        wrapMode: Text.WordWrap
+                    }
 
-                        delegate: RowLayout {
-                            id: meetingDelegate
-                            required property string meetingId
-                            required property int weekday
-                            required property int startPeriod
-                            required property int endPeriod
-                            required property int startWeek
-                            required property int endWeek
-                            required property int weekPattern
-                            required property string summary
+                    Repeater {
+                        model: root.viewModel
+                            ? root.viewModel.periodDefinitions : []
 
-                            width: ListView.view.width
+                        Rectangle {
+                            id: periodDelegate
+                            required property var modelData
 
-                            Label {
-                                Layout.fillWidth: true
-                                text: meetingDelegate.summary
-                                color: AppTheme.textPrimaryColor
-                            }
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: periodEditor.implicitHeight
+                                + AppTheme.spacingSmall * 2
+                            radius: AppTheme.radiusSmall
+                            color: AppTheme.surfaceVariantColor
 
-                            Button {
-                                text: qsTr("编辑")
-                                enabled: !root.viewModel.selectedTermArchived
-                                onClicked: root.openMeetingEditor(
-                                    meetingDelegate.meetingId,
-                                    meetingDelegate.weekday,
-                                    meetingDelegate.startPeriod,
-                                    meetingDelegate.endPeriod,
-                                    meetingDelegate.startWeek,
-                                    meetingDelegate.endWeek,
-                                    meetingDelegate.weekPattern)
+                            GridLayout {
+                                id: periodEditor
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter
+                                anchors.margins: AppTheme.spacingSmall
+                                columns: 2
+                                rowSpacing: AppTheme.spacingExtraSmall
+                                columnSpacing: AppTheme.spacingSmall
+
+                                Label {
+                                    text: qsTr("第 %1 节名称").arg(
+                                        periodDelegate.modelData.periodNumber)
+                                    color: AppTheme.textSecondaryColor
+                                }
+                                TextField {
+                                    id: periodNameField
+                                    Layout.fillWidth: true
+                                    text: periodDelegate.modelData.name
+                                    placeholderText: qsTr("例如 第 1 节")
+                                }
+
+                                Label {
+                                    text: qsTr("起止时间")
+                                    color: AppTheme.textSecondaryColor
+                                }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    TextField {
+                                        id: periodStartField
+                                        Layout.fillWidth: true
+                                        text: periodDelegate.modelData.startTime
+                                        placeholderText: qsTr("08:00")
+                                        inputMethodHints: Qt.ImhTime
+                                    }
+                                    Label { text: "—" }
+                                    TextField {
+                                        id: periodEndField
+                                        Layout.fillWidth: true
+                                        text: periodDelegate.modelData.endTime
+                                        placeholderText: qsTr("08:45")
+                                        inputMethodHints: Qt.ImhTime
+                                    }
+                                    AppButton {
+                                        objectName: "scheduleSavePeriodButton"
+                                        text: qsTr("保存")
+                                        onClicked: root.viewModel.savePeriodDefinition(
+                                            periodDelegate.modelData.periodNumber,
+                                            periodNameField.text,
+                                            periodStartField.text,
+                                            periodEndField.text)
+                                    }
+                                }
                             }
                         }
                     }
@@ -399,18 +411,38 @@ Item {
         ColumnLayout {
             spacing: AppTheme.spacingSmall
 
+            Label {
+                text: qsTr("学期名称")
+                color: AppTheme.textPrimaryColor
+                font.bold: true
+            }
             TextField {
                 id: termNameField
                 Layout.fillWidth: true
                 placeholderText: qsTr("学期名称，例如 2026 秋季学期")
             }
+            Label {
+                text: qsTr("学期开始日期（第 1 周的周一）")
+                color: AppTheme.textPrimaryColor
+                font.bold: true
+            }
             TextField {
                 id: termStartDateField
                 Layout.fillWidth: true
-                placeholderText: qsTr("开始日期：yyyy-MM-dd")
+                placeholderText: qsTr("例如 2026-09-07")
+            }
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("该日期用于计算每个教学周的实际日期，格式为 yyyy-MM-dd。")
+                color: AppTheme.textSecondaryColor
+                wrapMode: Text.WordWrap
             }
             RowLayout {
-                Label { text: qsTr("总周数") }
+                Label {
+                    text: qsTr("学期总周数")
+                    color: AppTheme.textPrimaryColor
+                    font.bold: true
+                }
                 SpinBox {
                     id: termWeeksField
                     from: 1
@@ -420,8 +452,8 @@ Item {
             }
             RowLayout {
                 Layout.alignment: Qt.AlignRight
-                Button { text: qsTr("取消"); onClicked: termDialog.close() }
-                Button {
+                AppButton { text: qsTr("取消"); onClicked: termDialog.close() }
+                AppButton {
                     text: qsTr("保存")
                     highlighted: true
                     onClicked: {
@@ -444,30 +476,78 @@ Item {
         parent: Overlay.overlay
         anchors.centerIn: parent
         modal: true
+        width: Math.min(root.width - AppTheme.spacingLarge * 2, 560)
+        height: Math.min(root.height - AppTheme.spacingLarge * 2, 620)
         title: courseId.length > 0 ? qsTr("编辑课程") : qsTr("新增课程")
         standardButtons: Dialog.NoButton
 
-        ColumnLayout {
-            spacing: AppTheme.spacingSmall
-            TextField { id: courseNameField; Layout.fillWidth: true; placeholderText: qsTr("课程名称") }
-            TextField { id: courseTeacherField; Layout.fillWidth: true; placeholderText: qsTr("教师（可选）") }
-            TextField { id: courseLocationField; Layout.fillWidth: true; placeholderText: qsTr("教室（可选）") }
-            TextField { id: courseColorField; Layout.fillWidth: true; placeholderText: qsTr("颜色，例如 #3B82F6") }
-            RowLayout {
-                Layout.alignment: Qt.AlignRight
-                Button { text: qsTr("取消"); onClicked: courseDialog.close() }
-                Button {
-                    text: qsTr("保存")
-                    highlighted: true
-                    onClicked: {
-                        if (root.viewModel.saveCourseDetails(
-                                courseDialog.courseId,
-                                root.viewModel.selectedTermId,
-                                courseNameField.text,
-                                courseTeacherField.text,
-                                courseLocationField.text,
-                                courseColorField.text))
+        ScrollView {
+            anchors.fill: parent
+            contentWidth: availableWidth
+
+            ColumnLayout {
+                width: parent.width
+                spacing: AppTheme.spacingSmall
+                TextField { id: courseNameField; Layout.fillWidth: true; placeholderText: qsTr("课程名称") }
+                TextField { id: courseTeacherField; Layout.fillWidth: true; placeholderText: qsTr("教师（可选）") }
+                TextField { id: courseLocationField; Layout.fillWidth: true; placeholderText: qsTr("教室（可选）") }
+                TextField { id: courseColorField; Layout.fillWidth: true; placeholderText: qsTr("颜色，例如 #3B82F6") }
+
+                Label {
+                    text: qsTr("期末考核标准")
+                    color: AppTheme.textPrimaryColor
+                    font.bold: true
+                }
+                TextArea {
+                    id: courseAssessmentField
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 110
+                    placeholderText: qsTr("例如：平时成绩 30%，期末考试 70%")
+                    wrapMode: TextEdit.Wrap
+                }
+
+                Label {
+                    text: qsTr("课程教学安排")
+                    color: AppTheme.textPrimaryColor
+                    font.bold: true
+                }
+                TextArea {
+                    id: courseTeachingPlanField
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 150
+                    placeholderText: qsTr("记录章节进度、实验安排、作业节点等")
+                    wrapMode: TextEdit.Wrap
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    AppButton {
+                        visible: courseDialog.courseId.length > 0
+                        text: qsTr("删除课程")
+                        onClicked: {
+                            deleteCourseDialog.courseId = courseDialog.courseId
+                            deleteCourseDialog.courseName = courseNameField.text
                             courseDialog.close()
+                            deleteCourseDialog.open()
+                        }
+                    }
+                    Item { Layout.fillWidth: true }
+                    AppButton { text: qsTr("取消"); onClicked: courseDialog.close() }
+                    AppButton {
+                        text: qsTr("保存")
+                        highlighted: true
+                        onClicked: {
+                            if (root.viewModel.saveCourseDetails(
+                                    courseDialog.courseId,
+                                    root.viewModel.selectedTermId,
+                                    courseNameField.text,
+                                    courseTeacherField.text,
+                                    courseLocationField.text,
+                                    courseColorField.text,
+                                    courseAssessmentField.text,
+                                    courseTeachingPlanField.text))
+                                courseDialog.close()
+                        }
                     }
                 }
             }
@@ -475,59 +555,43 @@ Item {
     }
 
     Dialog {
-        id: meetingDialog
-        property string meetingId: ""
+        id: deleteCourseDialog
+        property string courseId: ""
+        property string courseName: ""
         parent: Overlay.overlay
         anchors.centerIn: parent
         modal: true
-        title: meetingId.length > 0 ? qsTr("编辑上课安排") : qsTr("新增上课安排")
+        width: Math.min(
+            parent.width - AppTheme.spacingSmall * 2, 460)
+        title: qsTr("确认删除课程")
         standardButtons: Dialog.NoButton
 
-        GridLayout {
-            columns: 2
-            rowSpacing: AppTheme.spacingSmall
-            columnSpacing: AppTheme.spacingSmall
-
-            Label { text: qsTr("星期") }
-            ComboBox {
-                id: weekdayBox
-                model: [qsTr("周一"), qsTr("周二"), qsTr("周三"),
-                        qsTr("周四"), qsTr("周五"), qsTr("周六"), qsTr("周日")]
-            }
-            Label { text: qsTr("起始节次") }
-            SpinBox { id: startPeriodField; from: 1; to: 20; value: 1 }
-            Label { text: qsTr("结束节次") }
-            SpinBox { id: endPeriodField; from: 1; to: 20; value: 2 }
-            Label { text: qsTr("起始周") }
-            SpinBox { id: startWeekField; from: 1; to: 30; value: 1 }
-            Label { text: qsTr("结束周") }
-            SpinBox { id: endWeekField; from: 1; to: 30; value: 18 }
-            Label { text: qsTr("重复规则") }
-            ComboBox {
-                id: weekPatternBox
-                model: [qsTr("每周"), qsTr("单周"), qsTr("双周")]
+        ColumnLayout {
+            spacing: AppTheme.spacingMedium
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("删除“%1”后，它的全部上课安排也会一起删除。此操作无法撤销。")
+                    .arg(deleteCourseDialog.courseName)
+                color: AppTheme.textPrimaryColor
+                wrapMode: Text.WordWrap
             }
             RowLayout {
-                Layout.columnSpan: 2
                 Layout.alignment: Qt.AlignRight
-                Button { text: qsTr("取消"); onClicked: meetingDialog.close() }
-                Button {
-                    text: qsTr("保存")
+                AppButton {
+                    text: qsTr("取消")
+                    onClicked: deleteCourseDialog.close()
+                }
+                AppButton {
+                    text: qsTr("确认删除")
                     highlighted: true
                     onClicked: {
-                        if (root.viewModel.saveMeetingDetails(
-                                meetingDialog.meetingId,
-                                root.viewModel.selectedCourseId,
-                                weekdayBox.currentIndex + 1,
-                                startPeriodField.value,
-                                endPeriodField.value,
-                                startWeekField.value,
-                                endWeekField.value,
-                                weekPatternBox.currentIndex))
-                            meetingDialog.close()
+                        if (root.viewModel.deleteCourse(
+                                deleteCourseDialog.courseId))
+                            deleteCourseDialog.close()
                     }
                 }
             }
         }
     }
+
 }

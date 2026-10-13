@@ -15,6 +15,7 @@ public:
     virtual ~ICourseRepository() = default;
 
     [[nodiscard]] virtual bool save(const Course &course) = 0;
+    [[nodiscard]] virtual bool remove(const QUuid &id) = 0;
     [[nodiscard]] virtual std::optional<Course> findById(
         const QUuid &id) const = 0;
     [[nodiscard]] virtual std::optional<std::vector<Course>> findByTermId(

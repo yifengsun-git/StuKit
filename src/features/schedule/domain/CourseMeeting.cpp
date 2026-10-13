@@ -1,18 +1,20 @@
 #include "CourseMeeting.h"
 
+#include <algorithm>
 #include <utility>
 
 namespace stukit::schedule {
 namespace {
 
-bool hasActiveWeek(const CourseMeetingData &data)
+std::vector<int> expandedWeeks(const CourseMeetingData &data)
 {
+    std::vector<int> weeks;
     for (int week = data.startWeek; week <= data.endWeek; ++week) {
         if (matchesWeek(data.weekPattern, week)) {
-            return true;
+            weeks.push_back(week);
         }
     }
-    return false;
+    return weeks;
 }
 
 } // namespace
@@ -28,10 +30,26 @@ std::optional<CourseMeeting> CourseMeeting::create(CourseMeetingData data)
         || data.startWeek < MinimumWeek
         || data.endWeek > MaximumWeek
         || data.startWeek > data.endWeek
-        || !isValidWeekPattern(data.weekPattern)
-        || !hasActiveWeek(data)) {
+        || !isValidWeekPattern(data.weekPattern)) {
         return std::nullopt;
     }
+
+    if (data.activeWeeks.empty()) {
+        data.activeWeeks = expandedWeeks(data);
+    } else {
+        std::ranges::sort(data.activeWeeks);
+        const auto uniqueEnd = std::ranges::unique(data.activeWeeks).begin();
+        data.activeWeeks.erase(uniqueEnd, data.activeWeeks.end());
+    }
+    if (data.activeWeeks.empty()) {
+        return std::nullopt;
+    }
+    if (data.activeWeeks.front() < MinimumWeek
+        || data.activeWeeks.back() > MaximumWeek) {
+        return std::nullopt;
+    }
+    data.startWeek = data.activeWeeks.front();
+    data.endWeek = data.activeWeeks.back();
 
     return CourseMeeting(std::move(data));
 }
@@ -81,11 +99,14 @@ WeekPattern CourseMeeting::weekPattern() const noexcept
     return m_data.weekPattern;
 }
 
+const std::vector<int> &CourseMeeting::activeWeeks() const noexcept
+{
+    return m_data.activeWeeks;
+}
+
 bool CourseMeeting::occursInWeek(int week) const noexcept
 {
-    return week >= m_data.startWeek
-        && week <= m_data.endWeek
-        && matchesWeek(m_data.weekPattern, week);
+    return std::ranges::binary_search(m_data.activeWeeks, week);
 }
 
 } // namespace stukit::schedule

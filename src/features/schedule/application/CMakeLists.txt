@@ -1,4 +1,6 @@
 add_library(StuKitScheduleApplication STATIC
+    DeleteScheduleItem.cpp
+    DeleteScheduleItem.h
     DetectScheduleConflicts.cpp
     DetectScheduleConflicts.h
     GetAcademicTerms.cpp
@@ -7,6 +9,8 @@ add_library(StuKitScheduleApplication STATIC
     GetScheduleSetup.h
     GetWeeklySchedule.cpp
     GetWeeklySchedule.h
+    IPeriodDefinitionService.h
+    IScheduleImportService.h
     SaveAcademicTerm.cpp
     SaveAcademicTerm.h
     SaveCourse.cpp

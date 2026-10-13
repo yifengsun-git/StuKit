@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-find_package(Qt6 6.8 REQUIRED COMPONENTS Quick Sql Charts Widgets)
+find_package(Qt6 6.8 REQUIRED COMPONENTS Quick Sql Charts Widgets Network)
 qt_standard_project_setup(REQUIRES 6.8)
 
 include(CTest)
@@ -15,6 +15,9 @@ add_subdirectory(src/features/schedule/domain)
 add_subdirectory(src/features/schedule/application)
 add_subdirectory(src/features/schedule/infrastructure)
 add_subdirectory(src/features/schedule/presentation)
+add_subdirectory(src/features/weather/domain)
+add_subdirectory(src/features/weather/application)
+add_subdirectory(src/features/weather/infrastructure)
 add_subdirectory(src/features/accounting/domain)
 add_subdirectory(src/features/accounting/application)
 add_subdirectory(src/features/accounting/infrastructure)
@@ -38,8 +41,13 @@ set(STUKIT_QML_FILES
     src/features/analytics/qml/components/RankingBars.qml
     src/features/accounting/qml/AccountingHomePage.qml
     src/features/schedule/qml/ScheduleHomePage.qml
+    src/features/schedule/qml/components/CourseMeetingCard.qml
+    src/features/schedule/qml/components/DayScheduleList.qml
+    src/features/schedule/qml/components/ScheduleGridEditor.qml
     src/features/schedule/qml/components/ScheduleManagementPanel.qml
+    src/features/schedule/qml/components/WeeklyGrid.qml
     src/shared/qml/theme/AppTheme.qml
+    src/shared/qml/components/AppButton.qml
     src/shared/qml/components/FeaturePlaceholder.qml
 )
 
@@ -104,10 +112,35 @@ set_source_files_properties(
 )
 
 set_source_files_properties(
+    src/features/schedule/qml/components/CourseMeetingCard.qml
+    PROPERTIES QT_RESOURCE_ALIAS CourseMeetingCard.qml
+)
+
+set_source_files_properties(
+    src/features/schedule/qml/components/DayScheduleList.qml
+    PROPERTIES QT_RESOURCE_ALIAS DayScheduleList.qml
+)
+
+set_source_files_properties(
+    src/features/schedule/qml/components/ScheduleGridEditor.qml
+    PROPERTIES QT_RESOURCE_ALIAS ScheduleGridEditor.qml
+)
+
+set_source_files_properties(
+    src/features/schedule/qml/components/WeeklyGrid.qml
+    PROPERTIES QT_RESOURCE_ALIAS WeeklyGrid.qml
+)
+
+set_source_files_properties(
     src/shared/qml/theme/AppTheme.qml
     PROPERTIES
         QT_QML_SINGLETON_TYPE TRUE
         QT_RESOURCE_ALIAS AppTheme.qml
+)
+
+set_source_files_properties(
+    src/shared/qml/components/AppButton.qml
+    PROPERTIES QT_RESOURCE_ALIAS AppButton.qml
 )
 
 set_source_files_properties(

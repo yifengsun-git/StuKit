@@ -5,7 +5,7 @@
 本文说明 StuKit 中各个 C++ 头文件和源文件的职责、依赖关系以及不能承担的职责。
 它适合在阅读代码、排查编译错误或添加新功能前快速查阅。
 
-当前内容对应第三十九课完成后的代码，包括四版 SQLite 迁移、三个记账 Repository
+当前内容对应第四十一课完成后的代码，包括四版 SQLite 迁移、三个记账 Repository
 接口、创建与查询用例、记账 Presentation，以及从 QML 创建账户、分类和账单并
 持久化到真实 SQLite 的端到端链路、账户余额、月度流水筛选、安全备份恢复和
 全部流水 CSV 导出，以及可自定义时间、账户和分类范围的记账分析聚合、ViewModel
@@ -666,7 +666,14 @@ Infrastructure。
 `academic_terms`、`courses`、`course_meetings`，以及三个课表索引和两层外键。
 星期、节次、周次、单双周、颜色和归档状态都有数据库约束。
 
-每版迁移都在独立事务中完成；全新数据库会依次执行迁移 1～4，旧数据库只执行缺失
+迁移 5 为课程增加考核标准与教学安排。迁移 6 增加
+`course_meeting_weeks`，把原来的起止周与单双周规则展开成明确周次；同时通过外键级联
+和课程删除触发器保证删除安排或课程时不会遗留孤立周次。
+
+迁移 7 创建 `schedule_period_definitions` 并写入 12 节默认作息。名称和 `HH:mm`
+起止时间有数据库约束；节次编号作为稳定主键，用户修改时使用 UPSERT 更新。
+
+每版迁移都在独立事务中完成；全新数据库会依次执行迁移 1～7，旧数据库只执行缺失
 版本。版本高于 `CurrentSchemaVersion` 时会拒绝打开，避免旧程序误读未来结构。
 
 迁移具有幂等性：同一个数据库多次调用 `migrate()` 不会重复创建表。
@@ -677,7 +684,9 @@ Infrastructure。
 
 - 使用 `VACUUM INTO` 从活动连接创建一致快照。
 - 验证 SQLite 完整性、连续迁移历史、关键表和受支持版本。
-- 版本 4 备份必须包含三张课表表，版本 1～3 旧备份仍可恢复后升级。
+- 版本 4～5 备份必须包含三张课表表，版本 6 还必须包含明确周次表，版本 7 还必须
+  包含节次定义表；旧备份仍可恢复
+  后按顺序升级。
 - 拒绝活动数据库与目标文件为同一路径。
 - 先验证临时快照，再通过 `QSaveFile` 原子提交。
 - 只在数据库连接已经由组合根释放后替换正式数据库文件。
@@ -782,16 +791,17 @@ Presentation 把 Application 结果转换为 QML 容易消费的属性、信号�
 
 ### `schedule/WeeklyScheduleListModel.h/.cpp`
 
-把 `WeeklyScheduleItem` 暴露为课程、教师、教室、颜色、星期和节次角色，并提供“周三”
-和“第 3～4 节”等中文可读文本。模型只保存 Application DTO，不查询 Repository，
-也不重新计算单双周。
+把 `WeeklyScheduleItem` 暴露为课程、教师、教室、颜色、星期、节次、起止周和单双周
+角色，并提供“周三”“第 3～4 节”和“第 1～18 周 · 每周”等可读文本。
+`weekdayCounts` 提供周一至周日各自的课程数量，供窄屏每日空状态使用。模型既用于
+当前周结果，也用于整个学期的排课模板，但自身不查询 Repository。
 
 ### `schedule/ScheduleViewModel.h/.cpp`
 
 管理课表首页需要的学期与教学周状态：自动选择包含今天的活动学期、计算当前教学周、
-切换上下周、返回当前周、生成周日期范围并加载课程模型。它把 Application 错误映射
-成用户提示，并在查询失败时清理旧课程。构造函数显式注入“今天”，让日期逻辑可重复
-测试且不绑定设备系统时钟。
+切换上下周、返回当前周、生成周日期范围与七天日期数据并加载课程模型。它把
+Application 错误映射成用户提示，并在查询失败时清理旧课程。构造函数显式注入
+“今天”，让日期逻辑可重复测试且不绑定设备系统时钟。
 
 ### `schedule/ScheduleManagementModels.h/.cpp`
 
@@ -803,6 +813,10 @@ Presentation 把 Application 结果转换为 QML 容易消费的属性、信号�
 管理学期和课程选择，并把 QML 表单输入交给 `SaveAcademicTerm`、`SaveCourse` 和
 `SaveCourseMeeting`。成功后重新加载完整快照并通知周课表刷新；失败时映射稳定错误。
 冲突以结构化 `QVariantList` 暴露，包含课程名、节次和首次冲突周，不会被误当成已保存。
+`termSchedule` 将当前学期全部 Course 与 CourseMeeting 组合为网格模型，不按当前教学
+周过滤；这保证单周课程在双周仍然可以进入编辑。
+它还通过 `IPeriodDefinitionService` 暴露并保存节次名称与起止时间；QML 消费整理好的
+`periodDefinitions`，不直接执行设置 SQL。
 
 ### `MoneyFormatter.h/.cpp`
 
@@ -1011,6 +1025,7 @@ tests/unit/schedule/
 | `GetWeeklyScheduleTest.cpp` | 指定周过滤、可读 DTO、稳定排序、损坏关联和固定查询次数。 |
 | `GetAcademicTermsTest.cpp` | 成功空列表、活动/归档学期顺序和 Repository 失败。 |
 | `SchedulePresentationTest.cpp` | 周课表和管理模型、周导航、三级创建、归档限制、冲突及失败恢复。 |
+| `ScheduleQmlIntegrationTest.cpp` | 640/960/1280 响应式布局、空周、跨节次课程、周切换和 ViewModel 重绑定。 |
 
 测试代码不是产品功能，但它定义了当前代码必须持续满足的行为。修改业务代码后，
 应运行全部测试，而不是只运行本次新增的测试。
@@ -1299,7 +1314,11 @@ Application/Domain/Presentation，但不链接 SQLite Infrastructure。
 68. `ScheduleManagementViewModel.h/.cpp`：理解三级选择、保存、错误和冲突明细。
 69. `ScheduleModule.h/.cpp`：理解课表依赖组装和共享数据库生命周期。
 70. `ScheduleModuleTest.cpp`：理解真实 SQLite、应用重启和备份恢复如何共同验收。
-71. `ScheduleHomePage.qml` 与 `ScheduleManagementPanel.qml`：理解浏览和管理职责拆分。
+71. `ScheduleHomePage.qml` 与 `ScheduleManagementPanel.qml`：理解浏览和资料管理职责拆分。
+72. `WeeklyGrid.qml`：理解模型中的星期和节次如何映射为稳定网格坐标。
+73. `DayScheduleList.qml` 与 `CourseMeetingCard.qml`：理解窄屏复用与触摸友好组件。
+74. `ScheduleGridEditor.qml`：理解整学期模板、网格点击和批量周次表单。
+75. `ScheduleQmlIntegrationTest.cpp`：观察正式页面如何在无用户数据库环境下验收。
 
 ## 13. 修改代码时如何判断文件归属
 
@@ -1317,5 +1336,6 @@ Application/Domain/Presentation，但不链接 SQLite Infrastructure。
 
 每完成一课并新增 C++ 文件，都应在本文补充它的职责、依赖和禁止承担的职责。
 记账和分析 MVP 已完成；课表 Domain、冲突检测、版本 4 迁移、三个 SQLite Repository、
-课表 Application、Presentation、真实组合根和学期/课程/安排管理 UI 也已建立。
-下一课实现响应式周课表主界面；Application 继续作为业务规则的唯一来源。
+课表 Application、Presentation、真实组合根、管理 UI、响应式周视图和双模式排课
+编辑器也已建立。下一课实现任意周次集合与安全删除；Application 继续作为业务规则
+的唯一来源。

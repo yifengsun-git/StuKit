@@ -23,13 +23,17 @@ bool SqliteCourseRepository::save(const Course &course)
 
     QSqlQuery query(m_database);
     query.prepare(QStringLiteral(
-        "INSERT INTO courses(id, term_id, name, teacher, location, color) "
-        "VALUES(:id, :termId, :name, :teacher, :location, :color) "
+        "INSERT INTO courses(id, term_id, name, teacher, location, "
+        "assessment_standard, teaching_plan, color) "
+        "VALUES(:id, :termId, :name, :teacher, :location, "
+        ":assessmentStandard, :teachingPlan, :color) "
         "ON CONFLICT(id) DO UPDATE SET "
         "term_id = excluded.term_id, "
         "name = excluded.name, "
         "teacher = excluded.teacher, "
         "location = excluded.location, "
+        "assessment_standard = excluded.assessment_standard, "
+        "teaching_plan = excluded.teaching_plan, "
         "color = excluded.color"));
     query.bindValue(
         QStringLiteral(":id"), course.id().toString(QUuid::WithoutBraces));
@@ -43,10 +47,46 @@ bool SqliteCourseRepository::save(const Course &course)
     query.bindValue(
         QStringLiteral(":location"),
         course.location().isNull() ? QStringLiteral("") : course.location());
+    query.bindValue(
+        QStringLiteral(":assessmentStandard"),
+        course.assessmentStandard().isNull()
+            ? QStringLiteral("") : course.assessmentStandard());
+    query.bindValue(
+        QStringLiteral(":teachingPlan"),
+        course.teachingPlan().isNull()
+            ? QStringLiteral("") : course.teachingPlan());
     query.bindValue(QStringLiteral(":color"), course.color());
 
     if (!query.exec()) {
         m_lastError = query.lastError().text();
+        return false;
+    }
+    return true;
+}
+
+bool SqliteCourseRepository::remove(const QUuid &id)
+{
+    m_lastError.clear();
+    if (!m_database.isOpen() || id.isNull()) {
+        m_lastError = QStringLiteral("Database is not open or id is invalid");
+        return false;
+    }
+    if (!m_database.transaction()) {
+        m_lastError = m_database.lastError().text();
+        return false;
+    }
+
+    QSqlQuery query(m_database);
+    query.prepare(QStringLiteral("DELETE FROM courses WHERE id = :id"));
+    query.bindValue(QStringLiteral(":id"), id.toString(QUuid::WithoutBraces));
+    if (!query.exec() || query.numRowsAffected() != 1) {
+        m_lastError = query.lastError().text();
+        m_database.rollback();
+        return false;
+    }
+    if (!m_database.commit()) {
+        m_lastError = m_database.lastError().text();
+        m_database.rollback();
         return false;
     }
     return true;
@@ -63,7 +103,8 @@ std::optional<Course> SqliteCourseRepository::findById(
 
     QSqlQuery query(m_database);
     query.prepare(QStringLiteral(
-        "SELECT id, term_id, name, teacher, location, color "
+        "SELECT id, term_id, name, teacher, location, assessment_standard, "
+        "teaching_plan, color "
         "FROM courses WHERE id = :id"));
     query.bindValue(
         QStringLiteral(":id"), id.toString(QUuid::WithoutBraces));
@@ -88,7 +129,8 @@ std::optional<std::vector<Course>> SqliteCourseRepository::findByTermId(
 
     QSqlQuery query(m_database);
     query.prepare(QStringLiteral(
-        "SELECT id, term_id, name, teacher, location, color "
+        "SELECT id, term_id, name, teacher, location, assessment_standard, "
+        "teaching_plan, color "
         "FROM courses WHERE term_id = :termId "
         "ORDER BY name COLLATE NOCASE, id"));
     query.bindValue(
@@ -110,7 +152,8 @@ std::optional<std::vector<Course>> SqliteCourseRepository::findAll() const
 
     QSqlQuery query(m_database);
     if (!query.exec(QStringLiteral(
-            "SELECT id, term_id, name, teacher, location, color "
+            "SELECT id, term_id, name, teacher, location, assessment_standard, "
+            "teaching_plan, color "
             "FROM courses "
             "ORDER BY term_id, name COLLATE NOCASE, id"))) {
         m_lastError = query.lastError().text();
@@ -133,6 +176,9 @@ std::optional<Course> SqliteCourseRepository::courseFromCurrentRow(
         .name = query.value(QStringLiteral("name")).toString(),
         .teacher = query.value(QStringLiteral("teacher")).toString(),
         .location = query.value(QStringLiteral("location")).toString(),
+        .assessmentStandard = query.value(
+            QStringLiteral("assessment_standard")).toString(),
+        .teachingPlan = query.value(QStringLiteral("teaching_plan")).toString(),
         .color = query.value(QStringLiteral("color")).toString(),
     });
     if (!course.has_value()) {

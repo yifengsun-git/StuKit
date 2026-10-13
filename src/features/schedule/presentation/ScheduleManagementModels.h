@@ -49,6 +49,8 @@ public:
         NameRole,
         TeacherRole,
         LocationRole,
+        AssessmentStandardRole,
+        TeachingPlanRole,
         ColorRole
     };
     Q_ENUM(Role)

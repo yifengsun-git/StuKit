@@ -22,6 +22,8 @@ SaveCourseResult SaveCourse::execute(const SaveCourseRequest &request) const
         .name = request.name,
         .teacher = request.teacher,
         .location = request.location,
+        .assessmentStandard = request.assessmentStandard,
+        .teachingPlan = request.teachingPlan,
         .color = request.color,
     });
     if (!course.has_value()) {

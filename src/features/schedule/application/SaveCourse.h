@@ -17,6 +17,8 @@ struct SaveCourseRequest
     QString name;
     QString teacher;
     QString location;
+    QString assessmentStandard;
+    QString teachingPlan;
     QString color;
 };
 

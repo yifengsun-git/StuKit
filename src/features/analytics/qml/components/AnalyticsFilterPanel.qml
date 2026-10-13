@@ -47,7 +47,7 @@ Rectangle {
                 }
             }
 
-            Button {
+            AppButton {
                 objectName: "analyticsFilterToggle"
                 Layout.minimumHeight: AppTheme.controlHeight
                 text: root.expanded ? qsTr("收起") : qsTr("展开")
@@ -65,7 +65,7 @@ Rectangle {
                 Layout.fillWidth: true
                 spacing: AppTheme.spacingSmall
 
-                Button {
+                AppButton {
                     height: AppTheme.controlHeight
                     text: qsTr("上一月")
                     onClicked: root.viewModel.showPreviousMonth()
@@ -81,7 +81,7 @@ Rectangle {
                     horizontalAlignment: Text.AlignHCenter
                 }
 
-                Button {
+                AppButton {
                     height: AppTheme.controlHeight
                     text: qsTr("下一月")
                     onClicked: root.viewModel.showNextMonth()
@@ -115,7 +115,7 @@ Rectangle {
                     onActivated: root.viewModel.monthCount = currentValue
                 }
 
-                Button {
+                AppButton {
                     height: AppTheme.controlHeight
                     text: qsTr("恢复默认")
                     onClicked: root.viewModel.resetFilters()
@@ -138,14 +138,14 @@ Rectangle {
                     font.bold: true
                 }
 
-                Button {
+                AppButton {
                     Layout.minimumHeight: AppTheme.controlHeight
                     text: qsTr("全选")
                     flat: true
                     onClicked: root.viewModel.selectAllAccounts()
                 }
 
-                Button {
+                AppButton {
                     Layout.minimumHeight: AppTheme.controlHeight
                     text: qsTr("不限")
                     flat: true
@@ -183,14 +183,14 @@ Rectangle {
                     font.bold: true
                 }
 
-                Button {
+                AppButton {
                     Layout.minimumHeight: AppTheme.controlHeight
                     text: qsTr("全选")
                     flat: true
                     onClicked: root.viewModel.selectAllCategories()
                 }
 
-                Button {
+                AppButton {
                     Layout.minimumHeight: AppTheme.controlHeight
                     text: qsTr("不限")
                     flat: true

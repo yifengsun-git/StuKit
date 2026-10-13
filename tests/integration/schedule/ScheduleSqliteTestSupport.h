@@ -37,7 +37,9 @@ inline Course makeCourse(
     const QString &name = QStringLiteral("高等数学"),
     const QString &teacher = QStringLiteral("王老师"),
     const QString &location = QStringLiteral("A101"),
-    const QString &color = QStringLiteral("#3B82F6"))
+    const QString &color = QStringLiteral("#3B82F6"),
+    const QString &assessmentStandard = {},
+    const QString &teachingPlan = {})
 {
     return Course::create(CourseData{
         .id = id,
@@ -45,6 +47,8 @@ inline Course makeCourse(
         .name = name,
         .teacher = teacher,
         .location = location,
+        .assessmentStandard = assessmentStandard,
+        .teachingPlan = teachingPlan,
         .color = color,
     }).value();
 }

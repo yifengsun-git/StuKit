@@ -41,6 +41,20 @@ public:
         return true;
     }
 
+    bool remove(const QUuid &id) override
+    {
+        if (!m_saveShouldSucceed) {
+            return false;
+        }
+        const auto oldSize = m_courses.size();
+        std::erase_if(
+            m_courses,
+            [&id](const Course &course) {
+                return course.id() == id;
+            });
+        return m_courses.size() + 1 == oldSize;
+    }
+
     std::optional<Course> findById(const QUuid &id) const override
     {
         if (!m_queryShouldSucceed) {

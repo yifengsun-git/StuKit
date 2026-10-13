@@ -26,6 +26,7 @@ private slots:
     void savesAndFindsAllFields();
     void returnsNulloptAndEmptyListForMissingData();
     void updatesMeetingWithSameId();
+    void persistsCustomWeeksAndRemovesMeeting();
     void filtersByCourseAndSortsByTime();
     void rejectsUnknownCourse();
     void persistsAcrossRepositoryInstances();
@@ -129,6 +130,33 @@ void SqliteCourseMeetingRepositoryTest::updatesMeetingWithSameId()
     QCOMPARE(meetings->front().weekday(), Weekday::Friday);
     QCOMPARE(meetings->front().startPeriod(), 5);
     QCOMPARE(meetings->front().weekPattern(), WeekPattern::OddWeeks);
+}
+
+void SqliteCourseMeetingRepositoryTest::persistsCustomWeeksAndRemovesMeeting()
+{
+    const QUuid id = QUuid::createUuid();
+    const auto meeting = CourseMeeting::create(CourseMeetingData{
+        .id = id,
+        .courseId = m_courseId,
+        .weekday = Weekday::Thursday,
+        .startPeriod = 7,
+        .endPeriod = 8,
+        .startWeek = 1,
+        .endWeek = 14,
+        .weekPattern = WeekPattern::EveryWeek,
+        .activeWeeks = {1, 2, 5, 9, 14},
+    });
+    QVERIFY(meeting.has_value());
+    QVERIFY(m_meetings->save(*meeting));
+
+    const auto stored = m_meetings->findById(id);
+    QVERIFY2(stored.has_value(), qPrintable(m_meetings->lastError()));
+    QCOMPARE(stored->activeWeeks(), std::vector<int>({1, 2, 5, 9, 14}));
+    QVERIFY(stored->occursInWeek(5));
+    QVERIFY(!stored->occursInWeek(6));
+
+    QVERIFY(m_meetings->remove(id));
+    QVERIFY(!m_meetings->findById(id).has_value());
 }
 
 void SqliteCourseMeetingRepositoryTest::filtersByCourseAndSortsByTime()

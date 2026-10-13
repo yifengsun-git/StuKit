@@ -11,6 +11,7 @@ set(STUKIT_ANALYTICS_TEST_QML_FILES
     ${CMAKE_SOURCE_DIR}/src/features/analytics/qml/components/LineSeriesChart.qml
     ${CMAKE_SOURCE_DIR}/src/features/analytics/qml/components/RankingBars.qml
     ${CMAKE_SOURCE_DIR}/src/shared/qml/theme/AppTheme.qml
+    ${CMAKE_SOURCE_DIR}/src/shared/qml/components/AppButton.qml
 )
 
 set_source_files_properties(
@@ -40,6 +41,10 @@ set_source_files_properties(
 set_source_files_properties(
     ${CMAKE_SOURCE_DIR}/src/features/analytics/qml/components/RankingBars.qml
     PROPERTIES QT_RESOURCE_ALIAS RankingBars.qml
+)
+set_source_files_properties(
+    ${CMAKE_SOURCE_DIR}/src/shared/qml/components/AppButton.qml
+    PROPERTIES QT_RESOURCE_ALIAS AppButton.qml
 )
 set_source_files_properties(
     ${CMAKE_SOURCE_DIR}/src/shared/qml/theme/AppTheme.qml
@@ -79,3 +84,5 @@ add_test(
 set_tests_properties(app.analytics_qml PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_QPA_FONTDIR=C:/Windows/Fonts"
 )
+
+add_subdirectory(schedule)

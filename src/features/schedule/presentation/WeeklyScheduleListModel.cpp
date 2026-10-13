@@ -1,5 +1,7 @@
 #include "WeeklyScheduleListModel.h"
 
+#include <QStringList>
+
 #include <utility>
 
 namespace stukit::schedule::presentation {
@@ -48,6 +50,25 @@ QVariant WeeklyScheduleListModel::data(
         return item.endPeriod;
     case PeriodTextRole:
         return periodText(item.startPeriod, item.endPeriod);
+    case StartWeekRole:
+        return item.startWeek;
+    case EndWeekRole:
+        return item.endWeek;
+    case WeekPatternRole:
+        return static_cast<int>(item.weekPattern);
+    case ActiveWeeksRole: {
+        QVariantList weeks;
+        for (const int week : item.activeWeeks) {
+            weeks.push_back(week);
+        }
+        return weeks;
+    }
+    case WeekRangeTextRole:
+        return weekRangeText(
+            item.startWeek,
+            item.endWeek,
+            item.weekPattern,
+            item.activeWeeks);
     default:
         return {};
     }
@@ -67,7 +88,24 @@ QHash<int, QByteArray> WeeklyScheduleListModel::roleNames() const
         {StartPeriodRole, QByteArrayLiteral("startPeriod")},
         {EndPeriodRole, QByteArrayLiteral("endPeriod")},
         {PeriodTextRole, QByteArrayLiteral("periodText")},
+        {StartWeekRole, QByteArrayLiteral("startWeek")},
+        {EndWeekRole, QByteArrayLiteral("endWeek")},
+        {WeekPatternRole, QByteArrayLiteral("weekPattern")},
+        {ActiveWeeksRole, QByteArrayLiteral("activeWeeks")},
+        {WeekRangeTextRole, QByteArrayLiteral("weekRangeText")},
     };
+}
+
+QVariantList WeeklyScheduleListModel::weekdayCounts() const
+{
+    QVariantList counts{0, 0, 0, 0, 0, 0, 0};
+    for (const WeeklyScheduleItem &item : m_items) {
+        const int index = static_cast<int>(item.weekday) - 1;
+        if (index >= 0 && index < counts.size()) {
+            counts[index] = counts.at(index).toInt() + 1;
+        }
+    }
+    return counts;
 }
 
 void WeeklyScheduleListModel::replaceItems(
@@ -76,6 +114,7 @@ void WeeklyScheduleListModel::replaceItems(
     beginResetModel();
     m_items = std::move(items);
     endResetModel();
+    emit weekdayCountsChanged();
 }
 
 void WeeklyScheduleListModel::clear()
@@ -87,6 +126,7 @@ void WeeklyScheduleListModel::clear()
     beginResetModel();
     m_items.clear();
     endResetModel();
+    emit weekdayCountsChanged();
 }
 
 QString WeeklyScheduleListModel::weekdayText(Weekday weekday)
@@ -119,6 +159,45 @@ QString WeeklyScheduleListModel::periodText(
     return QStringLiteral("第 %1～%2 节")
         .arg(startPeriod)
         .arg(endPeriod);
+}
+
+QString WeeklyScheduleListModel::weekRangeText(
+    int startWeek,
+    int endWeek,
+    WeekPattern pattern,
+    const std::vector<int> &activeWeeks)
+{
+    std::vector<int> ruleWeeks;
+    for (int week = startWeek; week <= endWeek; ++week) {
+        if (matchesWeek(pattern, week)) {
+            ruleWeeks.push_back(week);
+        }
+    }
+    if (!activeWeeks.empty() && activeWeeks != ruleWeeks) {
+        QStringList weekTexts;
+        for (const int week : activeWeeks) {
+            weekTexts.push_back(QString::number(week));
+        }
+        return QStringLiteral("第 %1 周")
+            .arg(weekTexts.join(QStringLiteral("、")));
+    }
+
+    QString patternText;
+    switch (pattern) {
+    case WeekPattern::EveryWeek:
+        patternText = QStringLiteral("每周");
+        break;
+    case WeekPattern::OddWeeks:
+        patternText = QStringLiteral("单周");
+        break;
+    case WeekPattern::EvenWeeks:
+        patternText = QStringLiteral("双周");
+        break;
+    }
+    return QStringLiteral("第 %1～%2 周 · %3")
+        .arg(startWeek)
+        .arg(endWeek)
+        .arg(patternText);
 }
 
 } // namespace stukit::schedule::presentation

@@ -21,6 +21,7 @@ struct DetectScheduleConflictsRequest
     int startWeek{0};
     int endWeek{0};
     WeekPattern weekPattern{WeekPattern::EveryWeek};
+    std::vector<int> activeWeeks;
 };
 
 struct ScheduleConflict

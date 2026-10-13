@@ -6,6 +6,7 @@
 #include <QUuid>
 
 #include <optional>
+#include <vector>
 
 namespace stukit::schedule {
 
@@ -19,6 +20,7 @@ struct CourseMeetingData
     int startWeek{0};
     int endWeek{0};
     WeekPattern weekPattern{WeekPattern::EveryWeek};
+    std::vector<int> activeWeeks;
 };
 
 class CourseMeeting final
@@ -39,6 +41,7 @@ public:
     [[nodiscard]] int startWeek() const noexcept;
     [[nodiscard]] int endWeek() const noexcept;
     [[nodiscard]] WeekPattern weekPattern() const noexcept;
+    [[nodiscard]] const std::vector<int> &activeWeeks() const noexcept;
     [[nodiscard]] bool occursInWeek(int week) const noexcept;
 
 private:

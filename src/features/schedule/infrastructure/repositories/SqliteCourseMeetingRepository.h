@@ -15,6 +15,8 @@ public:
     explicit SqliteCourseMeetingRepository(QSqlDatabase database);
 
     [[nodiscard]] bool save(const CourseMeeting &meeting) override;
+    [[nodiscard]] bool remove(const QUuid &id) override;
+    [[nodiscard]] bool removeByCourseId(const QUuid &courseId) override;
     [[nodiscard]] std::optional<CourseMeeting> findById(
         const QUuid &id) const override;
     [[nodiscard]] std::optional<std::vector<CourseMeeting>> findByCourseId(
@@ -29,6 +31,8 @@ private:
         const QSqlQuery &query) const;
     [[nodiscard]] std::optional<std::vector<CourseMeeting>> meetingsFromQuery(
         QSqlQuery &query) const;
+    [[nodiscard]] std::optional<std::vector<int>> activeWeeksFor(
+        const QUuid &meetingId) const;
 
     QSqlDatabase m_database;
     mutable QString m_lastError;

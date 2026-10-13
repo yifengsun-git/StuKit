@@ -48,3 +48,37 @@ add_test(
     NAME schedule.sqlite_course_meeting_repository
     COMMAND StuKitSqliteCourseMeetingRepositoryTest
 )
+
+add_executable(StuKitCsvScheduleImportServiceTest
+    CsvScheduleImportServiceTest.cpp
+    ScheduleSqliteTestSupport.h
+)
+
+target_link_libraries(StuKitCsvScheduleImportServiceTest
+    PRIVATE
+        Qt6::Test
+        StuKitScheduleInfrastructure
+        StuKitAccountingInfrastructure
+)
+
+add_test(
+    NAME schedule.csv_import
+    COMMAND StuKitCsvScheduleImportServiceTest
+)
+
+add_executable(StuKitSqlitePeriodDefinitionServiceTest
+    SqlitePeriodDefinitionServiceTest.cpp
+    ScheduleSqliteTestSupport.h
+)
+
+target_link_libraries(StuKitSqlitePeriodDefinitionServiceTest
+    PRIVATE
+        Qt6::Test
+        StuKitScheduleInfrastructure
+        StuKitAccountingInfrastructure
+)
+
+add_test(
+    NAME schedule.sqlite_period_definitions
+    COMMAND StuKitSqlitePeriodDefinitionServiceTest
+)

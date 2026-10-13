@@ -62,16 +62,17 @@ academic_terms 1 ---- N courses 1 ---- N course_meetings
 建三张表、建三个索引和写入版本 4 记录全部处于同一事务。如果任意语句失败，事务
 回滚，不留下半套表结构。重复调用 `migrate()` 不会再次执行版本 4。
 
-迁移器还新增了未来版本保护：当前程序只支持到版本 4，若打开版本 5 或更高的数据库，
-会明确失败，防止旧程序误读新结构。
+迁移器还新增了未来版本保护：完成本课时程序只支持到版本 4，若打开更高版本的数据库，
+会明确失败，防止旧程序误读新结构。项目当前最高版本请以
+`SqliteDatabase::CurrentSchemaVersion` 为准。
 
 ## 5. 备份兼容性
 
-`SqliteBackupService` 的最高支持版本同步为 4：
+完成本课时，`SqliteBackupService` 的最高支持版本同步为 4：
 
 - 版本 4 备份必须包含三张课表表。
 - 版本 1～3 的旧备份仍可通过验证，恢复后由迁移器升级。
-- 版本 5 及以上仍返回 `UnsupportedVersion`。
+- 当时的版本 5 及以上返回 `UnsupportedVersion`；后续迁移会同步提高这一上限。
 
 数据库当前版本只由 `SqliteDatabase::CurrentSchemaVersion` 定义，迁移器和备份服务不再
 各自维护容易不一致的数字。

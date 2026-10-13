@@ -15,6 +15,7 @@ public:
     explicit SqliteCourseRepository(QSqlDatabase database);
 
     [[nodiscard]] bool save(const Course &course) override;
+    [[nodiscard]] bool remove(const QUuid &id) override;
     [[nodiscard]] std::optional<Course> findById(
         const QUuid &id) const override;
     [[nodiscard]] std::optional<std::vector<Course>> findByTermId(

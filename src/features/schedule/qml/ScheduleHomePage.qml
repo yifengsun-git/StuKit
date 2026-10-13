@@ -11,11 +11,57 @@ Page {
     required property var managementViewModel
     required property string startupError
 
+    readonly property bool compactLayout: width <= 640
+    readonly property string layoutMode: editingSchedule
+        ? "editor"
+        : compactLayout ? "daily" : "grid"
+    property bool editingSchedule: false
+    property int schedulePeriodCount: 12
+    property string detailCourseName: ""
+    property string detailTeacher: ""
+    property string detailLocation: ""
+    property string detailWeekday: ""
+    property string detailPeriod: ""
+    property color detailColor: AppTheme.primaryColor
+
     readonly property string activeError: startupError.length > 0
         ? startupError
         : viewModel && viewModel.hasError
             ? viewModel.errorMessage
             : ""
+
+    objectName: "scheduleHomePage"
+
+    function showCourseDetails(courseName, teacher, location,
+                               weekdayText, periodText, courseColor) {
+        detailCourseName = courseName
+        detailTeacher = teacher
+        detailLocation = location
+        detailWeekday = weekdayText
+        detailPeriod = periodText
+        detailColor = courseColor
+        courseDetailDialog.open()
+    }
+
+    function selectTerm(termId) {
+        if (root.viewModel)
+            root.viewModel.selectTerm(termId)
+        if (root.managementViewModel)
+            root.managementViewModel.selectTerm(termId)
+    }
+
+    function toggleScheduleEditing() {
+        if (root.editingSchedule) {
+            root.editingSchedule = false
+            return
+        }
+        if (!root.managementViewModel || !root.viewModel)
+            return
+        root.managementViewModel.selectTerm(root.viewModel.selectedTermId)
+        if (root.managementViewModel.selectedTermArchived)
+            return
+        root.editingSchedule = true
+    }
 
     background: Rectangle {
         color: AppTheme.backgroundColor
@@ -29,12 +75,14 @@ Page {
             width: root.width
             spacing: AppTheme.spacingMedium
 
-            RowLayout {
+            GridLayout {
                 Layout.fillWidth: true
                 Layout.leftMargin: AppTheme.spacingLarge
                 Layout.rightMargin: AppTheme.spacingLarge
                 Layout.topMargin: AppTheme.spacingLarge
-                spacing: AppTheme.spacingSmall
+                columns: root.compactLayout ? 1 : 3
+                rowSpacing: AppTheme.spacingSmall
+                columnSpacing: AppTheme.spacingSmall
 
                 ComboBox {
                     id: termSelector
@@ -45,7 +93,7 @@ Page {
                     textRole: "label"
                     valueRole: "id"
                     enabled: root.viewModel && root.viewModel.hasTerms
-                    onActivated: root.viewModel.selectTerm(currentValue)
+                    onActivated: root.selectTerm(currentValue)
 
                     function syncSelection() {
                         if (!root.viewModel) {
@@ -65,10 +113,26 @@ Page {
                     }
                 }
 
-                Button {
-                    text: qsTr("管理学期与课程")
+                AppButton {
+                    Layout.fillWidth: root.compactLayout
+                    text: qsTr("学期与课程资料")
                     enabled: root.managementViewModel !== null
                     onClicked: managementDialog.open()
+                }
+
+                AppButton {
+                    objectName: "scheduleEditModeButton"
+                    Layout.fillWidth: root.compactLayout
+                    text: root.editingSchedule
+                        ? qsTr("完成编辑")
+                        : qsTr("编辑课表")
+                    highlighted: root.editingSchedule
+                    enabled: root.viewModel
+                        && root.viewModel.hasTerms
+                        && root.managementViewModel !== null
+                        && (!root.managementViewModel.selectedTermArchived
+                            || root.editingSchedule)
+                    onClicked: root.toggleScheduleEditing()
                 }
             }
 
@@ -76,8 +140,8 @@ Page {
                 Layout.fillWidth: true
                 Layout.leftMargin: AppTheme.spacingLarge
                 Layout.rightMargin: AppTheme.spacingLarge
-
-                Button {
+                AppButton {
+                    objectName: "schedulePreviousWeekButton"
                     text: qsTr("上一周")
                     enabled: root.viewModel && root.viewModel.canShowPreviousWeek
                     onClicked: root.viewModel.showPreviousWeek()
@@ -104,19 +168,56 @@ Page {
                     }
                 }
 
-                Button {
+                AppButton {
+                    objectName: "scheduleNextWeekButton"
                     text: qsTr("下一周")
                     enabled: root.viewModel && root.viewModel.canShowNextWeek
                     onClicked: root.viewModel.showNextWeek()
                 }
             }
 
-            Button {
+            AppButton {
+                objectName: "scheduleCurrentWeekButton"
                 Layout.alignment: Qt.AlignHCenter
                 text: qsTr("返回当前周")
-                visible: root.viewModel && root.viewModel.currentWeekAvailable
+                visible: root.viewModel
+                    && root.viewModel.currentWeekAvailable
                 enabled: root.viewModel && !root.viewModel.showingCurrentWeek
                 onClicked: root.viewModel.showCurrentWeek()
+            }
+
+            GridLayout {
+                Layout.alignment: Qt.AlignHCenter
+                visible: root.editingSchedule
+                    && root.viewModel
+                    && root.viewModel.hasTerms
+                rowSpacing: AppTheme.spacingSmall
+                columnSpacing: AppTheme.spacingSmall
+                columns: root.compactLayout ? 2 : 3
+
+                Label {
+                    Layout.columnSpan: root.compactLayout ? 2 : 1
+                    Layout.alignment: Qt.AlignHCenter
+                    text: qsTr("当前显示 %1 节").arg(
+                        root.schedulePeriodCount)
+                    color: AppTheme.textSecondaryColor
+                }
+
+                AppButton {
+                    objectName: "scheduleDecreasePeriodsButton"
+                    text: qsTr("− 减少一节")
+                    enabled: root.schedulePeriodCount > 1
+                    onClicked: root.schedulePeriodCount = Math.max(
+                        1, root.schedulePeriodCount - 1)
+                }
+
+                AppButton {
+                    objectName: "scheduleIncreasePeriodsButton"
+                    text: qsTr("+ 增加一节")
+                    enabled: root.schedulePeriodCount < 20
+                    onClicked: root.schedulePeriodCount = Math.min(
+                        20, root.schedulePeriodCount + 1)
+                }
             }
 
             Rectangle {
@@ -144,93 +245,24 @@ Page {
                 Layout.fillWidth: true
                 Layout.leftMargin: AppTheme.spacingLarge
                 Layout.rightMargin: AppTheme.spacingLarge
-                Layout.bottomMargin: AppTheme.spacingLarge
-                Layout.preferredHeight: Math.max(220, meetingList.contentHeight
-                    + AppTheme.spacingMedium * 2)
-                radius: AppTheme.radiusLarge
+                Layout.preferredHeight: noTermContent.implicitHeight
+                    + AppTheme.spacingMedium * 2
+                radius: AppTheme.radiusMedium
                 color: AppTheme.surfaceColor
                 border.color: AppTheme.borderColor
-
-                ListView {
-                    id: meetingList
-                    anchors.fill: parent
-                    anchors.margins: AppTheme.spacingMedium
-                    spacing: AppTheme.spacingSmall
-                    interactive: false
-                    model: root.viewModel ? root.viewModel.meetings : null
-
-                    delegate: Rectangle {
-                        id: meetingDelegate
-
-                        required property string courseName
-                        required property string teacher
-                        required property string location
-                        required property string courseColor
-                        required property string weekdayText
-                        required property string periodText
-
-                        width: ListView.view.width
-                        height: meetingContent.implicitHeight
-                            + AppTheme.spacingMedium * 2
-                        radius: AppTheme.radiusMedium
-                        color: AppTheme.surfaceVariantColor
-
-                        RowLayout {
-                            id: meetingContent
-                            anchors.fill: parent
-                            anchors.margins: AppTheme.spacingMedium
-                            spacing: AppTheme.spacingMedium
-
-                            Rectangle {
-                                Layout.preferredWidth: 8
-                                Layout.fillHeight: true
-                                radius: 4
-                                color: meetingDelegate.courseColor
-                            }
-
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: AppTheme.spacingExtraSmall
-
-                                Label {
-                                    Layout.fillWidth: true
-                                    text: meetingDelegate.courseName
-                                    color: AppTheme.textPrimaryColor
-                                    font.bold: true
-                                }
-
-                                Label {
-                                    Layout.fillWidth: true
-                                    text: qsTr("%1 · %2")
-                                        .arg(meetingDelegate.weekdayText)
-                                        .arg(meetingDelegate.periodText)
-                                    color: AppTheme.textSecondaryColor
-                                }
-
-                                Label {
-                                    Layout.fillWidth: true
-                                    text: [meetingDelegate.teacher,
-                                           meetingDelegate.location]
-                                        .filter(value => value.length > 0)
-                                        .join(" · ")
-                                    visible: text.length > 0
-                                    color: AppTheme.textSecondaryColor
-                                }
-                            }
-                        }
-                    }
-                }
+                visible: root.viewModel
+                    && !root.viewModel.hasTerms
+                    && root.activeError.length === 0
 
                 ColumnLayout {
-                    anchors.centerIn: parent
-                    spacing: AppTheme.spacingSmall
-                    visible: root.viewModel && root.viewModel.empty
+                    id: noTermContent
+                    anchors.fill: parent
+                    anchors.margins: AppTheme.spacingMedium
+                    spacing: AppTheme.spacingExtraSmall
 
                     Label {
                         Layout.alignment: Qt.AlignHCenter
-                        text: root.viewModel.hasTerms
-                            ? qsTr("这一周还没有课程")
-                            : qsTr("还没有学期")
+                        text: qsTr("还没有学期")
                         color: AppTheme.textPrimaryColor
                         font.bold: true
                     }
@@ -242,6 +274,135 @@ Page {
                     }
                 }
             }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.leftMargin: AppTheme.spacingLarge
+                Layout.rightMargin: AppTheme.spacingLarge
+                Layout.preferredHeight: weekStatusLabel.implicitHeight
+                    + AppTheme.spacingSmall * 2
+                radius: AppTheme.radiusSmall
+                color: AppTheme.surfaceVariantColor
+                border.color: AppTheme.borderColor
+                visible: root.viewModel
+                    && root.viewModel.hasTerms
+                    && root.activeError.length === 0
+                    && (root.viewModel.empty
+                        || !root.viewModel.showingCurrentWeek)
+
+                Label {
+                    id: weekStatusLabel
+                    anchors.fill: parent
+                    anchors.margins: AppTheme.spacingSmall
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                    color: AppTheme.textSecondaryColor
+                    wrapMode: Text.WordWrap
+                    text: root.viewModel && root.viewModel.empty
+                        ? qsTr("这一周还没有课程")
+                        : root.viewModel && root.viewModel.currentWeekAvailable
+                            ? qsTr("你正在查看非当前教学周")
+                            : qsTr("当前日期不在所选学期范围内")
+                }
+            }
+
+            Loader {
+                id: scheduleLayoutLoader
+
+                property Item loadedLayout: item as Item
+
+                objectName: "scheduleLayoutLoader"
+                Layout.fillWidth: true
+                Layout.leftMargin: AppTheme.spacingLarge
+                Layout.rightMargin: AppTheme.spacingLarge
+                Layout.bottomMargin: AppTheme.spacingLarge
+                Layout.preferredHeight: loadedLayout
+                    ? loadedLayout.implicitHeight : 0
+                visible: root.viewModel
+                    && root.viewModel.hasTerms
+                    && root.activeError.length === 0
+                sourceComponent: root.editingSchedule
+                    ? scheduleEditorComponent
+                    : root.compactLayout
+                        ? dailyScheduleComponent
+                        : weeklyGridComponent
+            }
+        }
+    }
+
+    Component {
+        id: weeklyGridComponent
+
+        Item {
+            implicitHeight: weeklyGrid.implicitHeight
+
+            Flickable {
+                id: gridFlickable
+                anchors.fill: parent
+                contentWidth: Math.max(width, weeklyGrid.implicitWidth)
+                contentHeight: weeklyGrid.implicitHeight
+                flickableDirection: Flickable.HorizontalFlick
+                boundsBehavior: Flickable.StopAtBounds
+                clip: true
+
+                WeeklyGrid {
+                    id: weeklyGrid
+                    width: gridFlickable.contentWidth
+                    model: root.viewModel ? root.viewModel.meetings : null
+                    weekDays: root.viewModel ? root.viewModel.weekDays : []
+                    periodCount: root.schedulePeriodCount
+                    periodDefinitions: root.managementViewModel
+                        ? root.managementViewModel.periodDefinitions : []
+                    onCourseActivated: details =>
+                        root.showCourseDetails(
+                            details.courseName,
+                            details.teacher,
+                            details.location,
+                            details.weekdayText,
+                            details.periodText,
+                            details.courseColor)
+                }
+
+                ScrollBar.horizontal: ScrollBar {
+                    policy: gridFlickable.contentWidth > gridFlickable.width
+                        ? ScrollBar.AsNeeded
+                        : ScrollBar.AlwaysOff
+                }
+            }
+        }
+    }
+
+    Component {
+        id: dailyScheduleComponent
+
+        DayScheduleList {
+            model: root.viewModel ? root.viewModel.meetings : null
+            weekDays: root.viewModel ? root.viewModel.weekDays : []
+            onCourseActivated: details =>
+                root.showCourseDetails(
+                    details.courseName,
+                    details.teacher,
+                    details.location,
+                    details.weekdayText,
+                    details.periodText,
+                    details.courseColor)
+        }
+    }
+
+    Component {
+        id: scheduleEditorComponent
+
+        ScheduleGridEditor {
+            viewModel: root.managementViewModel
+            scheduleModel: root.viewModel ? root.viewModel.meetings : null
+            weekDays: root.viewModel ? root.viewModel.weekDays : []
+            compactLayout: root.compactLayout
+            periodCount: root.schedulePeriodCount
+            periodDefinitions: root.managementViewModel
+                ? root.managementViewModel.periodDefinitions : []
+            viewportWidth: root.width
+            viewportHeight: root.height
+            onRequestManageCourses: managementDialog.open()
         }
     }
 
@@ -253,12 +414,73 @@ Page {
         modal: true
         width: Math.min(root.width - AppTheme.spacingLarge * 2, 840)
         height: Math.min(root.height - AppTheme.spacingLarge * 2, 600)
-        title: qsTr("学期与课程管理")
+        title: qsTr("学期与课程资料")
+        standardButtons: Dialog.Close
+        onClosed: {
+            if (root.managementViewModel
+                    && root.managementViewModel.selectedTermId.length > 0) {
+                root.selectTerm(root.managementViewModel.selectedTermId)
+            }
+        }
+
+        Loader {
+            anchors.fill: parent
+            active: managementDialog.visible
+                && root.managementViewModel !== null
+            sourceComponent: Component {
+                ScheduleManagementPanel {
+                    viewModel: root.managementViewModel
+                }
+            }
+        }
+    }
+
+    Dialog {
+        id: courseDetailDialog
+
+        objectName: "courseDetailDialog"
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        modal: true
+        width: Math.min(root.width - AppTheme.spacingLarge * 2, 420)
+        title: root.detailCourseName
         standardButtons: Dialog.Close
 
-        ScheduleManagementPanel {
-            anchors.fill: parent
-            viewModel: root.managementViewModel
+        ColumnLayout {
+            width: parent.width
+            spacing: AppTheme.spacingMedium
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 8
+                radius: 4
+                color: root.detailColor
+            }
+
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("%1 · %2")
+                    .arg(root.detailWeekday)
+                    .arg(root.detailPeriod)
+                color: AppTheme.textPrimaryColor
+                font.bold: true
+            }
+
+            Label {
+                Layout.fillWidth: true
+                visible: root.detailTeacher.length > 0
+                text: qsTr("教师：%1").arg(root.detailTeacher)
+                color: AppTheme.textSecondaryColor
+                wrapMode: Text.WordWrap
+            }
+
+            Label {
+                Layout.fillWidth: true
+                visible: root.detailLocation.length > 0
+                text: qsTr("地点：%1").arg(root.detailLocation)
+                color: AppTheme.textSecondaryColor
+                wrapMode: Text.WordWrap
+            }
         }
     }
 }

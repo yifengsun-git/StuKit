@@ -26,6 +26,7 @@ class ScheduleViewModel final : public QObject
     Q_PROPERTY(int totalWeeks READ totalWeeks NOTIFY selectedTermChanged)
     Q_PROPERTY(QString weekLabel READ weekLabel NOTIFY selectedWeekChanged)
     Q_PROPERTY(QString weekDateRange READ weekDateRange NOTIFY selectedWeekChanged)
+    Q_PROPERTY(QVariantList weekDays READ weekDays NOTIFY selectedWeekChanged)
     Q_PROPERTY(bool canShowPreviousWeek READ canShowPreviousWeek NOTIFY selectedWeekChanged)
     Q_PROPERTY(bool canShowNextWeek READ canShowNextWeek NOTIFY selectedWeekChanged)
     Q_PROPERTY(bool currentWeekAvailable READ currentWeekAvailable NOTIFY selectedTermChanged)
@@ -52,6 +53,7 @@ public:
     [[nodiscard]] int totalWeeks() const noexcept;
     [[nodiscard]] QString weekLabel() const;
     [[nodiscard]] QString weekDateRange() const;
+    [[nodiscard]] QVariantList weekDays() const;
     [[nodiscard]] bool canShowPreviousWeek() const noexcept;
     [[nodiscard]] bool canShowNextWeek() const noexcept;
     [[nodiscard]] bool currentWeekAvailable() const noexcept;

@@ -9,6 +9,7 @@ QtObject {
     readonly property color surfaceColor: darkMode ? "#1F2937" : "#FFFFFF"
     readonly property color surfaceVariantColor: darkMode ? "#374151" : "#E5E7EB"
     readonly property color primaryColor: darkMode ? "#60A5FA" : "#2563EB"
+    readonly property color primaryPressedColor: darkMode ? "#3B82F6" : "#1D4ED8"
     readonly property color textPrimaryColor: darkMode ? "#F9FAFB" : "#111827"
     readonly property color textSecondaryColor: darkMode ? "#D1D5DB" : "#4B5563"
     readonly property color borderColor: darkMode ? "#4B5563" : "#D1D5DB"

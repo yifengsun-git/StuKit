@@ -25,6 +25,7 @@ private slots:
     void savesAndFindsAllFields();
     void returnsNulloptForMissingCourse();
     void updatesCourseWithSameId();
+    void removesCourseAndItsMeetings();
     void filtersByTermAndSortsByName();
     void rejectsUnknownTerm();
     void persistsAcrossRepositoryInstances();
@@ -74,7 +75,9 @@ void SqliteCourseRepositoryTest::savesAndFindsAllFields()
         QStringLiteral("高等数学"),
         QStringLiteral("王老师"),
         QStringLiteral("A101"),
-        QStringLiteral("#3B82F6"))));
+        QStringLiteral("#3B82F6"),
+        QStringLiteral("平时 30%，期末 70%"),
+        QStringLiteral("第 1～4 周：基础章节"))));
 
     const auto stored = m_courses->findById(id);
 
@@ -84,6 +87,10 @@ void SqliteCourseRepositoryTest::savesAndFindsAllFields()
     QCOMPARE(stored->name(), QStringLiteral("高等数学"));
     QCOMPARE(stored->teacher(), QStringLiteral("王老师"));
     QCOMPARE(stored->location(), QStringLiteral("A101"));
+    QCOMPARE(
+        stored->assessmentStandard(), QStringLiteral("平时 30%，期末 70%"));
+    QCOMPARE(
+        stored->teachingPlan(), QStringLiteral("第 1～4 周：基础章节"));
     QCOMPARE(stored->color(), QStringLiteral("#3B82F6"));
 }
 
@@ -116,6 +123,32 @@ void SqliteCourseRepositoryTest::updatesCourseWithSameId()
     QVERIFY(courses->front().teacher().isEmpty());
     QCOMPARE(courses->front().location(), QStringLiteral("B202"));
     QCOMPARE(courses->front().color(), QStringLiteral("#EF4444"));
+}
+
+void SqliteCourseRepositoryTest::removesCourseAndItsMeetings()
+{
+    const QUuid courseId = QUuid::createUuid();
+    const QString courseText = courseId.toString(QUuid::WithoutBraces);
+    QVERIFY(m_courses->save(makeCourse(courseId, m_termId)));
+
+    QSqlQuery query(m_database->connection());
+    query.prepare(QStringLiteral(
+        "INSERT INTO course_meetings(id, course_id, weekday, start_period, "
+        "end_period, start_week, end_week, week_pattern) "
+        "VALUES('meeting', :courseId, 1, 1, 2, 1, 18, 0)"));
+    query.bindValue(QStringLiteral(":courseId"), courseText);
+    QVERIFY2(query.exec(), qPrintable(query.lastError().text()));
+    QVERIFY(query.exec(QStringLiteral(
+        "INSERT INTO course_meeting_weeks(meeting_id, week_number) "
+        "VALUES('meeting', 1)")));
+
+    QVERIFY(m_courses->remove(courseId));
+    QVERIFY(query.exec(QStringLiteral(
+        "SELECT (SELECT COUNT(*) FROM course_meetings), "
+        "(SELECT COUNT(*) FROM course_meeting_weeks)")));
+    QVERIFY(query.next());
+    QCOMPARE(query.value(0).toInt(), 0);
+    QCOMPARE(query.value(1).toInt(), 0);
 }
 
 void SqliteCourseRepositoryTest::filtersByTermAndSortsByName()

@@ -28,6 +28,7 @@ class CourseMeetingTest final : public QObject
 
 private slots:
     void createsValidMeeting();
+    void normalizesCustomWeeks();
     void calculatesOccurrence_data();
     void calculatesOccurrence();
     void rejectsNullId_data();
@@ -58,6 +59,21 @@ void CourseMeetingTest::createsValidMeeting()
     QCOMPARE(meeting->startWeek(), 1);
     QCOMPARE(meeting->endWeek(), 18);
     QCOMPARE(meeting->weekPattern(), WeekPattern::EveryWeek);
+}
+
+void CourseMeetingTest::normalizesCustomWeeks()
+{
+    auto data = validMeetingData();
+    data.activeWeeks = {8, 1, 3, 3, 6};
+
+    const auto meeting = CourseMeeting::create(data);
+
+    QVERIFY(meeting.has_value());
+    QCOMPARE(meeting->activeWeeks(), std::vector<int>({1, 3, 6, 8}));
+    QCOMPARE(meeting->startWeek(), 1);
+    QCOMPARE(meeting->endWeek(), 8);
+    QVERIFY(meeting->occursInWeek(6));
+    QVERIFY(!meeting->occursInWeek(7));
 }
 
 void CourseMeetingTest::calculatesOccurrence_data()

@@ -14,6 +14,8 @@ struct CourseData
     QString name;
     QString teacher;
     QString location;
+    QString assessmentStandard;
+    QString teachingPlan;
     QString color;
 };
 
@@ -23,6 +25,8 @@ public:
     static constexpr qsizetype MaximumNameLength = 80;
     static constexpr qsizetype MaximumTeacherLength = 60;
     static constexpr qsizetype MaximumLocationLength = 80;
+    static constexpr qsizetype MaximumAssessmentStandardLength = 2000;
+    static constexpr qsizetype MaximumTeachingPlanLength = 5000;
 
     static std::optional<Course> create(CourseData data);
 
@@ -31,6 +35,8 @@ public:
     [[nodiscard]] const QString &name() const noexcept;
     [[nodiscard]] const QString &teacher() const noexcept;
     [[nodiscard]] const QString &location() const noexcept;
+    [[nodiscard]] const QString &assessmentStandard() const noexcept;
+    [[nodiscard]] const QString &teachingPlan() const noexcept;
     [[nodiscard]] const QString &color() const noexcept;
 
 private:

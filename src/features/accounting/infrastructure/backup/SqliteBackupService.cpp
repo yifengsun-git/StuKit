@@ -198,7 +198,14 @@ SqliteBackupResult SqliteBackupService::validateBackup(
                 || (tableExists(database, QStringLiteral("academic_terms"))
                     && tableExists(database, QStringLiteral("courses"))
                     && tableExists(
-                        database, QStringLiteral("course_meetings"))));
+                        database, QStringLiteral("course_meetings"))))
+            && (version < 6
+                || tableExists(
+                    database, QStringLiteral("course_meeting_weeks")))
+            && (version < 7
+                || tableExists(
+                    database,
+                    QStringLiteral("schedule_period_definitions")));
         if (!hasRequiredTables) {
             return failure(
                 SqliteBackupError::InvalidDatabase,

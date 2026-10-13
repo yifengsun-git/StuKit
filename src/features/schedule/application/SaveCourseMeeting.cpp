@@ -72,6 +72,7 @@ SaveCourseMeetingResult SaveCourseMeeting::execute(
             .startWeek = request.startWeek,
             .endWeek = request.endWeek,
             .weekPattern = request.weekPattern,
+            .activeWeeks = request.activeWeeks,
         });
     if (std::holds_alternative<DetectScheduleConflictsError>(detection)) {
         switch (std::get<DetectScheduleConflictsError>(detection)) {
@@ -102,6 +103,7 @@ SaveCourseMeetingResult SaveCourseMeeting::execute(
         .startWeek = request.startWeek,
         .endWeek = request.endWeek,
         .weekPattern = request.weekPattern,
+        .activeWeeks = request.activeWeeks,
     });
     if (!meeting.has_value()) {
         return SaveCourseMeetingError::InvalidInput;

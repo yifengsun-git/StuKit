@@ -1,6 +1,7 @@
 #include "ScheduleViewModel.h"
 
 #include <QVariantMap>
+#include <QStringList>
 
 #include <algorithm>
 #include <utility>
@@ -86,6 +87,41 @@ QString ScheduleViewModel::weekDateRange() const
     return QStringLiteral("%1 ～ %2")
         .arg(firstDay.toString(QStringLiteral("yyyy-MM-dd")),
              firstDay.addDays(6).toString(QStringLiteral("yyyy-MM-dd")));
+}
+
+QVariantList ScheduleViewModel::weekDays() const
+{
+    if (!m_selectedTerm.has_value() || m_selectedWeek <= 0) {
+        return {};
+    }
+
+    static const QStringList weekdayNames{
+        QStringLiteral("周一"),
+        QStringLiteral("周二"),
+        QStringLiteral("周三"),
+        QStringLiteral("周四"),
+        QStringLiteral("周五"),
+        QStringLiteral("周六"),
+        QStringLiteral("周日"),
+    };
+    const QDate firstDay = m_selectedTerm->startDate().addDays(
+        static_cast<qint64>(m_selectedWeek - 1) * 7);
+
+    QVariantList days;
+    days.reserve(7);
+    for (int index = 0; index < 7; ++index) {
+        const QDate date = firstDay.addDays(index);
+        days.push_back(QVariantMap{
+            {QStringLiteral("weekday"), index + 1},
+            {QStringLiteral("weekdayText"), weekdayNames.at(index)},
+            {QStringLiteral("dateText"),
+             date.toString(QStringLiteral("MM-dd"))},
+            {QStringLiteral("fullDateText"),
+             date.toString(QStringLiteral("yyyy-MM-dd"))},
+            {QStringLiteral("isToday"), date == m_today},
+        });
+    }
+    return days;
 }
 
 bool ScheduleViewModel::canShowPreviousWeek() const noexcept

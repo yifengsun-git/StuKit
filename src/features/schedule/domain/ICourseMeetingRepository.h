@@ -15,6 +15,8 @@ public:
     virtual ~ICourseMeetingRepository() = default;
 
     [[nodiscard]] virtual bool save(const CourseMeeting &meeting) = 0;
+    [[nodiscard]] virtual bool remove(const QUuid &id) = 0;
+    [[nodiscard]] virtual bool removeByCourseId(const QUuid &courseId) = 0;
     [[nodiscard]] virtual std::optional<CourseMeeting> findById(
         const QUuid &id) const = 0;
     [[nodiscard]] virtual std::optional<std::vector<CourseMeeting>>

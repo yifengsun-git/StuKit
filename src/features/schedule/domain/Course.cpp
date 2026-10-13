@@ -31,6 +31,8 @@ std::optional<Course> Course::create(CourseData data)
     data.name = data.name.trimmed();
     data.teacher = data.teacher.trimmed();
     data.location = data.location.trimmed();
+    data.assessmentStandard = data.assessmentStandard.trimmed();
+    data.teachingPlan = data.teachingPlan.trimmed();
     data.color = data.color.trimmed().toUpper();
 
     if (data.id.isNull()
@@ -39,6 +41,8 @@ std::optional<Course> Course::create(CourseData data)
         || data.name.size() > MaximumNameLength
         || data.teacher.size() > MaximumTeacherLength
         || data.location.size() > MaximumLocationLength
+        || data.assessmentStandard.size() > MaximumAssessmentStandardLength
+        || data.teachingPlan.size() > MaximumTeachingPlanLength
         || !isHexColor(data.color)) {
         return std::nullopt;
     }
@@ -74,6 +78,16 @@ const QString &Course::teacher() const noexcept
 const QString &Course::location() const noexcept
 {
     return m_data.location;
+}
+
+const QString &Course::assessmentStandard() const noexcept
+{
+    return m_data.assessmentStandard;
+}
+
+const QString &Course::teachingPlan() const noexcept
+{
+    return m_data.teachingPlan;
 }
 
 const QString &Course::color() const noexcept

@@ -19,6 +19,8 @@ SaveCourseRequest validRequest(const QUuid &termId)
         .name = QStringLiteral("  高等数学  "),
         .teacher = QStringLiteral("  王老师  "),
         .location = QStringLiteral("  A101  "),
+        .assessmentStandard = QStringLiteral("  平时 30%，期末 70%  "),
+        .teachingPlan = QStringLiteral("  第 1～4 周：基础章节  "),
         .color = QStringLiteral("#3b82f6"),
     };
 }
@@ -54,6 +56,10 @@ void SaveCourseTest::createsAndStoresCourse()
     QCOMPARE(course.name(), QStringLiteral("高等数学"));
     QCOMPARE(course.teacher(), QStringLiteral("王老师"));
     QCOMPARE(course.location(), QStringLiteral("A101"));
+    QCOMPARE(
+        course.assessmentStandard(), QStringLiteral("平时 30%，期末 70%"));
+    QCOMPARE(
+        course.teachingPlan(), QStringLiteral("第 1～4 周：基础章节"));
     QCOMPARE(course.color(), QStringLiteral("#3B82F6"));
     QVERIFY(courses.findById(course.id()).has_value());
 }

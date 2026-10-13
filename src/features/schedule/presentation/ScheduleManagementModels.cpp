@@ -107,6 +107,10 @@ QVariant CourseListModel::data(const QModelIndex &index, int role) const
         return course->teacher();
     case LocationRole:
         return course->location();
+    case AssessmentStandardRole:
+        return course->assessmentStandard();
+    case TeachingPlanRole:
+        return course->teachingPlan();
     case ColorRole:
         return course->color();
     default:
@@ -122,6 +126,8 @@ QHash<int, QByteArray> CourseListModel::roleNames() const
         {NameRole, QByteArrayLiteral("name")},
         {TeacherRole, QByteArrayLiteral("teacher")},
         {LocationRole, QByteArrayLiteral("location")},
+        {AssessmentStandardRole, QByteArrayLiteral("assessmentStandard")},
+        {TeachingPlanRole, QByteArrayLiteral("teachingPlan")},
         {ColorRole, QByteArrayLiteral("courseColor")},
     };
 }

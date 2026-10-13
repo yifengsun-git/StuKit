@@ -8,11 +8,14 @@
 
 namespace stukit::schedule {
 class GetAcademicTerms;
+class DeleteScheduleItem;
+class CsvScheduleImportService;
 class GetScheduleSetup;
 class GetWeeklySchedule;
 class SaveAcademicTerm;
 class SaveCourse;
 class SaveCourseMeeting;
+class SqlitePeriodDefinitionService;
 class SqliteAcademicTermRepository;
 class SqliteCourseMeetingRepository;
 class SqliteCourseRepository;
@@ -63,6 +66,11 @@ private:
     std::unique_ptr<schedule::SaveAcademicTerm> m_saveAcademicTerm;
     std::unique_ptr<schedule::SaveCourse> m_saveCourse;
     std::unique_ptr<schedule::SaveCourseMeeting> m_saveCourseMeeting;
+    std::unique_ptr<schedule::DeleteScheduleItem> m_deleteScheduleItem;
+    std::unique_ptr<schedule::CsvScheduleImportService>
+        m_csvImportService;
+    std::unique_ptr<schedule::SqlitePeriodDefinitionService>
+        m_periodDefinitionService;
     std::unique_ptr<schedule::presentation::ScheduleViewModel>
         m_overviewViewModel;
     std::unique_ptr<schedule::presentation::ScheduleManagementViewModel>

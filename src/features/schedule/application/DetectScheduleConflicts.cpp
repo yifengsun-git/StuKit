@@ -60,6 +60,7 @@ DetectScheduleConflictsResult DetectScheduleConflicts::execute(
         .startWeek = request.startWeek,
         .endWeek = request.endWeek,
         .weekPattern = request.weekPattern,
+        .activeWeeks = request.activeWeeks,
     });
     if (!candidate.has_value()) {
         return DetectScheduleConflictsError::InvalidInput;

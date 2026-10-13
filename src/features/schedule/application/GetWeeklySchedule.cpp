@@ -77,6 +77,10 @@ GetWeeklyScheduleResult GetWeeklySchedule::execute(
             .weekday = meeting.weekday(),
             .startPeriod = meeting.startPeriod(),
             .endPeriod = meeting.endPeriod(),
+            .startWeek = meeting.startWeek(),
+            .endWeek = meeting.endWeek(),
+            .weekPattern = meeting.weekPattern(),
+            .activeWeeks = meeting.activeWeeks(),
         });
     }
 

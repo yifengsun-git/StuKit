@@ -23,6 +23,10 @@ struct WeeklyScheduleItem
     Weekday weekday{Weekday::Monday};
     int startPeriod{0};
     int endPeriod{0};
+    int startWeek{0};
+    int endWeek{0};
+    WeekPattern weekPattern{WeekPattern::EveryWeek};
+    std::vector<int> activeWeeks;
 };
 
 struct WeeklySchedule

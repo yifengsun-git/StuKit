@@ -40,6 +40,7 @@ private slots:
   void upgradesVersion1Database();
   void upgradesVersion2Database();
   void upgradesVersion3Database();
+  void upgradesVersion4CourseMaterials();
   void rollsBackFailedScheduleMigration();
   void rejectsFutureSchemaVersion();
   void enablesForeignKeys();
@@ -93,9 +94,9 @@ void SqliteDatabaseTest::migrationIsIdempotent() {
                  "FROM schema_migrations")),
              qPrintable(query.lastError().text()));
     QVERIFY(query.next());
-    QCOMPARE(query.value(0).toInt(), 4);
-    QCOMPARE(query.value(1).toInt(), 4);
-    QCOMPARE(query.value(2).toInt(), 4);
+    QCOMPARE(query.value(0).toInt(), 7);
+    QCOMPARE(query.value(1).toInt(), 7);
+    QCOMPARE(query.value(2).toInt(), 7);
   }
 }
 
@@ -197,6 +198,8 @@ void SqliteDatabaseTest::createsScheduleSchema() {
            QSet<QString>({QStringLiteral("id"), QStringLiteral("term_id"),
                           QStringLiteral("name"), QStringLiteral("teacher"),
                           QStringLiteral("location"),
+                          QStringLiteral("assessment_standard"),
+                          QStringLiteral("teaching_plan"),
                           QStringLiteral("color")}));
   QCOMPARE(columnsFor(QStringLiteral("course_meetings")),
            QSet<QString>({QStringLiteral("id"),
@@ -207,6 +210,25 @@ void SqliteDatabaseTest::createsScheduleSchema() {
                           QStringLiteral("start_week"),
                           QStringLiteral("end_week"),
                           QStringLiteral("week_pattern")}));
+  QCOMPARE(columnsFor(QStringLiteral("course_meeting_weeks")),
+           QSet<QString>({QStringLiteral("meeting_id"),
+                          QStringLiteral("week_number")}));
+  QCOMPARE(columnsFor(QStringLiteral("schedule_period_definitions")),
+           QSet<QString>({QStringLiteral("period_number"),
+                          QStringLiteral("name"),
+                          QStringLiteral("start_time"),
+                          QStringLiteral("end_time")}));
+
+  {
+    QSqlQuery query(database.connection());
+    QVERIFY(query.exec(QStringLiteral(
+        "SELECT COUNT(*), MIN(start_time), MAX(end_time) "
+        "FROM schedule_period_definitions")));
+    QVERIFY(query.next());
+    QCOMPARE(query.value(0).toInt(), 12);
+    QCOMPARE(query.value(1).toString(), QStringLiteral("08:00"));
+    QCOMPARE(query.value(2).toString(), QStringLiteral("22:00"));
+  }
 
   QSet<QString> courseIndexes;
   {
@@ -276,6 +298,8 @@ void SqliteDatabaseTest::enforcesScheduleConstraintsAndForeignKeys() {
                      "id, course_id, weekday, start_period, end_period, "
                      "start_week, end_week, week_pattern) "
                      "VALUES('meeting', 'course', 1, 1, 2, 1, 18, 0)"),
+      QStringLiteral("INSERT INTO course_meeting_weeks("
+                     "meeting_id, week_number) VALUES('meeting', 1)"),
   };
   for (const QString &statement : validStatements) {
     QVERIFY2(query.exec(statement), qPrintable(query.lastError().text()));
@@ -319,12 +343,12 @@ void SqliteDatabaseTest::enforcesScheduleConstraintsAndForeignKeys() {
     QVERIFY2(!query.exec(statement), qPrintable(statement));
   }
 
-  QVERIFY(!query.exec(QStringLiteral(
+  QVERIFY(query.exec(QStringLiteral(
       "DELETE FROM courses WHERE id = 'course'")));
   QVERIFY(query.exec(QStringLiteral(
       "SELECT COUNT(*) FROM course_meetings WHERE id = 'meeting'")));
   QVERIFY(query.next());
-  QCOMPARE(query.value(0).toInt(), 1);
+  QCOMPARE(query.value(0).toInt(), 0);
 }
 
 void SqliteDatabaseTest::upgradesVersion1Database() {
@@ -378,10 +402,10 @@ void SqliteDatabaseTest::upgradesVersion1Database() {
     QSqlQuery query(database.connection());
     QVERIFY2(query.exec(QStringLiteral(
                  "SELECT COUNT(*) FROM schema_migrations "
-                 "WHERE version IN (2, 3, 4)")),
+                 "WHERE version IN (2, 3, 4, 5)")),
              qPrintable(query.lastError().text()));
     QVERIFY(query.next());
-    QCOMPARE(query.value(0).toInt(), 3);
+    QCOMPARE(query.value(0).toInt(), 4);
   }
 
   {
@@ -445,12 +469,12 @@ void SqliteDatabaseTest::upgradesVersion2Database() {
                  "(SELECT COUNT(*) FROM categories "
                  "WHERE id = 'legacy-category'), "
                  "(SELECT COUNT(*) FROM schema_migrations "
-                 "WHERE version IN (3, 4))")),
+                 "WHERE version IN (3, 4, 5))")),
              qPrintable(query.lastError().text()));
     QVERIFY(query.next());
     QCOMPARE(query.value(0).toInt(), 1);
     QCOMPARE(query.value(1).toInt(), 1);
-    QCOMPARE(query.value(2).toInt(), 2);
+    QCOMPARE(query.value(2).toInt(), 3);
   }
 
   {
@@ -475,10 +499,15 @@ void SqliteDatabaseTest::upgradesVersion3Database() {
 
   QSqlQuery query(database.connection());
   const QStringList prepareVersion3{
+      QStringLiteral("DROP TABLE schedule_period_definitions"),
+      QStringLiteral("DROP TABLE course_meeting_weeks"),
       QStringLiteral("DROP TABLE course_meetings"),
       QStringLiteral("DROP TABLE courses"),
       QStringLiteral("DROP TABLE academic_terms"),
       QStringLiteral("DELETE FROM schema_migrations WHERE version = 4"),
+      QStringLiteral("DELETE FROM schema_migrations WHERE version = 5"),
+      QStringLiteral("DELETE FROM schema_migrations WHERE version = 6"),
+      QStringLiteral("DELETE FROM schema_migrations WHERE version = 7"),
       QStringLiteral("INSERT INTO accounts("
                      "id, name, opening_balance_cents, archived) "
                      "VALUES('v3-account', '版本三账户', 456, 0)"),
@@ -500,12 +529,79 @@ void SqliteDatabaseTest::upgradesVersion3Database() {
       "SELECT "
       "(SELECT COUNT(*) FROM transactions WHERE id = 'v3-transaction'), "
       "(SELECT COUNT(*) FROM schema_migrations WHERE version = 4), "
+      "(SELECT COUNT(*) FROM schema_migrations WHERE version = 5), "
+      "(SELECT COUNT(*) FROM schema_migrations WHERE version = 6), "
+      "(SELECT COUNT(*) FROM schema_migrations WHERE version = 7), "
       "(SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' "
-      "AND name IN ('academic_terms', 'courses', 'course_meetings'))")));
+      "AND name IN ('academic_terms', 'courses', 'course_meetings', "
+      "'course_meeting_weeks', 'schedule_period_definitions'))")));
   QVERIFY(query.next());
   QCOMPARE(query.value(0).toInt(), 1);
   QCOMPARE(query.value(1).toInt(), 1);
-  QCOMPARE(query.value(2).toInt(), 3);
+  QCOMPARE(query.value(2).toInt(), 1);
+  QCOMPARE(query.value(3).toInt(), 1);
+  QCOMPARE(query.value(4).toInt(), 1);
+  QCOMPARE(query.value(5).toInt(), 5);
+}
+
+void SqliteDatabaseTest::upgradesVersion4CourseMaterials() {
+  QTemporaryDir directory = createTemporaryDatabaseDirectory();
+  QVERIFY(directory.isValid());
+
+  SqliteDatabase database(uniqueConnectionName());
+  QVERIFY2(database.open(directory.filePath(QStringLiteral("stukit.sqlite"))),
+           qPrintable(database.lastError()));
+
+  QSqlQuery query(database.connection());
+  const QStringList version4Statements{
+      QStringLiteral("CREATE TABLE schema_migrations ("
+                     "version INTEGER PRIMARY KEY NOT NULL, "
+                     "applied_at TEXT NOT NULL)"),
+      QStringLiteral("CREATE TABLE academic_terms ("
+                     "id TEXT PRIMARY KEY NOT NULL)"),
+      QStringLiteral("CREATE TABLE courses ("
+                     "id TEXT PRIMARY KEY NOT NULL, term_id TEXT NOT NULL, "
+                     "name TEXT NOT NULL, teacher TEXT NOT NULL DEFAULT '', "
+                     "location TEXT NOT NULL DEFAULT '', color TEXT NOT NULL)"),
+      QStringLiteral("CREATE TABLE course_meetings ("
+                     "id TEXT PRIMARY KEY NOT NULL, course_id TEXT NOT NULL, "
+                     "weekday INTEGER NOT NULL, start_period INTEGER NOT NULL, "
+                     "end_period INTEGER NOT NULL, start_week INTEGER NOT NULL, "
+                     "end_week INTEGER NOT NULL, week_pattern INTEGER NOT NULL)"),
+      QStringLiteral("INSERT INTO schema_migrations(version, applied_at) "
+                     "VALUES(4, 'version-four')"),
+      QStringLiteral("INSERT INTO academic_terms(id) VALUES('term')"),
+      QStringLiteral("INSERT INTO courses("
+                     "id, term_id, name, teacher, location, color) VALUES("
+                     "'course', 'term', '高等数学', '王老师', 'A101', "
+                     "'#3B82F6')"),
+  };
+  for (const QString &statement : version4Statements) {
+    QVERIFY2(query.exec(statement), qPrintable(query.lastError().text()));
+  }
+
+  QVERIFY2(database.migrate(), qPrintable(database.lastError()));
+  QVERIFY(query.exec(QStringLiteral(
+      "SELECT assessment_standard, teaching_plan FROM courses "
+      "WHERE id = 'course'")));
+  QVERIFY(query.next());
+  QCOMPARE(query.value(0).toString(), QString{});
+  QCOMPARE(query.value(1).toString(), QString{});
+
+  QVERIFY(query.exec(QStringLiteral(
+      "SELECT COUNT(*) FROM schema_migrations WHERE version = 5")));
+  QVERIFY(query.next());
+  QCOMPARE(query.value(0).toInt(), 1);
+
+  QVERIFY(query.exec(QStringLiteral(
+      "SELECT COUNT(*) FROM schema_migrations WHERE version = 6")));
+  QVERIFY(query.next());
+  QCOMPARE(query.value(0).toInt(), 1);
+
+  QVERIFY(query.exec(QStringLiteral(
+      "SELECT COUNT(*) FROM schema_migrations WHERE version = 7")));
+  QVERIFY(query.next());
+  QCOMPARE(query.value(0).toInt(), 1);
 }
 
 void SqliteDatabaseTest::rollsBackFailedScheduleMigration() {
@@ -519,10 +615,15 @@ void SqliteDatabaseTest::rollsBackFailedScheduleMigration() {
 
   QSqlQuery query(database.connection());
   const QStringList prepareBrokenVersion3{
+      QStringLiteral("DROP TABLE schedule_period_definitions"),
+      QStringLiteral("DROP TABLE course_meeting_weeks"),
       QStringLiteral("DROP TABLE course_meetings"),
       QStringLiteral("DROP TABLE courses"),
       QStringLiteral("DROP TABLE academic_terms"),
       QStringLiteral("DELETE FROM schema_migrations WHERE version = 4"),
+      QStringLiteral("DELETE FROM schema_migrations WHERE version = 5"),
+      QStringLiteral("DELETE FROM schema_migrations WHERE version = 6"),
+      QStringLiteral("DELETE FROM schema_migrations WHERE version = 7"),
       QStringLiteral("CREATE TABLE courses(dummy TEXT)"),
   };
   for (const QString &statement : prepareBrokenVersion3) {
@@ -560,7 +661,7 @@ void SqliteDatabaseTest::rejectsFutureSchemaVersion() {
   QSqlQuery query(database.connection());
   QVERIFY2(query.exec(QStringLiteral(
                "INSERT INTO schema_migrations(version, applied_at) "
-               "VALUES(5, 'future-test')")),
+               "VALUES(8, 'future-test')")),
            qPrintable(query.lastError().text()));
 
   QVERIFY(!database.migrate());

@@ -7,6 +7,7 @@ StuKit 是一个面向大学生日常使用的个人工具包。项目首先开�
 
 - 记账本：账户、分类、收支流水和月度统计。
 - 课表：学期、课程、周次、节次和课程冲突检测。
+- 天气：城市搜索、当前天气、短期预报和离线缓存（开发中）。
 - 后续模块：计时器、待办等，按实际需求逐步增加。
 
 ## 当前状态
@@ -52,19 +53,17 @@ UTC-14:00 到 UTC+14:00 的固定偏移，选择后会保存并同步到月度�
 自动验证空状态、图表切换、6/12/24 月范围、筛选摘要、ViewModel 重绑定，以及
 640/960/1280 三档响应式布局；记账与分析 MVP 至此完成。
 
-课表模块现已启动，并建立了独立的模块开发计划。领域模型、三个 Repository 契约、
-内存测试实现和课程冲突检测已经完成。共享 SQLite 数据库也已升级到版本 4，新增
-学期、课程和上课安排三张表，以及字段约束、外键和查询索引；版本 1～3 可以保留旧
-记账数据并顺序升级，备份验证和未来版本保护已同步。三个课表 SQLite Repository
-现已实现，支持 UPSERT、按关联筛选、稳定排序、外键错误和损坏行拒绝，Repository
-重建后数据仍可恢复。课表 Application 已提供学期、课程和上课安排保存，以及指定
-教学周查询；保存前会校验跨实体关系、学期周数并阻止冲突数据落库。课表
-Presentation 现已提供学期选择、当前教学周计算、上下周切换、日期范围、空状态和
-错误状态，并将课程转换为 QML 可绑定的列表模型。课表现已接入真实 SQLite 和正式
-QML 页面，可以创建、编辑、归档或恢复学期，维护课程及多条上课安排，并在冲突时
-展示明细且不写入数据；备份恢复会同步重建课表对象。全工程共 45 个测试。下一步
-实现响应式桌面周网格和窄屏按天布局。
-Windows Release 部署仍在课表 MVP 完成后集中处理。
+课表当前计划范围已完成。模块包含独立的 Domain、Application、Repository、Presentation 与
+QML 分层，共享 SQLite 数据库已升级到版本 7；支持学期、课程、课程资料、多条上课
+安排、任意教学周集合、冲突检测、归档和安全删除。桌面宽屏使用星期/节次网格，窄屏
+阅读使用按天列表；查看与编辑模式相互分离，编辑模式也可以切换上一周、下一周和当前
+周，直接观察所选教学周的实际课表。排课网格支持点击添加或修改、动态增减显示节数，
+主要弹窗和编辑工具栏已适配 360 像素窄窗口。编辑器会在没有课程或没有教学周时阻止
+非法创建，并明确显示当前安排的课程。Excel/WPS 课表可以另存为 UTF-8 CSV 后一键
+导入，支持整学期范围或任意教学周，失败时会撤销本次已写入内容。每个节次的名称和
+`HH:mm` 起止时间也可以独立修改，并会同步显示在查看和编辑网格中。SQLite、Application、
+Presentation 和 QML 集成测试覆盖迁移、恢复、周次切换、自定义周次、删除、导入与
+响应式布局。Windows Release 部署仍留到功能边界稳定后集中处理。
 
 ## 技术方向
 
@@ -80,6 +79,7 @@ Windows Release 部署仍在课表 MVP 完成后集中处理。
 
 - [项目计划](docs/PROJECT_PLAN.md)
 - [课表模块开发计划](docs/SCHEDULE_PLAN.md)
+- [天气模块开发计划](docs/WEATHER_PLAN.md)
 - [架构说明](docs/ARCHITECTURE.md)
 - [C++ 代码导读](docs/CPP_CODE_GUIDE.md)
 - [开发协作方式](docs/DEVELOPMENT_GUIDE.md)
@@ -123,6 +123,16 @@ Windows Release 部署仍在课表 MVP 完成后集中处理。
 - [第三十八课：课表 Presentation 与周视图模型](docs/lessons/38-schedule-presentation.md)
 - [第三十九课：学期与课程管理 UI](docs/lessons/39-schedule-term-course-ui.md)
 - [第四十课：响应式周课表界面](docs/lessons/40-schedule-week-view.md)
+- [第四十一课：查看模式与学期排课编辑模式](docs/lessons/41-schedule-interaction-finish.md)
+- [第四十二课：课表节数、按钮反馈与课程资料](docs/lessons/42-schedule-controls-and-course-materials.md)
+- [第四十三课：自定义周次与安全删除](docs/lessons/43-schedule-custom-weeks-and-deletion.md)
+- [第四十四课：触摸与集成验收](docs/lessons/44-schedule-touch-and-acceptance.md)
+- [第四十五课：排课防错与 CSV 批量导入](docs/lessons/45-schedule-safety-and-csv-import.md)
+- [第四十六课：自定义节次名称与时间](docs/lessons/46-schedule-period-definitions.md)
+- [第四十七课：天气领域模型](docs/lessons/47-weather-domain.md)
+- [第四十八课：天气异步 Application 端口](docs/lessons/48-weather-application.md)
+- [第四十九课：Open-Meteo 网络与 JSON 基础设施](docs/lessons/49-openmeteo-infrastructure.md)
+- [课表 CSV 导入模板](docs/templates/schedule-import-template.csv)
 
 ## 开发原则
 

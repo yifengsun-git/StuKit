@@ -41,6 +41,33 @@ public:
         return true;
     }
 
+    bool remove(const QUuid &id) override
+    {
+        if (!m_saveShouldSucceed) {
+            return false;
+        }
+        const auto oldSize = m_meetings.size();
+        std::erase_if(
+            m_meetings,
+            [&id](const CourseMeeting &meeting) {
+                return meeting.id() == id;
+            });
+        return m_meetings.size() + 1 == oldSize;
+    }
+
+    bool removeByCourseId(const QUuid &courseId) override
+    {
+        if (!m_saveShouldSucceed) {
+            return false;
+        }
+        std::erase_if(
+            m_meetings,
+            [&courseId](const CourseMeeting &meeting) {
+                return meeting.courseId() == courseId;
+            });
+        return true;
+    }
+
     std::optional<CourseMeeting> findById(const QUuid &id) const override
     {
         if (!m_queryShouldSucceed) {

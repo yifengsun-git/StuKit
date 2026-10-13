@@ -1,14 +1,19 @@
 #pragma once
 
+#include "DeleteScheduleItem.h"
 #include "GetScheduleSetup.h"
+#include "IPeriodDefinitionService.h"
+#include "IScheduleImportService.h"
 #include "SaveAcademicTerm.h"
 #include "SaveCourse.h"
 #include "SaveCourseMeeting.h"
 #include "ScheduleManagementModels.h"
+#include "WeeklyScheduleListModel.h"
 
 #include <QAbstractItemModel>
 #include <QObject>
 #include <QString>
+#include <QUrl>
 #include <QVariantList>
 
 #include <vector>
@@ -21,6 +26,7 @@ class ScheduleManagementViewModel final : public QObject
     Q_PROPERTY(QAbstractItemModel *terms READ terms CONSTANT)
     Q_PROPERTY(QAbstractItemModel *courses READ courses CONSTANT)
     Q_PROPERTY(QAbstractItemModel *meetings READ meetings CONSTANT)
+    Q_PROPERTY(QAbstractItemModel *termSchedule READ termSchedule CONSTANT)
     Q_PROPERTY(QString selectedTermId READ selectedTermId NOTIFY selectionChanged)
     Q_PROPERTY(QString selectedCourseId READ selectedCourseId NOTIFY selectionChanged)
     Q_PROPERTY(bool selectedTermArchived READ selectedTermArchived NOTIFY selectionChanged)
@@ -32,6 +38,8 @@ class ScheduleManagementViewModel final : public QObject
     Q_PROPERTY(bool hasConflicts READ hasConflicts NOTIFY conflictsChanged)
     Q_PROPERTY(bool hasError READ hasError NOTIFY errorChanged)
     Q_PROPERTY(QString errorMessage READ errorMessage NOTIFY errorChanged)
+    Q_PROPERTY(QString importMessage READ importMessage NOTIFY importMessageChanged)
+    Q_PROPERTY(QVariantList periodDefinitions READ periodDefinitions NOTIFY periodDefinitionsChanged)
 
 public:
     ScheduleManagementViewModel(
@@ -39,11 +47,15 @@ public:
         SaveAcademicTerm &saveAcademicTerm,
         SaveCourse &saveCourse,
         SaveCourseMeeting &saveCourseMeeting,
+        DeleteScheduleItem &deleteScheduleItem,
+        IScheduleImportService *importService = nullptr,
+        IPeriodDefinitionService *periodDefinitionService = nullptr,
         QObject *parent = nullptr);
 
     [[nodiscard]] QAbstractItemModel *terms() noexcept;
     [[nodiscard]] QAbstractItemModel *courses() noexcept;
     [[nodiscard]] QAbstractItemModel *meetings() noexcept;
+    [[nodiscard]] QAbstractItemModel *termSchedule() noexcept;
     [[nodiscard]] QString selectedTermId() const;
     [[nodiscard]] QString selectedCourseId() const;
     [[nodiscard]] bool selectedTermArchived() const noexcept;
@@ -55,6 +67,8 @@ public:
     [[nodiscard]] bool hasConflicts() const noexcept;
     [[nodiscard]] bool hasError() const noexcept;
     [[nodiscard]] const QString &errorMessage() const noexcept;
+    [[nodiscard]] const QString &importMessage() const noexcept;
+    [[nodiscard]] QVariantList periodDefinitions() const;
 
     Q_INVOKABLE void load();
     Q_INVOKABLE bool selectTerm(const QString &termId);
@@ -74,6 +88,15 @@ public:
         const QString &teacher,
         const QString &location,
         const QString &color);
+    Q_INVOKABLE bool saveCourseDetails(
+        const QString &courseId,
+        const QString &termId,
+        const QString &name,
+        const QString &teacher,
+        const QString &location,
+        const QString &color,
+        const QString &assessmentStandard,
+        const QString &teachingPlan);
     Q_INVOKABLE bool saveMeetingDetails(
         const QString &meetingId,
         const QString &courseId,
@@ -83,6 +106,21 @@ public:
         int startWeek,
         int endWeek,
         int weekPattern);
+    Q_INVOKABLE bool saveMeetingWeeks(
+        const QString &meetingId,
+        const QString &courseId,
+        int weekday,
+        int startPeriod,
+        int endPeriod,
+        const QVariantList &activeWeeks);
+    Q_INVOKABLE bool deleteMeeting(const QString &meetingId);
+    Q_INVOKABLE bool deleteCourse(const QString &courseId);
+    Q_INVOKABLE bool importScheduleCsv(const QUrl &fileUrl);
+    Q_INVOKABLE bool savePeriodDefinition(
+        int periodNumber,
+        const QString &name,
+        const QString &startTime,
+        const QString &endTime);
     Q_INVOKABLE void clearMessages();
 
 signals:
@@ -90,32 +128,52 @@ signals:
     void selectionChanged();
     void conflictsChanged();
     void errorChanged();
+    void importMessageChanged();
+    void periodDefinitionsChanged();
     void dataChanged();
 
 private:
     [[nodiscard]] const AcademicTerm *findTerm(const QUuid &id) const;
     [[nodiscard]] const Course *findCourse(const QUuid &id) const;
+    bool saveMeeting(
+        const QString &meetingId,
+        const QString &courseId,
+        int weekday,
+        int startPeriod,
+        int endPeriod,
+        int startWeek,
+        int endWeek,
+        WeekPattern weekPattern,
+        std::vector<int> activeWeeks);
     void rebuildFilteredModels();
     void rebuildMeetingModel();
+    void rebuildTermScheduleModel();
     void setConflicts(std::vector<ScheduleConflict> conflicts);
     void clearConflicts();
     void setError(QString message);
     void clearError();
+    void setImportMessage(QString message);
 
     GetScheduleSetup &m_getScheduleSetup;
     SaveAcademicTerm &m_saveAcademicTerm;
     SaveCourse &m_saveCourse;
     SaveCourseMeeting &m_saveCourseMeeting;
+    DeleteScheduleItem &m_deleteScheduleItem;
+    IScheduleImportService *m_importService;
+    IPeriodDefinitionService *m_periodDefinitionService;
     AcademicTermListModel m_termsModel;
     CourseListModel m_coursesModel;
     CourseMeetingListModel m_meetingsModel;
+    WeeklyScheduleListModel m_termScheduleModel;
     std::vector<AcademicTerm> m_terms;
     std::vector<Course> m_courses;
     std::vector<CourseMeeting> m_meetings;
     std::vector<ScheduleConflict> m_conflicts;
+    std::vector<PeriodDefinition> m_periodDefinitions;
     QUuid m_selectedTermId;
     QUuid m_selectedCourseId;
     QString m_errorMessage;
+    QString m_importMessage;
 };
 
 } // namespace stukit::schedule::presentation

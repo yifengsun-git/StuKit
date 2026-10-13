@@ -1,3 +1,4 @@
+#include "DeleteScheduleItem.h"
 #include "GetAcademicTerms.h"
 #include "GetScheduleSetup.h"
 #include "GetWeeklySchedule.h"
@@ -50,6 +51,7 @@ struct Fixture
     SaveAcademicTerm saveTerm{terms, courses, meetings};
     SaveCourse saveCourse{terms, courses};
     SaveCourseMeeting saveMeeting{terms, courses, meetings};
+    DeleteScheduleItem deleteItem{terms, courses, meetings};
 };
 
 } // namespace
@@ -85,6 +87,9 @@ void SchedulePresentationTest::exposesReadableModelRoles()
         .weekday = Weekday::Wednesday,
         .startPeriod = 3,
         .endPeriod = 4,
+        .startWeek = 1,
+        .endWeek = 18,
+        .weekPattern = WeekPattern::EveryWeek,
     }});
 
     QCOMPARE(model.rowCount(), 1);
@@ -116,11 +121,17 @@ void SchedulePresentationTest::exposesReadableModelRoles()
         model.data(index, WeeklyScheduleListModel::PeriodTextRole).toString(),
         QStringLiteral("第 3～4 节"));
     QCOMPARE(
+        model.data(
+            index, WeeklyScheduleListModel::WeekRangeTextRole).toString(),
+        QStringLiteral("第 1～18 周 · 每周"));
+    QCOMPARE(
         model.roleNames().value(WeeklyScheduleListModel::CourseNameRole),
         QByteArrayLiteral("courseName"));
+    QCOMPARE(model.weekdayCounts(), QVariantList({0, 0, 1, 0, 0, 0, 0}));
 
     model.clear();
     QCOMPARE(model.rowCount(), 0);
+    QCOMPARE(model.weekdayCounts(), QVariantList({0, 0, 0, 0, 0, 0, 0}));
 }
 
 void SchedulePresentationTest::loadsCurrentTermAndWeek()
@@ -172,6 +183,15 @@ void SchedulePresentationTest::loadsCurrentTermAndWeek()
     QCOMPARE(
         viewModel.weekDateRange(),
         QStringLiteral("2026-09-14 ～ 2026-09-20"));
+    const QVariantList weekDays = viewModel.weekDays();
+    QCOMPARE(weekDays.size(), 7);
+    QCOMPARE(
+        weekDays.first().toMap().value(QStringLiteral("weekdayText")),
+        QStringLiteral("周一"));
+    QCOMPARE(
+        weekDays.first().toMap().value(QStringLiteral("fullDateText")),
+        QStringLiteral("2026-09-14"));
+    QVERIFY(weekDays.at(1).toMap().value(QStringLiteral("isToday")).toBool());
     QVERIFY(viewModel.currentWeekAvailable());
     QVERIFY(viewModel.showingCurrentWeek());
     QVERIFY(viewModel.canShowPreviousWeek());
@@ -324,7 +344,10 @@ void SchedulePresentationTest::managesTermsCoursesAndMeetings()
         fixture.getSetup,
         fixture.saveTerm,
         fixture.saveCourse,
-        fixture.saveMeeting);
+        fixture.saveMeeting,
+        fixture.deleteItem,
+        nullptr,
+        nullptr);
     QSignalSpy dataSpy(
         &viewModel, &ScheduleManagementViewModel::dataChanged);
     viewModel.load();
@@ -355,7 +378,9 @@ void SchedulePresentationTest::managesTermsCoursesAndMeetings()
         QStringLiteral("高等数学"),
         QStringLiteral("王老师"),
         QStringLiteral("A101"),
-        QStringLiteral("#3b82f6")));
+        QStringLiteral("#3b82f6"),
+        QStringLiteral("平时 30%，期末 70%"),
+        QStringLiteral("第 1～4 周：基础章节")));
     QVERIFY(viewModel.hasCourses());
     QCOMPARE(viewModel.courses()->rowCount(), 1);
     const QString courseId = viewModel.selectedCourseId();
@@ -364,11 +389,21 @@ void SchedulePresentationTest::managesTermsCoursesAndMeetings()
         viewModel.courses()->data(
             courseIndex, CourseListModel::ColorRole).toString(),
         QStringLiteral("#3B82F6"));
+    QCOMPARE(
+        viewModel.courses()->data(
+            courseIndex,
+            CourseListModel::AssessmentStandardRole).toString(),
+        QStringLiteral("平时 30%，期末 70%"));
+    QCOMPARE(
+        viewModel.courses()->data(
+            courseIndex, CourseListModel::TeachingPlanRole).toString(),
+        QStringLiteral("第 1～4 周：基础章节"));
 
     QVERIFY(viewModel.saveMeetingDetails(
         {}, courseId, 1, 1, 2, 1, 18, 0));
     QVERIFY(viewModel.hasMeetings());
     QCOMPARE(viewModel.meetings()->rowCount(), 1);
+    QCOMPARE(viewModel.termSchedule()->rowCount(), 1);
     const QModelIndex meetingIndex = viewModel.meetings()->index(0, 0);
     QCOMPARE(
         viewModel.meetings()->data(
@@ -379,6 +414,18 @@ void SchedulePresentationTest::managesTermsCoursesAndMeetings()
         meetingIndex,
         CourseMeetingListModel::SummaryRole).toString().contains(
             QStringLiteral("第 1～2 节")));
+    const QModelIndex termScheduleIndex =
+        viewModel.termSchedule()->index(0, 0);
+    QCOMPARE(
+        viewModel.termSchedule()->data(
+            termScheduleIndex,
+            WeeklyScheduleListModel::CourseNameRole).toString(),
+        QStringLiteral("高等数学"));
+    QCOMPARE(
+        viewModel.termSchedule()->data(
+            termScheduleIndex,
+            WeeklyScheduleListModel::WeekRangeTextRole).toString(),
+        QStringLiteral("第 1～18 周 · 每周"));
 
     QVERIFY(viewModel.setTermArchived(termId, true));
     QVERIFY(viewModel.selectedTermArchived());
@@ -402,7 +449,10 @@ void SchedulePresentationTest::reportsMeetingConflictsWithoutSaving()
         fixture.getSetup,
         fixture.saveTerm,
         fixture.saveCourse,
-        fixture.saveMeeting);
+        fixture.saveMeeting,
+        fixture.deleteItem,
+        nullptr,
+        nullptr);
     viewModel.load();
     QVERIFY(viewModel.saveTerm(
         {}, QStringLiteral("测试学期"), QStringLiteral("2026-09-07"),
@@ -444,7 +494,10 @@ void SchedulePresentationTest::clearsManagementModelsOnFailure()
         fixture.getSetup,
         fixture.saveTerm,
         fixture.saveCourse,
-        fixture.saveMeeting);
+        fixture.saveMeeting,
+        fixture.deleteItem,
+        nullptr,
+        nullptr);
     viewModel.load();
     QCOMPARE(viewModel.terms()->rowCount(), 1);
 

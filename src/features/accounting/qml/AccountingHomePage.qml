@@ -151,7 +151,7 @@ Page {
                 Layout.rightMargin: AppTheme.spacingLarge
                 Layout.topMargin: AppTheme.spacingLarge
 
-                Button {
+                AppButton {
                     text: qsTr("上一月")
                     enabled: root.viewModel !== null
                     onClicked: root.viewModel.showPreviousMonth()
@@ -166,14 +166,14 @@ Page {
                     text: root.viewModel ? root.viewModel.monthLabel : qsTr("记账本")
                 }
 
-                Button {
+                AppButton {
                     text: qsTr("下一月")
                     enabled: root.viewModel !== null
                     onClicked: root.viewModel.showNextMonth()
                 }
             }
 
-            Button {
+            AppButton {
                 Layout.alignment: Qt.AlignHCenter
                 text: root.viewModel
                     ? qsTr("时区：%1  ·  更改").arg(root.viewModel.timeZoneId)
@@ -221,7 +221,7 @@ Page {
                         wrapMode: Text.WordWrap
                     }
 
-                    Button {
+                    AppButton {
                         text: qsTr("重试读取")
                         visible: root.setupViewModel !== null
                             && root.setupViewModel.hasError
@@ -237,22 +237,22 @@ Page {
                 spacing: AppTheme.spacingSmall
                 visible: root.setupViewModel !== null
 
-                Button {
+                AppButton {
                     text: qsTr("新增账户")
                     onClicked: root.openAccountDialog()
                 }
 
-                Button {
+                AppButton {
                     text: qsTr("新增支出分类")
                     onClicked: root.openCategoryDialog(false)
                 }
 
-                Button {
+                AppButton {
                     text: qsTr("新增收入分类")
                     onClicked: root.openCategoryDialog(true)
                 }
 
-                Button {
+                AppButton {
                     text: qsTr("管理账户与分类")
                     onClicked: setupManagementDialog.open()
                 }
@@ -294,19 +294,19 @@ Page {
                         Layout.fillWidth: true
                         spacing: AppTheme.spacingSmall
 
-                        Button {
+                        AppButton {
                             text: qsTr("备份数据库")
                             enabled: !root.maintenanceViewModel.busy
                             onClicked: backupFileDialog.open()
                         }
 
-                        Button {
+                        AppButton {
                             text: qsTr("恢复数据库")
                             enabled: !root.maintenanceViewModel.busy
                             onClicked: restoreFileDialog.open()
                         }
 
-                        Button {
+                        AppButton {
                             text: qsTr("导出全部流水 CSV")
                             enabled: !root.maintenanceViewModel.busy
                             highlighted: true
@@ -328,7 +328,7 @@ Page {
                 }
             }
 
-            Button {
+            AppButton {
                 Layout.alignment: Qt.AlignHCenter
                 text: qsTr("记一笔")
                 enabled: root.transactionViewModel !== null
@@ -427,7 +427,7 @@ Page {
                         text: root.activeError
                     }
 
-                    Button {
+                    AppButton {
                         text: qsTr("重试")
                         visible: root.viewModel !== null
                             && root.startupError.length === 0
@@ -563,7 +563,7 @@ Page {
                                 : AppTheme.textSecondaryColor
                         }
 
-                        Button {
+                        AppButton {
                             text: qsTr("清除筛选")
                             visible: root.viewModel
                                 && root.viewModel.hasActiveTransactionFilters
@@ -766,7 +766,7 @@ Page {
                                 }
                             }
 
-                            Button {
+                            AppButton {
                                 text: qsTr("重命名")
                                 onClicked: root.openRenameSetupItemDialog(
                                     "account",
@@ -774,7 +774,7 @@ Page {
                                     accountManagementDelegate.name)
                             }
 
-                            Button {
+                            AppButton {
                                 text: accountManagementDelegate.archived
                                     ? qsTr("恢复")
                                     : qsTr("归档")
@@ -859,7 +859,7 @@ Page {
                                 }
                             }
 
-                            Button {
+                            AppButton {
                                 text: qsTr("重命名")
                                 onClicked: root.openRenameSetupItemDialog(
                                     "category",
@@ -867,7 +867,7 @@ Page {
                                     categoryManagementDelegate.name)
                             }
 
-                            Button {
+                            AppButton {
                                 text: categoryManagementDelegate.archived
                                     ? qsTr("恢复")
                                     : qsTr("归档")
@@ -906,7 +906,7 @@ Page {
                 wrapMode: Text.WordWrap
             }
 
-            Button {
+            AppButton {
                 Layout.alignment: Qt.AlignRight
                 text: qsTr("关闭")
                 onClicked: setupManagementDialog.close()
@@ -940,12 +940,12 @@ Page {
             RowLayout {
                 Layout.alignment: Qt.AlignRight
 
-                Button {
+                AppButton {
                     text: qsTr("取消")
                     onClicked: renameSetupItemDialog.close()
                 }
 
-                Button {
+                AppButton {
                     text: qsTr("保存")
                     onClicked: {
                         const succeeded = renameSetupItemDialog.itemKind
@@ -1030,12 +1030,12 @@ Page {
             RowLayout {
                 Layout.alignment: Qt.AlignRight
 
-                Button {
+                AppButton {
                     text: qsTr("取消")
                     onClicked: accountDialog.close()
                 }
 
-                Button {
+                AppButton {
                     text: qsTr("保存")
                     onClicked: {
                         if (root.setupViewModel.createAccount(
@@ -1080,12 +1080,12 @@ Page {
             RowLayout {
                 Layout.alignment: Qt.AlignRight
 
-                Button {
+                AppButton {
                     text: qsTr("取消")
                     onClicked: categoryDialog.close()
                 }
 
-                Button {
+                AppButton {
                     text: qsTr("保存")
                     onClicked: {
                         if (root.setupViewModel.createCategory(
@@ -1119,7 +1119,7 @@ Page {
                     id: transactionTypeGroup
                 }
 
-                Button {
+                AppButton {
                     Layout.fillWidth: true
                     text: qsTr("支出")
                     checkable: true
@@ -1129,7 +1129,7 @@ Page {
                     onClicked: root.transactionViewModel.income = false
                 }
 
-                Button {
+                AppButton {
                     Layout.fillWidth: true
                     text: qsTr("收入")
                     checkable: true
@@ -1230,12 +1230,12 @@ Page {
             RowLayout {
                 Layout.alignment: Qt.AlignRight
 
-                Button {
+                AppButton {
                     text: qsTr("取消")
                     onClicked: transactionDialog.close()
                 }
 
-                Button {
+                AppButton {
                     text: root.transactionViewModel
                         ? root.transactionViewModel.submitButtonText
                         : qsTr("保存")
@@ -1496,7 +1496,7 @@ Page {
                 Layout.fillWidth: true
                 Layout.topMargin: AppTheme.spacingMedium
 
-                Button {
+                AppButton {
                     text: qsTr("删除")
                     onClicked: deleteTransactionDialog.open()
                 }
@@ -1505,7 +1505,7 @@ Page {
                     Layout.fillWidth: true
                 }
 
-                Button {
+                AppButton {
                     text: qsTr("编辑")
                     onClicked: root.openEditTransactionDialog(
                         transactionDetailDialog.transactionId)

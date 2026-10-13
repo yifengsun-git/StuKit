@@ -1,5 +1,7 @@
 #include "ScheduleModule.h"
 
+#include "DeleteScheduleItem.h"
+#include "import/CsvScheduleImportService.h"
 #include "GetAcademicTerms.h"
 #include "GetScheduleSetup.h"
 #include "GetWeeklySchedule.h"
@@ -11,6 +13,7 @@
 #include "repositories/SqliteAcademicTermRepository.h"
 #include "repositories/SqliteCourseMeetingRepository.h"
 #include "repositories/SqliteCourseRepository.h"
+#include "settings/SqlitePeriodDefinitionService.h"
 
 #include <QObject>
 
@@ -57,6 +60,17 @@ bool ScheduleModule::initialize(const QDate &today)
         *m_termRepository, *m_courseRepository);
     m_saveCourseMeeting = std::make_unique<schedule::SaveCourseMeeting>(
         *m_termRepository, *m_courseRepository, *m_meetingRepository);
+    m_deleteScheduleItem = std::make_unique<schedule::DeleteScheduleItem>(
+        *m_termRepository, *m_courseRepository, *m_meetingRepository);
+    m_csvImportService =
+        std::make_unique<schedule::CsvScheduleImportService>(
+            *m_courseRepository,
+            *m_meetingRepository,
+            *m_saveCourse,
+            *m_saveCourseMeeting);
+    m_periodDefinitionService =
+        std::make_unique<schedule::SqlitePeriodDefinitionService>(
+            m_database);
     m_overviewViewModel =
         std::make_unique<schedule::presentation::ScheduleViewModel>(
             *m_getAcademicTerms, *m_getWeeklySchedule, m_today);
@@ -65,7 +79,10 @@ bool ScheduleModule::initialize(const QDate &today)
             *m_getScheduleSetup,
             *m_saveAcademicTerm,
             *m_saveCourse,
-            *m_saveCourseMeeting);
+            *m_saveCourseMeeting,
+            *m_deleteScheduleItem,
+            m_csvImportService.get(),
+            m_periodDefinitionService.get());
 
     QObject::connect(
         m_managementViewModel.get(),
@@ -110,7 +127,10 @@ void ScheduleModule::reset()
 {
     m_managementViewModel.reset();
     m_overviewViewModel.reset();
+    m_periodDefinitionService.reset();
+    m_csvImportService.reset();
     m_saveCourseMeeting.reset();
+    m_deleteScheduleItem.reset();
     m_saveCourse.reset();
     m_saveAcademicTerm.reset();
     m_getWeeklySchedule.reset();

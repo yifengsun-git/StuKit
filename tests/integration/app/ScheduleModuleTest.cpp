@@ -46,6 +46,16 @@ void ScheduleModuleTest::persistsScheduleThroughSharedDatabase()
         auto *overview = appModule.scheduleModule()->overviewViewModel();
         QVERIFY(management != nullptr);
         QVERIFY(overview != nullptr);
+        QCOMPARE(management->periodDefinitions().size(), 12);
+        const QVariantMap firstPeriod =
+            management->periodDefinitions().constFirst().toMap();
+        QCOMPARE(firstPeriod.value(QStringLiteral("name")).toString(),
+                 QStringLiteral("第 1 节"));
+        QVERIFY(management->savePeriodDefinition(
+            1,
+            QStringLiteral("早读"),
+            QStringLiteral("07:30"),
+            QStringLiteral("07:55")));
 
         QVERIFY(management->saveTerm(
             {},
@@ -89,6 +99,13 @@ void ScheduleModuleTest::persistsScheduleThroughSharedDatabase()
         QCOMPARE(management->courses()->rowCount(), 1);
         QCOMPARE(management->meetings()->rowCount(), 1);
         QCOMPARE(overview->meetings()->rowCount(), 1);
+        const QVariantMap restoredFirstPeriod =
+            management->periodDefinitions().constFirst().toMap();
+        QCOMPARE(restoredFirstPeriod.value(QStringLiteral("name")).toString(),
+                 QStringLiteral("早读"));
+        QCOMPARE(
+            restoredFirstPeriod.value(QStringLiteral("startTime")).toString(),
+            QStringLiteral("07:30"));
         const QModelIndex courseIndex = management->courses()->index(0, 0);
         QCOMPARE(
             management->courses()->data(

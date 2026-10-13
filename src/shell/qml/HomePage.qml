@@ -36,21 +36,21 @@ Page {
             Layout.alignment: Qt.AlignHCenter
             spacing: AppTheme.spacingMedium
 
-            Button {
+            AppButton {
                 Layout.preferredWidth: 160
                 Layout.preferredHeight: AppTheme.controlHeight
                 text: qsTr("记账本")
                 onClicked: root.accountingRequested()
             }
 
-            Button {
+            AppButton {
                 Layout.preferredWidth: 160
                 Layout.preferredHeight: AppTheme.controlHeight
                 text: qsTr("数据分析")
                 onClicked: root.analyticsRequested()
             }
 
-            Button {
+            AppButton {
                 Layout.preferredWidth: 160
                 Layout.preferredHeight: AppTheme.controlHeight
                 text: qsTr("课表")
