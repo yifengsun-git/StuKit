@@ -41,6 +41,7 @@ private slots:
   void upgradesVersion2Database();
   void upgradesVersion3Database();
   void upgradesVersion4CourseMaterials();
+  void upgradesVersion9TaskCategories();
   void rollsBackFailedScheduleMigration();
   void rejectsFutureSchemaVersion();
   void enablesForeignKeys();
@@ -94,9 +95,9 @@ void SqliteDatabaseTest::migrationIsIdempotent() {
                  "FROM schema_migrations")),
              qPrintable(query.lastError().text()));
     QVERIFY(query.next());
-    QCOMPARE(query.value(0).toInt(), 7);
-    QCOMPARE(query.value(1).toInt(), 7);
-    QCOMPARE(query.value(2).toInt(), 7);
+    QCOMPARE(query.value(0).toInt(), 10);
+    QCOMPARE(query.value(1).toInt(), 10);
+    QCOMPARE(query.value(2).toInt(), 10);
   }
 }
 
@@ -499,6 +500,9 @@ void SqliteDatabaseTest::upgradesVersion3Database() {
 
   QSqlQuery query(database.connection());
   const QStringList prepareVersion3{
+      QStringLiteral("DROP TABLE task_reminder_deliveries"),
+      QStringLiteral("DROP TABLE task_categories"),
+      QStringLiteral("DROP TABLE tasks"),
       QStringLiteral("DROP TABLE schedule_period_definitions"),
       QStringLiteral("DROP TABLE course_meeting_weeks"),
       QStringLiteral("DROP TABLE course_meetings"),
@@ -508,6 +512,9 @@ void SqliteDatabaseTest::upgradesVersion3Database() {
       QStringLiteral("DELETE FROM schema_migrations WHERE version = 5"),
       QStringLiteral("DELETE FROM schema_migrations WHERE version = 6"),
       QStringLiteral("DELETE FROM schema_migrations WHERE version = 7"),
+      QStringLiteral("DELETE FROM schema_migrations WHERE version = 8"),
+      QStringLiteral("DELETE FROM schema_migrations WHERE version = 9"),
+      QStringLiteral("DELETE FROM schema_migrations WHERE version = 10"),
       QStringLiteral("INSERT INTO accounts("
                      "id, name, opening_balance_cents, archived) "
                      "VALUES('v3-account', '版本三账户', 456, 0)"),
@@ -615,6 +622,9 @@ void SqliteDatabaseTest::rollsBackFailedScheduleMigration() {
 
   QSqlQuery query(database.connection());
   const QStringList prepareBrokenVersion3{
+      QStringLiteral("DROP TABLE task_reminder_deliveries"),
+      QStringLiteral("DROP TABLE task_categories"),
+      QStringLiteral("DROP TABLE tasks"),
       QStringLiteral("DROP TABLE schedule_period_definitions"),
       QStringLiteral("DROP TABLE course_meeting_weeks"),
       QStringLiteral("DROP TABLE course_meetings"),
@@ -624,6 +634,9 @@ void SqliteDatabaseTest::rollsBackFailedScheduleMigration() {
       QStringLiteral("DELETE FROM schema_migrations WHERE version = 5"),
       QStringLiteral("DELETE FROM schema_migrations WHERE version = 6"),
       QStringLiteral("DELETE FROM schema_migrations WHERE version = 7"),
+      QStringLiteral("DELETE FROM schema_migrations WHERE version = 8"),
+      QStringLiteral("DELETE FROM schema_migrations WHERE version = 9"),
+      QStringLiteral("DELETE FROM schema_migrations WHERE version = 10"),
       QStringLiteral("CREATE TABLE courses(dummy TEXT)"),
   };
   for (const QString &statement : prepareBrokenVersion3) {
@@ -649,6 +662,44 @@ void SqliteDatabaseTest::rollsBackFailedScheduleMigration() {
   QCOMPARE(query.value(3).toInt(), 0);
 }
 
+void SqliteDatabaseTest::upgradesVersion9TaskCategories() {
+  QTemporaryDir directory = createTemporaryDatabaseDirectory();
+  QVERIFY(directory.isValid());
+  SqliteDatabase database(uniqueConnectionName());
+  QVERIFY2(database.open(directory.filePath(QStringLiteral("stukit.sqlite"))),
+           qPrintable(database.lastError()));
+
+  QSqlQuery query(database.connection());
+  const QStringList statements{
+      QStringLiteral("CREATE TABLE schema_migrations ("
+                     "version INTEGER PRIMARY KEY NOT NULL, "
+                     "applied_at TEXT NOT NULL)"),
+      QStringLiteral("INSERT INTO schema_migrations(version, applied_at) "
+                     "VALUES(9, 'version-nine')"),
+      QStringLiteral("CREATE TABLE tasks ("
+                     "id TEXT PRIMARY KEY NOT NULL, category INTEGER NOT NULL)"),
+      QStringLiteral("INSERT INTO tasks(id, category) VALUES "
+                     "('homework', 0), ('exam', 1), ('competition', 2)"),
+  };
+  for (const QString &statement : statements) {
+    QVERIFY2(query.exec(statement), qPrintable(query.lastError().text()));
+  }
+
+  QVERIFY2(database.migrate(), qPrintable(database.lastError()));
+  QVERIFY(query.exec(QStringLiteral(
+      "SELECT id, category_name FROM tasks ORDER BY category")));
+  QVERIFY(query.next());
+  QCOMPARE(query.value(1).toString(), QStringLiteral("作业"));
+  QVERIFY(query.next());
+  QCOMPARE(query.value(1).toString(), QStringLiteral("考试"));
+  QVERIFY(query.next());
+  QCOMPARE(query.value(1).toString(), QStringLiteral("竞赛"));
+  QVERIFY(query.exec(QStringLiteral(
+      "SELECT COUNT(*) FROM task_categories")));
+  QVERIFY(query.next());
+  QCOMPARE(query.value(0).toInt(), 3);
+}
+
 void SqliteDatabaseTest::rejectsFutureSchemaVersion() {
   QTemporaryDir directory = createTemporaryDatabaseDirectory();
   QVERIFY(directory.isValid());
@@ -661,7 +712,7 @@ void SqliteDatabaseTest::rejectsFutureSchemaVersion() {
   QSqlQuery query(database.connection());
   QVERIFY2(query.exec(QStringLiteral(
                "INSERT INTO schema_migrations(version, applied_at) "
-               "VALUES(8, 'future-test')")),
+               "VALUES(11, 'future-test')")),
            qPrintable(query.lastError().text()));
 
   QVERIFY(!database.migrate());

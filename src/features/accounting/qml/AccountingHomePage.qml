@@ -15,6 +15,14 @@ Page {
     required property var maintenanceViewModel
     required property string startupError
 
+    signal analyticsRequested()
+
+    // Keep every accounting dialog inside the page on narrow windows. Dialog
+    // content must use the dialog's content width instead of calculating a
+    // second, potentially wider width from the page.
+    readonly property real availableDialogWidth: Math.max(
+        0, root.width - AppTheme.spacingMedium * 2)
+
     readonly property var fixedOffsetOptions: {
         const options = []
         for (let minutes = -14 * 60; minutes <= 14 * 60; minutes += 15) {
@@ -336,6 +344,12 @@ Page {
                     && root.activeError.length === 0
                 highlighted: true
                 onClicked: root.openTransactionDialog()
+            }
+
+            AppButton {
+                Layout.alignment: Qt.AlignHCenter
+                text: qsTr("数据分析")
+                onClicked: root.analyticsRequested()
             }
 
             GridLayout {
@@ -676,11 +690,12 @@ Page {
         id: setupManagementDialog
 
         anchors.centerIn: parent
+        width: Math.min(root.availableDialogWidth, 660)
         modal: true
         title: qsTr("账户与分类管理")
 
         ColumnLayout {
-            width: Math.min(root.width - AppTheme.spacingLarge * 2, 620)
+            width: parent.width
             spacing: AppTheme.spacingMedium
 
             Label {
@@ -921,13 +936,14 @@ Page {
         property string itemId: ""
 
         anchors.centerIn: parent
+        width: Math.min(root.availableDialogWidth, 400)
         modal: true
         title: itemKind === "account"
             ? qsTr("重命名账户")
             : qsTr("重命名分类")
 
         ColumnLayout {
-            width: Math.min(root.width - AppTheme.spacingLarge * 4, 360)
+            width: parent.width
             spacing: AppTheme.spacingMedium
 
             TextField {
@@ -972,6 +988,7 @@ Page {
         property string itemName: ""
 
         anchors.centerIn: parent
+        width: Math.min(root.availableDialogWidth, 420)
         modal: true
         title: itemKind === "account"
             ? qsTr("归档账户")
@@ -986,7 +1003,7 @@ Page {
         }
 
         Label {
-            width: Math.min(root.width - AppTheme.spacingLarge * 4, 380)
+            width: parent.width
             text: qsTr("确定归档“%1”吗？它将不再出现在新增或编辑账单的选项中，历史账单不受影响。")
                 .arg(archiveSetupItemDialog.itemName)
             color: AppTheme.textPrimaryColor
@@ -998,11 +1015,12 @@ Page {
         id: accountDialog
 
         anchors.centerIn: parent
+        width: Math.min(root.availableDialogWidth, 400)
         modal: true
         title: qsTr("创建资金账户")
 
         ColumnLayout {
-            width: Math.min(root.width - AppTheme.spacingLarge * 4, 360)
+            width: parent.width
             spacing: AppTheme.spacingMedium
 
             Label {
@@ -1055,11 +1073,12 @@ Page {
         property bool income: false
 
         anchors.centerIn: parent
+        width: Math.min(root.availableDialogWidth, 400)
         modal: true
         title: income ? qsTr("创建收入分类") : qsTr("创建支出分类")
 
         ColumnLayout {
-            width: Math.min(root.width - AppTheme.spacingLarge * 4, 360)
+            width: parent.width
             spacing: AppTheme.spacingMedium
 
             Label {
@@ -1103,13 +1122,14 @@ Page {
         id: transactionDialog
 
         anchors.centerIn: parent
+        width: Math.min(root.availableDialogWidth, 460)
         modal: true
         title: root.transactionViewModel && root.transactionViewModel.editing
             ? qsTr("编辑账单")
             : qsTr("新增账单")
 
         ColumnLayout {
-            width: Math.min(root.width - AppTheme.spacingLarge * 4, 420)
+            width: parent.width
             spacing: AppTheme.spacingMedium
 
             RowLayout {
@@ -1254,6 +1274,7 @@ Page {
         id: timeZoneDialog
 
         anchors.centerIn: parent
+        width: Math.min(root.availableDialogWidth, 500)
         modal: true
         title: qsTr("选择记账时区")
         standardButtons: Dialog.Save | Dialog.Cancel
@@ -1273,7 +1294,7 @@ Page {
         }
 
         ColumnLayout {
-            width: Math.min(root.width - AppTheme.spacingLarge * 4, 460)
+            width: parent.width
             spacing: AppTheme.spacingMedium
 
             Label {
@@ -1382,13 +1403,14 @@ Page {
         property url backupFile
 
         anchors.centerIn: parent
+        width: Math.min(root.availableDialogWidth, 480)
         modal: true
         title: qsTr("恢复数据")
         standardButtons: Dialog.Yes | Dialog.No
         onAccepted: root.maintenanceViewModel.restoreFrom(backupFile)
 
         Label {
-            width: Math.min(root.width - AppTheme.spacingLarge * 4, 440)
+            width: parent.width
             text: qsTr("恢复会用所选备份替换当前记账数据。StuKit 会先自动保存当前数据库，确定继续吗？")
             color: AppTheme.textPrimaryColor
             wrapMode: Text.WordWrap
@@ -1408,12 +1430,13 @@ Page {
         property string note: ""
 
         anchors.centerIn: parent
+        width: Math.min(root.availableDialogWidth, 460)
         modal: true
         title: qsTr("账单详情")
         standardButtons: Dialog.Close
 
         GridLayout {
-            width: Math.min(root.width - AppTheme.spacingLarge * 4, 420)
+            width: parent.width
             columns: 2
             rowSpacing: AppTheme.spacingMedium
             columnSpacing: AppTheme.spacingLarge
@@ -1518,6 +1541,7 @@ Page {
         id: deleteTransactionDialog
 
         anchors.centerIn: parent
+        width: Math.min(root.availableDialogWidth, 420)
         modal: true
         title: qsTr("删除账单")
         standardButtons: Dialog.Yes | Dialog.No
@@ -1530,7 +1554,7 @@ Page {
         }
 
         Label {
-            width: Math.min(root.width - AppTheme.spacingLarge * 4, 380)
+            width: parent.width
             text: qsTr("确定永久删除这笔账单吗？删除后无法恢复。")
             color: AppTheme.textPrimaryColor
             wrapMode: Text.WordWrap

@@ -14,6 +14,8 @@ ApplicationWindow
     required property var dataMaintenance
     required property var scheduleOverview
     required property var scheduleManagement
+    required property var weatherViewModel
+    required property var tasksViewModel
     required property string accountingStartupError
     required property string scheduleStartupError
 
@@ -21,7 +23,7 @@ ApplicationWindow
 
     width: 960
     height: 640
-    minimumWidth: 640
+    minimumWidth: 360
     minimumHeight: 480
     visible: true
     title: qsTr("StuKit")
@@ -38,6 +40,8 @@ ApplicationWindow
 
     function navigateTo(pageIndex)
     {
+        if (pageIndex === 1)
+            accountingContainer.analyticsVisible = false
         currentPage = pageIndex
         navigationDrawer.close()
     }
@@ -70,11 +74,14 @@ ApplicationWindow
                     switch (window.currentPage)
                     {
                     case 1:
-                        return qsTr("记账本")
+                        return accountingContainer.analyticsVisible
+                            ? qsTr("记账数据分析") : qsTr("记账本")
                     case 2:
-                        return qsTr("数据分析")
-                    case 3:
                         return qsTr("课表")
+                    case 3:
+                        return qsTr("天气")
+                    case 4:
+                        return qsTr("待办")
                     default:
                         return qsTr("首页")
                     }
@@ -131,15 +138,22 @@ ApplicationWindow
                 Button
                 {
                     Layout.fillWidth: true
-                    text: qsTr("数据分析")
+                    text: qsTr("课表")
                     onClicked: window.navigateTo(2)
                 }
 
                 Button
                 {
                     Layout.fillWidth: true
-                    text: qsTr("课表")
+                    text: qsTr("天气")
                     onClicked: window.navigateTo(3)
+                }
+
+                Button
+                {
+                    Layout.fillWidth: true
+                    text: qsTr("待办")
+                    onClicked: window.navigateTo(4)
                 }
 
                 Item
@@ -158,26 +172,41 @@ ApplicationWindow
         HomePage
         {
             onAccountingRequested: window.navigateTo(1)
-            onAnalyticsRequested: window.navigateTo(2)
-            onScheduleRequested: window.navigateTo(3)
+            onScheduleRequested: window.navigateTo(2)
+            onWeatherRequested: window.navigateTo(3)
+            onTasksRequested: window.navigateTo(4)
         }
 
-        AccountingHomePage {
-            viewModel: window.accountingOverview
-            balancesViewModel: window.accountingBalances
-            setupViewModel: window.accountingSetup
-            transactionViewModel: window.accountingTransactionEditor
-            maintenanceViewModel: window.dataMaintenance
-            startupError: window.accountingStartupError
-        }
-        AnalyticsHomePage {
-            viewModel: window.accountingAnalytics
-            startupError: window.accountingStartupError
+        StackLayout {
+            id: accountingContainer
+            property bool analyticsVisible: false
+            currentIndex: analyticsVisible ? 1 : 0
+
+            AccountingHomePage {
+                viewModel: window.accountingOverview
+                balancesViewModel: window.accountingBalances
+                setupViewModel: window.accountingSetup
+                transactionViewModel: window.accountingTransactionEditor
+                maintenanceViewModel: window.dataMaintenance
+                startupError: window.accountingStartupError
+                onAnalyticsRequested: accountingContainer.analyticsVisible = true
+            }
+            AnalyticsHomePage {
+                viewModel: window.accountingAnalytics
+                startupError: window.accountingStartupError
+                onBackRequested: accountingContainer.analyticsVisible = false
+            }
         }
         ScheduleHomePage {
             viewModel: window.scheduleOverview
             managementViewModel: window.scheduleManagement
             startupError: window.scheduleStartupError
+        }
+        WeatherHomePage {
+            viewModel: window.weatherViewModel
+        }
+        TasksHomePage {
+            viewModel: window.tasksViewModel
         }
     }
 }

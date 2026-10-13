@@ -41,6 +41,7 @@ class CreateTransactionViewModel;
 namespace stukit::app {
 
 class ScheduleModule;
+class TaskModule;
 
 class AccountingModule final
 {
@@ -75,6 +76,7 @@ public:
     [[nodiscard]] accounting::presentation::CreateTransactionViewModel *
     transactionEditorViewModel() const noexcept;
     [[nodiscard]] ScheduleModule *scheduleModule() const noexcept;
+    [[nodiscard]] TaskModule *taskModule() const noexcept;
     [[nodiscard]] const QString &databasePath() const noexcept;
     [[nodiscard]] const QString &lastSafetyBackupPath() const noexcept;
     [[nodiscard]] const QString &lastError() const noexcept;
@@ -89,6 +91,7 @@ private:
     QString m_lastError;
 
     std::unique_ptr<ScheduleModule> m_scheduleModule;
+    std::unique_ptr<TaskModule> m_taskModule;
 
     std::unique_ptr<accounting::SqliteDatabase> m_database;
     std::unique_ptr<accounting::SqliteBackupService> m_backupService;

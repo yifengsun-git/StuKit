@@ -2,6 +2,7 @@ add_library(StuKitWeatherApplication STATIC
     GetWeatherForecast.cpp
     GetWeatherForecast.h
     ILocationSearchService.h
+    IWeatherForecastCache.h
     IWeatherForecastService.h
     SearchWeatherLocations.cpp
     SearchWeatherLocations.h

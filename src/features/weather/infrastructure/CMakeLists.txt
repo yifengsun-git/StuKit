@@ -1,4 +1,6 @@
 add_library(StuKitWeatherInfrastructure STATIC
+    cache/JsonWeatherForecastCache.cpp
+    cache/JsonWeatherForecastCache.h
     openmeteo/OpenMeteoJsonParser.cpp
     openmeteo/OpenMeteoJsonParser.h
     openmeteo/OpenMeteoUrlBuilder.cpp
@@ -9,6 +11,7 @@ add_library(StuKitWeatherInfrastructure STATIC
 
 target_include_directories(StuKitWeatherInfrastructure
     PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/cache
         ${CMAKE_CURRENT_SOURCE_DIR}/openmeteo
 )
 

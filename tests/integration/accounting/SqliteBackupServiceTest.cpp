@@ -92,13 +92,13 @@ void SqliteBackupServiceTest::createsConsistentBackup()
     SqliteBackupService service(database.connection());
     const SqliteBackupResult backup = service.createBackup(backupPath);
     QVERIFY2(backup.succeeded(), qPrintable(backup.detail));
-    QCOMPARE(backup.schemaVersion, 7);
+  QCOMPARE(backup.schemaVersion, 10);
     QCOMPARE(firstAccountName(backupPath), QStringLiteral("银行卡"));
 
     const SqliteBackupResult validation =
         SqliteBackupService::validateBackup(backupPath);
     QVERIFY2(validation.succeeded(), qPrintable(validation.detail));
-    QCOMPARE(validation.schemaVersion, 7);
+  QCOMPARE(validation.schemaVersion, 10);
 }
 
 void SqliteBackupServiceTest::protectsExistingDestination()
@@ -153,14 +153,14 @@ void SqliteBackupServiceTest::rejectsInvalidAndFutureDatabases()
         QSqlQuery query(database);
         QVERIFY(query.exec(QStringLiteral(
             "INSERT INTO schema_migrations(version, applied_at) "
-            "VALUES(8, 'future')")));
+            "VALUES(11, 'future')")));
     }
     QSqlDatabase::removeDatabase(name);
 
     const SqliteBackupResult future =
         SqliteBackupService::validateBackup(futurePath);
     QCOMPARE(future.error, SqliteBackupError::UnsupportedVersion);
-    QCOMPARE(future.schemaVersion, 8);
+  QCOMPARE(future.schemaVersion, 11);
 }
 
 void SqliteBackupServiceTest::replacesClosedDatabaseAtomically()

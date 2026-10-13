@@ -27,3 +27,18 @@ add_test(
     NAME weather.application
     COMMAND StuKitWeatherApplicationTest
 )
+
+add_executable(StuKitWeatherPresentationTest
+    WeatherPresentationTest.cpp
+)
+
+target_link_libraries(StuKitWeatherPresentationTest
+    PRIVATE
+        Qt6::Test
+        StuKitWeatherPresentation
+)
+
+add_test(
+    NAME weather.presentation
+    COMMAND StuKitWeatherPresentationTest
+)

@@ -7,8 +7,9 @@ StuKit 是一个面向大学生日常使用的个人工具包。项目首先开�
 
 - 记账本：账户、分类、收支流水和月度统计。
 - 课表：学期、课程、周次、节次和课程冲突检测。
-- 天气：城市搜索、当前天气、短期预报和离线缓存（开发中）。
-- 后续模块：计时器、待办等，按实际需求逐步增加。
+- 天气：城市搜索、当前天气、短期预报和离线缓存。
+- 待办：自定义分类、截止时间、优先级、提醒、归档、统计及课程绑定。
+- 后续模块：计时器等，按实际需求逐步增加。
 
 ## 当前状态
 
@@ -44,7 +45,7 @@ UTC-14:00 到 UTC+14:00 的固定偏移，选择后会保存并同步到月度�
 时区时间，逗号、引号及多行备注会按 CSV 规则转义。首页的数据维护入口已整理为
 独立卡片，统计摘要会在窄窗口下自动切换为两列。
 
-记账分析已经形成可用的独立板块：可以按用户记账时区聚合连续 2～24 个月的收入、
+共享分析能力已经形成可复用模块：记账本内的“数据分析”入口可以按用户记账时区聚合连续 2～24 个月的收入、
 支出和结余，并按账户、分类进行多选过滤；所选月还会生成分类排行和账户资金流。
 默认页面展示最近 12 个月的收支柱状图和结余折线图、本月汇总与上月差额；收支趋势
 可以切换双折线图，分类分析可以切换横向排行和环形图。筛选面板支持 6/12/24 月、
@@ -64,6 +65,20 @@ QML 分层，共享 SQLite 数据库已升级到版本 7；支持学期、课程
 `HH:mm` 起止时间也可以独立修改，并会同步显示在查看和编辑网格中。SQLite、Application、
 Presentation 和 QML 集成测试覆盖迁移、恢复、周次切换、自定义周次、删除、导入与
 响应式布局。Windows Release 部署仍留到功能边界稳定后集中处理。
+
+天气模块已完成第 47～52 课：领域模型、异步搜索和预报用例、Open-Meteo 网络与 JSON
+解析、天气 ViewModel、应用组合根和响应式 QML 页面已经接通。用户可以搜索并保存城市，
+查看当前温度、体感、湿度、降水、风况和 7 日预报；宽屏与 360 像素窄屏会使用不同布局，
+页面也保留 Open-Meteo 署名。最近一次成功预报会原子写入应用数据目录中的版本化 JSON；
+下次启动或断网时可以显示缓存及其更新时间，网络成功后再替换为实时数据。天气 MVP
+至此完成。
+
+待办模块已完成核心开发和验收前收口：任务领域规则、完成与归档状态流、完成率统计、
+SQLite schema 10、自定义分类、课程绑定及名称快照、真实组合根和响应式清单页面已经接通。用户可以
+创建、编辑、搜索、完成、重新打开、归档、恢复和确认删除任务，并按作业、考试、竞赛
+分类及课程管理。到期提醒会在启动时和运行期间扫描，并通过 SQLite 交付记录避免重复
+弹出；系统通知端口保留给后续 Windows 与 Android 适配。待办 MVP 已通过持久化工作流
+和 QML 响应式集成验收，主清单会按逾期、今天、未来 7 天、无截止时间及状态分组。
 
 ## 技术方向
 
@@ -132,6 +147,20 @@ Presentation 和 QML 集成测试覆盖迁移、恢复、周次切换、自定�
 - [第四十七课：天气领域模型](docs/lessons/47-weather-domain.md)
 - [第四十八课：天气异步 Application 端口](docs/lessons/48-weather-application.md)
 - [第四十九课：Open-Meteo 网络与 JSON 基础设施](docs/lessons/49-openmeteo-infrastructure.md)
+- [第五十课：天气 Presentation 与应用组合根](docs/lessons/50-weather-presentation-and-composition.md)
+- [第五十一课：响应式天气界面](docs/lessons/51-responsive-weather-ui.md)
+- [第五十二课：天气离线缓存与模块验收](docs/lessons/52-weather-offline-cache-and-acceptance.md)
+- [第五十三课：待办任务领域模型](docs/lessons/53-task-domain.md)
+- [第五十四课：任务 Repository 与 Application 用例](docs/lessons/54-task-repository-and-use-cases.md)
+- [第五十五课：任务 SQLite 持久化](docs/lessons/55-task-sqlite-persistence.md)
+- [第五十六课：待办与课表课程联动](docs/lessons/56-task-course-link.md)
+- [第五十七课：任务 Presentation 与应用组合根](docs/lessons/57-task-presentation-and-composition.md)
+- [第五十八课：响应式任务清单界面](docs/lessons/58-responsive-task-ui.md)
+- [第五十九课：可靠的任务到期提醒](docs/lessons/59-task-reminders.md)
+- [第六十课：待办模块集成验收](docs/lessons/60-task-acceptance.md)
+- [第六十一课：验收前产品收口](docs/lessons/61-pre-acceptance-polish.md)
+- [人工验收清单](docs/ACCEPTANCE_CHECKLIST.md)
+- [待办任务模块开发计划](docs/TASKS_PLAN.md)
 - [课表 CSV 导入模板](docs/templates/schedule-import-template.csv)
 
 ## 开发原则

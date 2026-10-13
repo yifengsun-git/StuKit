@@ -6,8 +6,12 @@ Page {
     id: root
 
     signal accountingRequested()
-    signal analyticsRequested()
     signal scheduleRequested()
+    signal weatherRequested()
+    signal tasksRequested()
+
+    readonly property int featureColumns: width < 520 ? 1
+        : width < 920 ? 2 : 4
 
     background: Rectangle {
         color: AppTheme.backgroundColor
@@ -32,9 +36,11 @@ Page {
             font.pixelSize: AppTheme.fontSizeBody
         }
 
-        RowLayout {
+        GridLayout {
             Layout.alignment: Qt.AlignHCenter
-            spacing: AppTheme.spacingMedium
+            columns: root.featureColumns
+            rowSpacing: AppTheme.spacingMedium
+            columnSpacing: AppTheme.spacingMedium
 
             AppButton {
                 Layout.preferredWidth: 160
@@ -46,15 +52,22 @@ Page {
             AppButton {
                 Layout.preferredWidth: 160
                 Layout.preferredHeight: AppTheme.controlHeight
-                text: qsTr("数据分析")
-                onClicked: root.analyticsRequested()
+                text: qsTr("课表")
+                onClicked: root.scheduleRequested()
             }
 
             AppButton {
                 Layout.preferredWidth: 160
                 Layout.preferredHeight: AppTheme.controlHeight
-                text: qsTr("课表")
-                onClicked: root.scheduleRequested()
+                text: qsTr("天气")
+                onClicked: root.weatherRequested()
+            }
+
+            AppButton {
+                Layout.preferredWidth: 160
+                Layout.preferredHeight: AppTheme.controlHeight
+                text: qsTr("待办")
+                onClicked: root.tasksRequested()
             }
         }
     }

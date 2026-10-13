@@ -11,6 +11,10 @@ qt_standard_project_setup(REQUIRES 6.8)
 
 include(CTest)
 
+add_subdirectory(src/features/tasks/domain)
+add_subdirectory(src/features/tasks/application)
+add_subdirectory(src/features/tasks/infrastructure)
+add_subdirectory(src/features/tasks/presentation)
 add_subdirectory(src/features/schedule/domain)
 add_subdirectory(src/features/schedule/application)
 add_subdirectory(src/features/schedule/infrastructure)
@@ -18,6 +22,7 @@ add_subdirectory(src/features/schedule/presentation)
 add_subdirectory(src/features/weather/domain)
 add_subdirectory(src/features/weather/application)
 add_subdirectory(src/features/weather/infrastructure)
+add_subdirectory(src/features/weather/presentation)
 add_subdirectory(src/features/accounting/domain)
 add_subdirectory(src/features/accounting/application)
 add_subdirectory(src/features/accounting/infrastructure)
@@ -46,8 +51,13 @@ set(STUKIT_QML_FILES
     src/features/schedule/qml/components/ScheduleGridEditor.qml
     src/features/schedule/qml/components/ScheduleManagementPanel.qml
     src/features/schedule/qml/components/WeeklyGrid.qml
+    src/features/weather/qml/WeatherHomePage.qml
+    src/features/weather/qml/components/CurrentWeatherCard.qml
+    src/features/weather/qml/components/DailyForecastGrid.qml
+    src/features/tasks/qml/TasksHomePage.qml
     src/shared/qml/theme/AppTheme.qml
     src/shared/qml/components/AppButton.qml
+    src/shared/qml/components/DateTimePickerDialog.qml
     src/shared/qml/components/FeaturePlaceholder.qml
 )
 
@@ -132,6 +142,26 @@ set_source_files_properties(
 )
 
 set_source_files_properties(
+    src/features/weather/qml/WeatherHomePage.qml
+    PROPERTIES QT_RESOURCE_ALIAS WeatherHomePage.qml
+)
+
+set_source_files_properties(
+    src/features/weather/qml/components/CurrentWeatherCard.qml
+    PROPERTIES QT_RESOURCE_ALIAS CurrentWeatherCard.qml
+)
+
+set_source_files_properties(
+    src/features/weather/qml/components/DailyForecastGrid.qml
+    PROPERTIES QT_RESOURCE_ALIAS DailyForecastGrid.qml
+)
+
+set_source_files_properties(
+    src/features/tasks/qml/TasksHomePage.qml
+    PROPERTIES QT_RESOURCE_ALIAS TasksHomePage.qml
+)
+
+set_source_files_properties(
     src/shared/qml/theme/AppTheme.qml
     PROPERTIES
         QT_QML_SINGLETON_TYPE TRUE
@@ -141,6 +171,11 @@ set_source_files_properties(
 set_source_files_properties(
     src/shared/qml/components/AppButton.qml
     PROPERTIES QT_RESOURCE_ALIAS AppButton.qml
+)
+
+set_source_files_properties(
+    src/shared/qml/components/DateTimePickerDialog.qml
+    PROPERTIES QT_RESOURCE_ALIAS DateTimePickerDialog.qml
 )
 
 set_source_files_properties(

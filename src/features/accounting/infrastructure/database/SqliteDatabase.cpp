@@ -91,6 +91,18 @@ bool SqliteDatabase::migrate() {
     return false;
   }
 
+  if (version < 8 && !applyMigration8()) {
+    return false;
+  }
+
+  if (version < 9 && !applyMigration9()) {
+    return false;
+  }
+
+  if (version < 10 && !applyMigration10()) {
+    return false;
+  }
+
   return true;
 }
 
@@ -530,7 +542,7 @@ bool SqliteDatabase::applyMigration7() {
   query.prepare(
       QStringLiteral("INSERT INTO schema_migrations(version, applied_at) "
                      "VALUES(:version, :appliedAt)"));
-  query.bindValue(QStringLiteral(":version"), CurrentSchemaVersion);
+  query.bindValue(QStringLiteral(":version"), 7);
   query.bindValue(QStringLiteral(":appliedAt"),
                   QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs));
 
@@ -546,6 +558,171 @@ bool SqliteDatabase::applyMigration7() {
     return false;
   }
 
+  return true;
+}
+
+bool SqliteDatabase::applyMigration8() {
+  if (!m_database.transaction()) {
+    m_lastError = m_database.lastError().text();
+    return false;
+  }
+
+  QSqlQuery query(m_database);
+  const QStringList statements{
+      QStringLiteral(
+          "CREATE TABLE tasks ("
+          "id TEXT PRIMARY KEY NOT NULL, "
+          "title TEXT NOT NULL "
+          "CHECK (length(trim(title)) BETWEEN 1 AND 120), "
+          "description TEXT NOT NULL DEFAULT '' "
+          "CHECK (length(description) <= 5000), "
+          "due_at TEXT NULL "
+          "CHECK (due_at IS NULL OR "
+          "(datetime(due_at) IS NOT NULL AND substr(due_at, -1) = 'Z')), "
+          "reminder_at TEXT NULL "
+          "CHECK (reminder_at IS NULL OR "
+          "(datetime(reminder_at) IS NOT NULL "
+          "AND substr(reminder_at, -1) = 'Z' "
+          "AND due_at IS NOT NULL AND reminder_at <= due_at)), "
+          "priority INTEGER NOT NULL CHECK (priority BETWEEN 0 AND 3), "
+          "category INTEGER NOT NULL CHECK (category BETWEEN 0 AND 2), "
+          "status INTEGER NOT NULL CHECK (status BETWEEN 0 AND 2), "
+          "course_id TEXT NULL, "
+          "course_name_snapshot TEXT NOT NULL DEFAULT '' "
+          "CHECK ((course_id IS NULL AND course_name_snapshot = '') "
+          "OR (course_id IS NOT NULL AND "
+          "length(trim(course_name_snapshot)) BETWEEN 1 AND 80)), "
+          "completed_at TEXT NULL "
+          "CHECK (completed_at IS NULL OR "
+          "(datetime(completed_at) IS NOT NULL "
+          "AND substr(completed_at, -1) = 'Z')), "
+          "created_at TEXT NOT NULL "
+          "CHECK (datetime(created_at) IS NOT NULL "
+          "AND substr(created_at, -1) = 'Z'), "
+          "CHECK ((status = 0 AND completed_at IS NULL) "
+          "OR (status IN (1, 2) AND completed_at IS NOT NULL)), "
+          "CHECK (completed_at IS NULL OR completed_at >= created_at))"),
+      QStringLiteral("CREATE INDEX idx_tasks_status_due_at "
+                     "ON tasks(status, due_at)"),
+      QStringLiteral("CREATE INDEX idx_tasks_category "
+                     "ON tasks(category)"),
+      QStringLiteral("CREATE INDEX idx_tasks_course_id "
+                     "ON tasks(course_id)"),
+  };
+
+  for (const QString &statement : statements) {
+    if (!query.exec(statement)) {
+      m_lastError = query.lastError().text();
+      m_database.rollback();
+      return false;
+    }
+  }
+
+  query.prepare(
+      QStringLiteral("INSERT INTO schema_migrations(version, applied_at) "
+                     "VALUES(:version, :appliedAt)"));
+  query.bindValue(QStringLiteral(":version"), 8);
+  query.bindValue(QStringLiteral(":appliedAt"),
+                  QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs));
+  if (!query.exec()) {
+    m_lastError = query.lastError().text();
+    m_database.rollback();
+    return false;
+  }
+  if (!m_database.commit()) {
+    m_lastError = m_database.lastError().text();
+    m_database.rollback();
+    return false;
+  }
+  return true;
+}
+
+bool SqliteDatabase::applyMigration9() {
+  if (!m_database.transaction()) {
+    m_lastError = m_database.lastError().text();
+    return false;
+  }
+  QSqlQuery query(m_database);
+  const QStringList statements{
+      QStringLiteral(
+          "CREATE TABLE task_reminder_deliveries ("
+          "task_id TEXT NOT NULL, "
+          "reminder_at TEXT NOT NULL, "
+          "delivered_at TEXT NOT NULL, "
+          "PRIMARY KEY (task_id, reminder_at), "
+          "FOREIGN KEY (task_id) REFERENCES tasks(id) "
+          "ON UPDATE CASCADE ON DELETE CASCADE)"),
+      QStringLiteral("CREATE INDEX idx_task_reminder_deliveries_delivered_at "
+                     "ON task_reminder_deliveries(delivered_at)"),
+  };
+  for (const QString &statement : statements) {
+    if (!query.exec(statement)) {
+      m_lastError = query.lastError().text();
+      m_database.rollback();
+      return false;
+    }
+  }
+  query.prepare(QStringLiteral(
+      "INSERT INTO schema_migrations(version, applied_at) "
+      "VALUES(:version, :appliedAt)"));
+  query.bindValue(QStringLiteral(":version"), 9);
+  query.bindValue(QStringLiteral(":appliedAt"),
+                  QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs));
+  if (!query.exec() || !m_database.commit()) {
+    m_lastError = query.lastError().text().isEmpty()
+        ? m_database.lastError().text() : query.lastError().text();
+    m_database.rollback();
+    return false;
+  }
+  return true;
+}
+
+bool SqliteDatabase::applyMigration10() {
+  if (!m_database.transaction()) {
+    m_lastError = m_database.lastError().text();
+    return false;
+  }
+  QSqlQuery query(m_database);
+  const QStringList statements{
+      QStringLiteral(
+          "CREATE TABLE task_categories ("
+          "name TEXT PRIMARY KEY NOT NULL COLLATE NOCASE "
+          "CHECK (length(trim(name)) BETWEEN 1 AND 40), "
+          "sort_order INTEGER NOT NULL, "
+          "created_at TEXT NOT NULL)"),
+      QStringLiteral(
+          "INSERT INTO task_categories(name, sort_order, created_at) VALUES "
+          "('作业', 0, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), "
+          "('考试', 1, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), "
+          "('竞赛', 2, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"),
+      QStringLiteral(
+          "ALTER TABLE tasks ADD COLUMN category_name TEXT NOT NULL "
+          "DEFAULT '作业'"),
+      QStringLiteral(
+          "UPDATE tasks SET category_name = CASE category "
+          "WHEN 1 THEN '考试' WHEN 2 THEN '竞赛' ELSE '作业' END"),
+      QStringLiteral(
+          "CREATE INDEX idx_tasks_category_name ON tasks(category_name)"),
+  };
+  for (const QString &statement : statements) {
+    if (!query.exec(statement)) {
+      m_lastError = query.lastError().text();
+      m_database.rollback();
+      return false;
+    }
+  }
+  query.prepare(QStringLiteral(
+      "INSERT INTO schema_migrations(version, applied_at) "
+      "VALUES(:version, :appliedAt)"));
+  query.bindValue(QStringLiteral(":version"), CurrentSchemaVersion);
+  query.bindValue(QStringLiteral(":appliedAt"),
+                  QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs));
+  if (!query.exec() || !m_database.commit()) {
+    m_lastError = query.lastError().text().isEmpty()
+        ? m_database.lastError().text() : query.lastError().text();
+    m_database.rollback();
+    return false;
+  }
   return true;
 }
 

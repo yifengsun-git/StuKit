@@ -8,6 +8,10 @@
 #include "ScheduleManagementViewModel.h"
 #include "ScheduleModule.h"
 #include "ScheduleViewModel.h"
+#include "TaskModule.h"
+#include "TasksViewModel.h"
+#include "WeatherModule.h"
+#include "WeatherViewModel.h"
 
 #include <QCoreApplication>
 #include <QDebug>
@@ -33,6 +37,7 @@ int main(int argc, char *argv[])
 
     QSettings settings;
     stukit::app::AccountingModule accountingModule(appDataDirectory, settings);
+    stukit::app::WeatherModule weatherModule(appDataDirectory, settings);
     stukit::app::DataMaintenanceViewModel dataMaintenance(accountingModule);
 
     QString accountingStartupError;
@@ -41,6 +46,11 @@ int main(int argc, char *argv[])
             << "Accounting module initialization failed:"
             << accountingModule.lastError();
         accountingStartupError = QStringLiteral("记账数据暂时无法打开");
+    }
+    if (!weatherModule.initialize()) {
+        qCritical().noquote()
+            << "Weather module initialization failed:"
+            << weatherModule.lastError();
     }
 
     QQmlApplicationEngine engine;
@@ -87,6 +97,14 @@ int main(int argc, char *argv[])
         accountingModule.scheduleModule() == nullptr
             ? QStringLiteral("课表数据暂时无法打开")
             : QString{});
+    initialProperties.insert(
+        QStringLiteral("weatherViewModel"),
+        QVariant::fromValue(static_cast<QObject *>(weatherModule.viewModel())));
+    initialProperties.insert(
+        QStringLiteral("tasksViewModel"),
+        QVariant::fromValue(static_cast<QObject *>(
+            accountingModule.taskModule() != nullptr
+                ? accountingModule.taskModule()->viewModel() : nullptr)));
     engine.setInitialProperties(initialProperties);
 
     QObject::connect(
@@ -144,6 +162,12 @@ int main(int argc, char *argv[])
                     accountingModule.scheduleModule() == nullptr
                         ? QStringLiteral("课表数据暂时无法打开")
                         : QString{});
+                rootObject->setProperty(
+                    "tasksViewModel",
+                    QVariant::fromValue(static_cast<QObject *>(
+                        accountingModule.taskModule() != nullptr
+                            ? accountingModule.taskModule()->viewModel()
+                            : nullptr)));
             });
     }
 

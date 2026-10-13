@@ -7,6 +7,7 @@
 #include <QQmlComponent>
 #include <QQmlEngine>
 #include <QDebug>
+#include <QSignalSpy>
 #include <QTest>
 #include <QVariantList>
 #include <QVariantMap>
@@ -186,6 +187,7 @@ private slots:
     void switchesChartsAndTracksMonthRange();
     void updatesFilterSummaryAndRestoresDefaults();
     void rebindsReplacementViewModel();
+    void requestsReturnToAccounting();
 };
 
 void AnalyticsQmlIntegrationTest::rendersEmptyStatesAndResponsiveFilter()
@@ -345,6 +347,21 @@ void AnalyticsQmlIntegrationTest::rebindsReplacementViewModel()
         filter->property("viewModel").value<QObject *>(),
         static_cast<QObject *>(&emptyFixture.viewModel));
     QTRY_VERIFY(!barChart->property("hasValues").toBool());
+}
+
+void AnalyticsQmlIntegrationTest::requestsReturnToAccounting()
+{
+    Fixture fixture(false);
+    QQmlEngine engine;
+    auto page = createAnalyticsPage(engine, fixture.viewModel);
+    QVERIFY(page);
+    QObject *button = page->findChild<QObject *>(
+        QStringLiteral("analyticsBackButton"));
+    QVERIFY(button);
+    QSignalSpy spy(page.get(), SIGNAL(backRequested()));
+    QVERIFY(spy.isValid());
+    QVERIFY(QMetaObject::invokeMethod(button, "click"));
+    QCOMPARE(spy.count(), 1);
 }
 
 QTEST_MAIN(AnalyticsQmlIntegrationTest)

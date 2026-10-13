@@ -10,6 +10,8 @@ Page {
     required property var viewModel
     required property string startupError
 
+    signal backRequested()
+
     property int trendChartMode: 0
     property int expenseChartMode: 0
     property int incomeChartMode: 0
@@ -28,15 +30,25 @@ Page {
             width: root.width
             spacing: AppTheme.spacingMedium
 
-            Label {
+            RowLayout {
                 Layout.fillWidth: true
                 Layout.topMargin: AppTheme.spacingLarge
                 Layout.leftMargin: AppTheme.spacingLarge
                 Layout.rightMargin: AppTheme.spacingLarge
-                text: qsTr("数据分析")
-                color: AppTheme.textPrimaryColor
-                font.pixelSize: AppTheme.fontSizeDisplay
-                font.bold: true
+
+                AppButton {
+                    objectName: "analyticsBackButton"
+                    text: qsTr("返回记账本")
+                    onClicked: root.backRequested()
+                }
+
+                Label {
+                    Layout.fillWidth: true
+                    text: qsTr("记账数据分析")
+                    color: AppTheme.textPrimaryColor
+                    font.pixelSize: AppTheme.fontSizeDisplay
+                    font.bold: true
+                }
             }
 
             Label {

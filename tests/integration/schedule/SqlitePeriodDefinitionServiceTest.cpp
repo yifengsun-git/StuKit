@@ -2,6 +2,7 @@
 #include "database/SqliteDatabase.h"
 #include "settings/SqlitePeriodDefinitionService.h"
 
+#include <QCoreApplication>
 #include <QDir>
 #include <QTemporaryDir>
 #include <QTest>
@@ -29,8 +30,9 @@ private:
 
 void SqlitePeriodDefinitionServiceTest::init()
 {
-    m_directory = std::make_unique<QTemporaryDir>(QDir::current().filePath(
-        QStringLiteral("stukit-period-definition-test-XXXXXX")));
+    m_directory = std::make_unique<QTemporaryDir>(QDir(
+        QCoreApplication::applicationDirPath()).filePath(
+            QStringLiteral("stukit-period-definition-test-XXXXXX")));
     QVERIFY(m_directory->isValid());
     m_database = std::make_unique<stukit::accounting::SqliteDatabase>(
         uniqueScheduleConnectionName(QStringLiteral("period-definition")));

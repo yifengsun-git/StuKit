@@ -1,6 +1,7 @@
 #include "AccountingModule.h"
 
 #include "ScheduleModule.h"
+#include "TaskModule.h"
 
 #include "AccountBalancesViewModel.h"
 #include "AccountingAnalyticsViewModel.h"
@@ -166,6 +167,13 @@ bool AccountingModule::initialize(
     m_scheduleModule = std::make_unique<ScheduleModule>(connection);
     if (!m_scheduleModule->initialize(scheduleToday)) {
         m_lastError = m_scheduleModule->lastError();
+        reset();
+        return false;
+    }
+    m_taskModule = std::make_unique<TaskModule>(
+        connection, m_userSettings.accountingTimeZone());
+    if (!m_taskModule->initialize()) {
+        m_lastError = m_taskModule->lastError();
         reset();
         return false;
     }
@@ -415,6 +423,11 @@ ScheduleModule *AccountingModule::scheduleModule() const noexcept
     return m_scheduleModule.get();
 }
 
+TaskModule *AccountingModule::taskModule() const noexcept
+{
+    return m_taskModule.get();
+}
+
 accounting::presentation::AccountingSetupViewModel *
 AccountingModule::setupViewModel() const noexcept
 {
@@ -456,6 +469,7 @@ const QString &AccountingModule::lastError() const noexcept
 
 void AccountingModule::reset()
 {
+    m_taskModule.reset();
     m_scheduleModule.reset();
     m_transactionEditorViewModel.reset();
     m_analyticsViewModel.reset();

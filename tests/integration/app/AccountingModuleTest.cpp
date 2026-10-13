@@ -8,10 +8,13 @@
 #include "CategoryListModel.h"
 #include "CreateTransactionViewModel.h"
 #include "DataMaintenanceViewModel.h"
+#include "TaskModule.h"
+#include "TasksViewModel.h"
 #include "TransactionListModel.h"
 #include "UserSettings.h"
 
 #include <QDir>
+#include <QCoreApplication>
 #include <QFile>
 #include <QFileInfo>
 #include <QPointer>
@@ -49,6 +52,7 @@ private slots:
     void exportsTransactionsThroughMaintenanceViewModel();
     void defaultsInvalidTimeZoneToUtcPlusEight();
     void persistsSelectedFixedTimeZone();
+    void persistsTaskWorkflowAcrossRestart();
     void rejectsEmptyApplicationDataDirectory();
 };
 
@@ -60,7 +64,7 @@ void AccountingModuleTest::initTestCase()
 
 void AccountingModuleTest::initializesDatabaseAndViewModel()
 {
-    QTemporaryDir directory(QDir::current().filePath(
+    QTemporaryDir directory(QDir(QCoreApplication::applicationDirPath()).filePath(
         QStringLiteral("stukit-module-test-XXXXXX")));
     QVERIFY(directory.isValid());
     QSettings settings(directory.filePath(QStringLiteral("settings.ini")),
@@ -104,8 +108,8 @@ void AccountingModuleTest::initializesDatabaseAndViewModel()
                      "SELECT COUNT(*), MAX(version) FROM schema_migrations")),
                  qPrintable(query.lastError().text()));
         QVERIFY(query.next());
-        QCOMPARE(query.value(0).toInt(), 7);
-        QCOMPARE(query.value(1).toInt(), 7);
+    QCOMPARE(query.value(0).toInt(), 10);
+    QCOMPARE(query.value(1).toInt(), 10);
         database.close();
     }
     QSqlDatabase::removeDatabase(connectionName);
@@ -113,7 +117,7 @@ void AccountingModuleTest::initializesDatabaseAndViewModel()
 
 void AccountingModuleTest::createsEditsDeletesAndRestoresTransaction()
 {
-    QTemporaryDir directory(QDir::current().filePath(
+    QTemporaryDir directory(QDir(QCoreApplication::applicationDirPath()).filePath(
         QStringLiteral("stukit-module-transaction-test-XXXXXX")));
     QVERIFY(directory.isValid());
     QSettings settings(directory.filePath(QStringLiteral("settings.ini")),
@@ -253,7 +257,7 @@ void AccountingModuleTest::createsEditsDeletesAndRestoresTransaction()
 
 void AccountingModuleTest::createsAndRestoresSetupData()
 {
-    QTemporaryDir directory(QDir::current().filePath(
+    QTemporaryDir directory(QDir(QCoreApplication::applicationDirPath()).filePath(
         QStringLiteral("stukit-module-setup-test-XXXXXX")));
     QVERIFY(directory.isValid());
     QSettings settings(directory.filePath(QStringLiteral("settings.ini")),
@@ -333,7 +337,7 @@ void AccountingModuleTest::createsAndRestoresSetupData()
 
 void AccountingModuleTest::backsUpAndRestoresDatabase()
 {
-    QTemporaryDir directory(QDir::current().filePath(
+    QTemporaryDir directory(QDir(QCoreApplication::applicationDirPath()).filePath(
         QStringLiteral("stukit-module-backup-test-XXXXXX")));
     QVERIFY(directory.isValid());
     QSettings settings(directory.filePath(QStringLiteral("settings.ini")),
@@ -401,7 +405,7 @@ void AccountingModuleTest::backsUpAndRestoresDatabase()
 
 void AccountingModuleTest::exportsTransactionsThroughMaintenanceViewModel()
 {
-    QTemporaryDir directory(QDir::current().filePath(
+    QTemporaryDir directory(QDir(QCoreApplication::applicationDirPath()).filePath(
         QStringLiteral("stukit-module-export-test-XXXXXX")));
     QVERIFY(directory.isValid());
     QSettings settings(directory.filePath(QStringLiteral("settings.ini")),
@@ -443,7 +447,7 @@ void AccountingModuleTest::exportsTransactionsThroughMaintenanceViewModel()
 
 void AccountingModuleTest::defaultsInvalidTimeZoneToUtcPlusEight()
 {
-    QTemporaryDir directory(QDir::current().filePath(
+    QTemporaryDir directory(QDir(QCoreApplication::applicationDirPath()).filePath(
         QStringLiteral("stukit-settings-test-XXXXXX")));
     QVERIFY(directory.isValid());
     QSettings settings(directory.filePath(QStringLiteral("settings.ini")),
@@ -462,7 +466,7 @@ void AccountingModuleTest::defaultsInvalidTimeZoneToUtcPlusEight()
 
 void AccountingModuleTest::persistsSelectedFixedTimeZone()
 {
-    QTemporaryDir directory(QDir::current().filePath(
+    QTemporaryDir directory(QDir(QCoreApplication::applicationDirPath()).filePath(
         QStringLiteral("stukit-settings-test-XXXXXX")));
     QVERIFY(directory.isValid());
     QSettings settings(directory.filePath(QStringLiteral("settings.ini")),
@@ -486,9 +490,65 @@ void AccountingModuleTest::persistsSelectedFixedTimeZone()
              QByteArrayLiteral("UTC-05:00"));
 }
 
+void AccountingModuleTest::persistsTaskWorkflowAcrossRestart()
+{
+    QTemporaryDir directory(QDir(QCoreApplication::applicationDirPath()).filePath(
+        QStringLiteral("stukit-task-workflow-test-XXXXXX")));
+    QVERIFY(directory.isValid());
+    QSettings settings(directory.filePath(QStringLiteral("settings.ini")),
+                       QSettings::IniFormat);
+    const QString appDataDirectory = directory.filePath(
+        QStringLiteral("app-data"));
+    QString taskId;
+
+    {
+        AccountingModule module(appDataDirectory, settings);
+        QVERIFY2(module.initialize(QDate(2026, 10, 1)),
+                 qPrintable(module.lastError()));
+        QVERIFY(module.taskModule() != nullptr);
+        auto *tasks = module.taskModule()->viewModel();
+        QVERIFY(tasks != nullptr);
+        QVERIFY2(tasks->save(
+                     {}, QStringLiteral("完成数据结构作业"),
+                     QStringLiteral("复习图与最短路径"),
+                     QStringLiteral("2099-01-02 18:00"),
+                     QStringLiteral("2099-01-02 17:00"),
+                     2, QStringLiteral("作业"), {}),
+                 qPrintable(tasks->errorMessage()));
+        QCOMPARE(tasks->tasks().size(), 1);
+        taskId = tasks->tasks().constFirst().toMap()
+                     .value(QStringLiteral("id")).toString();
+        QVERIFY(!taskId.isEmpty());
+        QVERIFY(tasks->complete(taskId));
+        QCOMPARE(tasks->pendingCount(), 0);
+        QCOMPARE(tasks->completedCount(), 1);
+        QCOMPARE(tasks->completionRateText(), QStringLiteral("100%"));
+    }
+
+    {
+        AccountingModule restored(appDataDirectory, settings);
+        QVERIFY2(restored.initialize(QDate(2026, 10, 1)),
+                 qPrintable(restored.lastError()));
+        auto *tasks = restored.taskModule()->viewModel();
+        QVERIFY(tasks != nullptr);
+        QCOMPARE(tasks->tasks().size(), 1);
+        const QVariantMap restoredTask = tasks->tasks().constFirst().toMap();
+        QCOMPARE(restoredTask.value(QStringLiteral("id")).toString(), taskId);
+        QCOMPARE(restoredTask.value(QStringLiteral("title")).toString(),
+                 QStringLiteral("完成数据结构作业"));
+        QVERIFY(restoredTask.value(QStringLiteral("completed")).toBool());
+        QVERIFY(tasks->archive(taskId));
+        QCOMPARE(tasks->tasks().size(), 0);
+        tasks->setIncludeArchived(true);
+        QCOMPARE(tasks->tasks().size(), 1);
+        QVERIFY(tasks->tasks().constFirst().toMap()
+                    .value(QStringLiteral("archived")).toBool());
+    }
+}
+
 void AccountingModuleTest::rejectsEmptyApplicationDataDirectory()
 {
-    QTemporaryDir directory(QDir::current().filePath(
+    QTemporaryDir directory(QDir(QCoreApplication::applicationDirPath()).filePath(
         QStringLiteral("stukit-settings-test-XXXXXX")));
     QVERIFY(directory.isValid());
     QSettings settings(directory.filePath(QStringLiteral("settings.ini")),

@@ -7,7 +7,7 @@ namespace stukit::accounting {
 
 class SqliteDatabase final {
 public:
-  static constexpr int CurrentSchemaVersion = 7;
+  static constexpr int CurrentSchemaVersion = 10;
 
   explicit SqliteDatabase(QString connectionName);
   ~SqliteDatabase();
@@ -33,6 +33,9 @@ private:
   [[nodiscard]] bool applyMigration5();
   [[nodiscard]] bool applyMigration6();
   [[nodiscard]] bool applyMigration7();
+  [[nodiscard]] bool applyMigration8();
+  [[nodiscard]] bool applyMigration9();
+  [[nodiscard]] bool applyMigration10();
 
   QString m_connectionName;
   QSqlDatabase m_database;

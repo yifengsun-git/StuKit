@@ -86,3 +86,5 @@ set_tests_properties(app.analytics_qml PROPERTIES
 )
 
 add_subdirectory(schedule)
+add_subdirectory(weather)
+add_subdirectory(tasks)
