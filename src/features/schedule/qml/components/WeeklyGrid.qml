@@ -183,7 +183,7 @@ Item {
                 anchors.topMargin: 5
                 radius: AppTheme.radiusSmall
                 color: AppTheme.textPrimaryColor
-                opacity: cellHover.hovered ? 0.16 : 0
+                opacity: cellHover.hovered || cellTap.pressed ? 0.16 : 0
 
                 Behavior on opacity {
                     NumberAnimation { duration: 100 }
@@ -198,7 +198,7 @@ Item {
                 color: AppTheme.surfaceVariantColor
                 border.width: 1
                 border.color: AppTheme.primaryColor
-                opacity: cellHover.hovered ? 0.88 : 0
+                opacity: cellHover.hovered || cellTap.pressed ? 0.88 : 0
 
                 Behavior on opacity {
                     NumberAnimation { duration: 100 }
@@ -210,6 +210,7 @@ Item {
             }
 
             TapHandler {
+                id: cellTap
                 onTapped: root.emptyCellActivated(
                     editCell.cellWeekday, editCell.cellPeriod)
             }

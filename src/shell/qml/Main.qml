@@ -20,11 +20,10 @@ ApplicationWindow
     required property string scheduleStartupError
 
     property int currentPage: 0
-
     width: 960
     height: 640
-    minimumWidth: 360
-    minimumHeight: 480
+    minimumWidth: Qt.platform.os === "android" ? 0 : 360
+    minimumHeight: Qt.platform.os === "android" ? 0 : 480
     visible: true
     title: qsTr("StuKit")
     color: AppTheme.backgroundColor
@@ -48,6 +47,17 @@ ApplicationWindow
 
     header: ToolBar
     {
+        topPadding: Math.max(
+            AppTheme.spacingExtraSmall,
+            window.SafeArea.margins.top)
+        leftPadding: Math.max(
+            AppTheme.spacingExtraSmall,
+            window.SafeArea.margins.left)
+        rightPadding: Math.max(
+            AppTheme.spacingExtraSmall,
+            window.SafeArea.margins.right)
+        bottomPadding: AppTheme.spacingExtraSmall
+
         background: Rectangle {
             color: AppTheme.surfaceColor
             border.color: AppTheme.borderColor
@@ -104,6 +114,18 @@ ApplicationWindow
         Pane
         {
             anchors.fill: parent
+            topPadding: Math.max(
+                AppTheme.spacingMedium,
+                window.SafeArea.margins.top + AppTheme.spacingSmall)
+            leftPadding: Math.max(
+                AppTheme.spacingMedium,
+                window.SafeArea.margins.left + AppTheme.spacingSmall)
+            rightPadding: Math.max(
+                AppTheme.spacingMedium,
+                window.SafeArea.margins.right + AppTheme.spacingSmall)
+            bottomPadding: Math.max(
+                AppTheme.spacingMedium,
+                window.SafeArea.margins.bottom + AppTheme.spacingSmall)
             background: Rectangle {
                 color: "transparent"
             }
@@ -167,7 +189,23 @@ ApplicationWindow
     StackLayout
     {
         anchors.fill: parent
+        anchors.leftMargin: window.SafeArea.margins.left
+        anchors.rightMargin: window.SafeArea.margins.right
+        anchors.bottomMargin: window.SafeArea.margins.bottom
         currentIndex: window.currentPage
+        focus: true
+
+        Keys.onBackPressed: event => {
+            if (accountingContainer.analyticsVisible) {
+                accountingContainer.analyticsVisible = false
+                event.accepted = true
+            } else if (window.currentPage !== 0) {
+                window.navigateTo(0)
+                event.accepted = true
+            } else {
+                event.accepted = false
+            }
+        }
 
         HomePage
         {

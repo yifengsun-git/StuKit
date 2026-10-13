@@ -107,6 +107,19 @@ int main(int argc, char *argv[])
                 ? accountingModule.taskModule()->viewModel() : nullptr)));
     engine.setInitialProperties(initialProperties);
 
+    if (accountingModule.taskModule() != nullptr) {
+        auto *tasksViewModel = accountingModule.taskModule()->viewModel();
+        QObject::connect(
+            &app,
+            &QGuiApplication::applicationStateChanged,
+            tasksViewModel,
+            [tasksViewModel](Qt::ApplicationState state) {
+                if (state == Qt::ApplicationActive) {
+                    tasksViewModel->scanReminders();
+                }
+            });
+    }
+
     QObject::connect(
         &engine,
         &QQmlApplicationEngine::objectCreationFailed,

@@ -2,11 +2,105 @@
 
 #include "AccountingModule.h"
 
+#include <QDir>
+#include <QFile>
 #include <QFileInfo>
+#include <QStandardPaths>
+#include <QTemporaryFile>
 
+#include <memory>
 #include <utility>
 
 namespace stukit::app {
+
+namespace {
+
+bool isAndroidContentUrl(const QUrl &url)
+{
+    return url.scheme().compare(
+        QStringLiteral("content"), Qt::CaseInsensitive) == 0;
+}
+
+QString fileNameForUrl(const QUrl &url)
+{
+    if (url.isLocalFile()) {
+        return url.toLocalFile();
+    }
+    if (url.scheme().isEmpty()) {
+        return url.toString();
+    }
+    if (isAndroidContentUrl(url)) {
+        return url.toString(QUrl::FullyEncoded);
+    }
+    return {};
+}
+
+QString stagingTemplate(const QString &baseName)
+{
+    QString directory = QStandardPaths::writableLocation(
+        QStandardPaths::CacheLocation);
+    if (directory.trimmed().isEmpty()) {
+        directory = QDir::tempPath();
+    }
+    if (!QDir().mkpath(directory)) {
+        return {};
+    }
+    return QDir(directory).filePath(baseName);
+}
+
+std::unique_ptr<QTemporaryFile> createStagingFile(
+    const QString &baseName,
+    QString *error)
+{
+    const QString fileTemplate = stagingTemplate(baseName);
+    if (fileTemplate.isEmpty()) {
+        *error = QStringLiteral("无法创建应用缓存目录");
+        return nullptr;
+    }
+
+    auto file = std::make_unique<QTemporaryFile>(fileTemplate);
+    if (!file->open()) {
+        *error = file->errorString();
+        return nullptr;
+    }
+    file->close();
+    return file;
+}
+
+bool copyFile(const QString &sourceName, const QString &destinationName,
+              QString *error)
+{
+    QFile source(sourceName);
+    if (!source.open(QIODevice::ReadOnly)) {
+        *error = source.errorString();
+        return false;
+    }
+
+    QFile destination(destinationName);
+    if (!destination.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        *error = destination.errorString();
+        return false;
+    }
+
+    while (!source.atEnd()) {
+        const QByteArray chunk = source.read(64 * 1024);
+        if (chunk.isEmpty() && source.error() != QFileDevice::NoError) {
+            *error = source.errorString();
+            return false;
+        }
+        if (destination.write(chunk) != chunk.size()) {
+            *error = destination.errorString();
+            return false;
+        }
+    }
+    if (!destination.flush()) {
+        *error = destination.errorString();
+        return false;
+    }
+    return true;
+}
+
+} // namespace
 
 DataMaintenanceViewModel::DataMaintenanceViewModel(
     AccountingModule &module,
@@ -44,9 +138,21 @@ QString DataMaintenanceViewModel::lastSafetyBackupPath() const
 bool DataMaintenanceViewModel::backupTo(const QUrl &destination)
 {
     beginOperation();
-    const QString path = localPath(destination);
+    QString path = localPath(destination);
+    std::unique_ptr<QTemporaryFile> stagingFile;
+    QString transferError;
+    if (path.isEmpty() && isAndroidContentUrl(destination)) {
+        stagingFile = createStagingFile(
+            QStringLiteral("stukit-backup-XXXXXX.sqlite"),
+            &transferError);
+        if (stagingFile != nullptr) {
+            path = stagingFile->fileName();
+        }
+    }
     if (path.isEmpty()) {
-        finishWithError(QStringLiteral("请选择本机上的备份文件位置"));
+        finishWithError(transferError.isEmpty()
+            ? QStringLiteral("请选择备份文件位置")
+            : QStringLiteral("无法准备备份文件：%1").arg(transferError));
         return false;
     }
 
@@ -56,8 +162,18 @@ bool DataMaintenanceViewModel::backupTo(const QUrl &destination)
         return false;
     }
 
-    finishWithStatus(
-        QStringLiteral("备份已保存到：%1")
+    if (stagingFile != nullptr
+        && !copyFile(
+            path, fileNameForUrl(destination), &transferError)) {
+        finishWithError(
+            QStringLiteral("备份写入所选位置失败：%1")
+                .arg(transferError));
+        return false;
+    }
+
+    finishWithStatus(stagingFile != nullptr
+        ? QStringLiteral("备份已保存到所选位置")
+        : QStringLiteral("备份已保存到：%1")
             .arg(QFileInfo(path).absoluteFilePath()));
     return true;
 }
@@ -65,9 +181,25 @@ bool DataMaintenanceViewModel::backupTo(const QUrl &destination)
 bool DataMaintenanceViewModel::restoreFrom(const QUrl &source)
 {
     beginOperation();
-    const QString path = localPath(source);
+    QString path = localPath(source);
+    std::unique_ptr<QTemporaryFile> stagingFile;
+    QString transferError;
+    if (path.isEmpty() && isAndroidContentUrl(source)) {
+        stagingFile = createStagingFile(
+            QStringLiteral("stukit-restore-XXXXXX.sqlite"),
+            &transferError);
+        if (stagingFile != nullptr
+            && copyFile(
+                fileNameForUrl(source),
+                stagingFile->fileName(),
+                &transferError)) {
+            path = stagingFile->fileName();
+        }
+    }
     if (path.isEmpty()) {
-        finishWithError(QStringLiteral("请选择本机上的 StuKit 备份文件"));
+        finishWithError(transferError.isEmpty()
+            ? QStringLiteral("请选择 StuKit 备份文件")
+            : QStringLiteral("无法读取所选备份：%1").arg(transferError));
         return false;
     }
 
@@ -87,9 +219,21 @@ bool DataMaintenanceViewModel::restoreFrom(const QUrl &source)
 bool DataMaintenanceViewModel::exportTransactionsTo(const QUrl &destination)
 {
     beginOperation();
-    const QString path = localPath(destination);
+    QString path = localPath(destination);
+    std::unique_ptr<QTemporaryFile> stagingFile;
+    QString transferError;
+    if (path.isEmpty() && isAndroidContentUrl(destination)) {
+        stagingFile = createStagingFile(
+            QStringLiteral("stukit-transactions-XXXXXX.csv"),
+            &transferError);
+        if (stagingFile != nullptr) {
+            path = stagingFile->fileName();
+        }
+    }
     if (path.isEmpty()) {
-        finishWithError(QStringLiteral("请选择本机上的 CSV 保存位置"));
+        finishWithError(transferError.isEmpty()
+            ? QStringLiteral("请选择 CSV 保存位置")
+            : QStringLiteral("无法准备 CSV 文件：%1").arg(transferError));
         return false;
     }
 
@@ -99,8 +243,18 @@ bool DataMaintenanceViewModel::exportTransactionsTo(const QUrl &destination)
         return false;
     }
 
-    finishWithStatus(
-        QStringLiteral("全部流水已导出到：%1")
+    if (stagingFile != nullptr
+        && !copyFile(
+            path, fileNameForUrl(destination), &transferError)) {
+        finishWithError(
+            QStringLiteral("CSV 写入所选位置失败：%1")
+                .arg(transferError));
+        return false;
+    }
+
+    finishWithStatus(stagingFile != nullptr
+        ? QStringLiteral("全部流水已导出到所选位置")
+        : QStringLiteral("全部流水已导出到：%1")
             .arg(QFileInfo(path).absoluteFilePath()));
     return true;
 }

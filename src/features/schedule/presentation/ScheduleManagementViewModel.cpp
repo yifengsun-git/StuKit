@@ -604,13 +604,20 @@ bool ScheduleManagementViewModel::importScheduleCsv(const QUrl &fileUrl)
         setError(QStringLiteral("已归档学期不能导入课表"));
         return false;
     }
-    if (!fileUrl.isLocalFile()) {
-        setError(QStringLiteral("请选择本机上的 CSV 文件"));
+    QString sourcePath;
+    if (fileUrl.isLocalFile()) {
+        sourcePath = fileUrl.toLocalFile();
+    } else if (fileUrl.scheme().compare(
+                   QStringLiteral("content"), Qt::CaseInsensitive) == 0) {
+        sourcePath = fileUrl.toString(QUrl::FullyEncoded);
+    }
+    if (sourcePath.isEmpty()) {
+        setError(QStringLiteral("请选择 CSV 文件"));
         return false;
     }
 
     const ScheduleImportResult result = m_importService->importCsv(
-        fileUrl.toLocalFile(), m_selectedTermId);
+        sourcePath, m_selectedTermId);
     if (!result.succeeded()) {
         QString message;
         switch (result.error) {

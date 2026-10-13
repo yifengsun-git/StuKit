@@ -6,8 +6,8 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-find_package(Qt6 6.8 REQUIRED COMPONENTS Quick Sql Charts Widgets Network)
-qt_standard_project_setup(REQUIRES 6.8)
+find_package(Qt6 6.10 REQUIRED COMPONENTS Quick Sql Charts Widgets Network)
+qt_standard_project_setup(REQUIRES 6.10)
 
 include(CTest)
 
@@ -198,7 +198,48 @@ target_link_libraries(StuKit
         StuKitAppCore
 )
 
-if(BUILD_TESTING)
-    find_package(Qt6 6.8 REQUIRED COMPONENTS Test)
+if(WIN32)
+    install(TARGETS StuKit
+        BUNDLE DESTINATION .
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    )
+
+    install(FILES
+        README.md
+        LICENSE
+        DESTINATION .
+    )
+
+    qt_generate_deploy_qml_app_script(
+        TARGET StuKit
+        OUTPUT_SCRIPT STUKIT_DEPLOY_SCRIPT
+    )
+    install(SCRIPT ${STUKIT_DEPLOY_SCRIPT})
+endif()
+
+if(ANDROID)
+    set(STUKIT_ANDROID_PACKAGE_NAME
+        "io.github.yifengsungit.stukit"
+        CACHE STRING "Android application package name")
+    set(STUKIT_ANDROID_VERSION_CODE
+        "1"
+        CACHE STRING "Monotonically increasing Android version code")
+
+    set_target_properties(StuKit PROPERTIES
+        QT_ANDROID_APP_NAME "StuKit"
+        QT_ANDROID_PACKAGE_NAME "${STUKIT_ANDROID_PACKAGE_NAME}"
+        QT_ANDROID_MIN_SDK_VERSION 28
+        QT_ANDROID_TARGET_SDK_VERSION 36
+        QT_ANDROID_VERSION_CODE "${STUKIT_ANDROID_VERSION_CODE}"
+        QT_ANDROID_VERSION_NAME "${PROJECT_VERSION}"
+    )
+
+    qt_add_android_permission(StuKit
+        NAME android.permission.INTERNET
+    )
+endif()
+
+if(BUILD_TESTING AND NOT ANDROID)
+    find_package(Qt6 6.10 REQUIRED COMPONENTS Test)
     add_subdirectory(tests)
 endif()

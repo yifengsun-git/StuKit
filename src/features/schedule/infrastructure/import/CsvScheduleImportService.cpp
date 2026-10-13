@@ -7,6 +7,7 @@
 
 #include <QFile>
 #include <QFileInfo>
+#include <QUrl>
 #include <QHash>
 #include <QRegularExpression>
 
@@ -224,12 +225,15 @@ ScheduleImportResult CsvScheduleImportService::importCsv(
     const QString &filePath,
     const QUuid &termId)
 {
-    if (termId.isNull() || filePath.trimmed().isEmpty()
-        || !QFileInfo(filePath).isFile()) {
+    const QString normalizedPath = filePath.trimmed();
+    const bool contentUrl = QUrl(normalizedPath).scheme().compare(
+        QStringLiteral("content"), Qt::CaseInsensitive) == 0;
+    if (termId.isNull() || normalizedPath.isEmpty()
+        || (!contentUrl && !QFileInfo(normalizedPath).isFile())) {
         return {.error = ScheduleImportError::InvalidPath};
     }
 
-    QFile file(filePath);
+    QFile file(normalizedPath);
     if (!file.open(QIODevice::ReadOnly)) {
         return {.error = ScheduleImportError::FileOpenFailed};
     }

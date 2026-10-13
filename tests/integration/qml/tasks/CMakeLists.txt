@@ -44,7 +44,6 @@ target_link_libraries(StuKitTasksQmlIntegrationTest
     PRIVATE
         Qt6::Quick
         Qt6::Test
-        Qt6::Widgets
         StuKitTasksPresentation
 )
 

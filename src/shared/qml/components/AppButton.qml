@@ -4,7 +4,7 @@ import QtQuick.Controls
 Button {
     id: control
 
-    hoverEnabled: true
+    hoverEnabled: Qt.platform.os !== "android"
     implicitHeight: AppTheme.controlHeight
     leftPadding: AppTheme.spacingMedium
     rightPadding: AppTheme.spacingMedium

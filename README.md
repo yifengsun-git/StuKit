@@ -1,5 +1,7 @@
 # StuKit
 
+[![Windows CI and Release](https://github.com/yifengsun-git/StuKit/actions/workflows/windows.yml/badge.svg)](https://github.com/yifengsun-git/StuKit/actions/workflows/windows.yml)
+
 StuKit 是一个面向大学生日常使用的个人工具包。项目首先开发 Windows
 桌面版本，之后适配 Android。
 
@@ -93,6 +95,8 @@ SQLite schema 10、自定义分类、课程绑定及名称快照、真实组合�
 ## 文档入口
 
 - [项目计划](docs/PROJECT_PLAN.md)
+- [CI/CD 与 Windows 发布说明](docs/CI_CD.md)
+- [响应式 UI 重构计划](docs/UI_REDESIGN_PLAN.md)
 - [课表模块开发计划](docs/SCHEDULE_PLAN.md)
 - [天气模块开发计划](docs/WEATHER_PLAN.md)
 - [架构说明](docs/ARCHITECTURE.md)
@@ -159,6 +163,7 @@ SQLite schema 10、自定义分类、课程绑定及名称快照、真实组合�
 - [第五十九课：可靠的任务到期提醒](docs/lessons/59-task-reminders.md)
 - [第六十课：待办模块集成验收](docs/lessons/60-task-acceptance.md)
 - [第六十一课：验收前产品收口](docs/lessons/61-pre-acceptance-polish.md)
+- [第六十二课：Android 适配基线](docs/lessons/62-android-foundation.md)
 - [人工验收清单](docs/ACCEPTANCE_CHECKLIST.md)
 - [待办任务模块开发计划](docs/TASKS_PLAN.md)
 - [课表 CSV 导入模板](docs/templates/schedule-import-template.csv)

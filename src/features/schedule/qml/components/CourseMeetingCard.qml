@@ -30,7 +30,7 @@ AbstractButton {
     objectName: "courseMeetingCard"
     implicitHeight: condensed ? 72 : 64
     padding: AppTheme.spacingSmall
-    hoverEnabled: true
+    hoverEnabled: Qt.platform.os !== "android"
     activeFocusOnTab: true
     Accessible.name: qsTr("%1，%2，%3")
         .arg(courseName)
@@ -45,7 +45,7 @@ AbstractButton {
             height: parent.height - 3
             radius: AppTheme.radiusSmall
             color: AppTheme.textPrimaryColor
-            opacity: root.hovered ? 0.18 : 0
+            opacity: root.hovered || root.down ? 0.18 : 0
 
             Behavior on opacity {
                 NumberAnimation { duration: 100 }
@@ -54,7 +54,7 @@ AbstractButton {
 
         Rectangle {
             anchors.fill: parent
-            anchors.bottomMargin: root.hovered ? 3 : 0
+            anchors.bottomMargin: root.hovered || root.down ? 3 : 0
             radius: AppTheme.radiusSmall
             color: root.down
                 ? AppTheme.surfaceVariantColor

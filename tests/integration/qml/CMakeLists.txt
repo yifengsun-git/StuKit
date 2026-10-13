@@ -70,7 +70,6 @@ target_link_libraries(StuKitAnalyticsQmlIntegrationTest
         Qt6::Charts
         Qt6::Quick
         Qt6::Test
-        Qt6::Widgets
         StuKitAccountingApplication
         StuKitAccountingDomain
         StuKitAccountingPresentation
