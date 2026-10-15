@@ -325,12 +325,11 @@ jobs:
           path: release-assets/android
 
       - name: Publish release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: >-
-          gh release create "${GITHUB_REF_NAME}"
-          release-assets/windows/*
-          release-assets/android/*
-          --verify-tag
-          --generate-notes
-          --title "StuKit ${GITHUB_REF_NAME}"
+        uses: softprops/action-gh-release@v2
+        with:
+          name: StuKit ${{ github.ref_name }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            release-assets/windows/*
+            release-assets/android/*
