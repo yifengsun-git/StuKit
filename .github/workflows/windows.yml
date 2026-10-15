@@ -126,7 +126,6 @@ jobs:
       - name: Smoke-test deployed application
         shell: pwsh
         env:
-          QT_QPA_PLATFORM: offscreen
           QT_QUICK_BACKEND: software
           STUKIT_APP_DATA_DIR: ${{ runner.temp }}\stukit-smoke-data
         run: |
