@@ -13,6 +13,7 @@ Item {
 
     property var model: null
     property string emptyText: qsTr("本月暂无分类数据")
+    property bool compactLayout: false
     readonly property bool hasData: sliceItems.count > 0
     readonly property var palette: ["#2563EB", "#7C3AED", "#DB2777", "#EA580C", "#CA8A04", "#16A34A", "#0891B2", "#4F46E5"]
 
@@ -20,7 +21,9 @@ Item {
         pieSeries.clear();
     }
 
-    implicitHeight: 330
+    implicitHeight: compactLayout
+        ? 210 + Math.max(1, sliceItems.count) * 30
+        : 330
 
     Connections {
         target: root.model
@@ -30,13 +33,16 @@ Item {
         }
     }
 
-    RowLayout {
+    GridLayout {
         anchors.fill: parent
-        spacing: AppTheme.spacingMedium
+        columns: root.compactLayout ? 1 : 2
+        rowSpacing: AppTheme.spacingSmall
+        columnSpacing: AppTheme.spacingMedium
 
         ChartView {
             Layout.fillWidth: true
             Layout.fillHeight: true
+            Layout.preferredHeight: root.compactLayout ? 200 : -1
             visible: sliceItems.count > 0
             antialiasing: true
             animationOptions: ChartView.SeriesAnimations
@@ -53,7 +59,8 @@ Item {
         }
 
         ColumnLayout {
-            Layout.preferredWidth: 150
+            Layout.fillWidth: root.compactLayout
+            Layout.preferredWidth: root.compactLayout ? -1 : 150
             Layout.alignment: Qt.AlignVCenter
             visible: sliceItems.count > 0
             spacing: AppTheme.spacingSmall
@@ -75,7 +82,8 @@ Item {
                         Layout.preferredWidth: 10
                         Layout.preferredHeight: 10
                         radius: 2
-                        color: root.palette[legendRow.index % root.palette.length]
+                        color: root.palette[
+                            Math.max(0, legendRow.index) % root.palette.length]
                     }
 
                     Label {

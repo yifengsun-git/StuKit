@@ -297,6 +297,8 @@ QString WeatherViewModel::errorText(WeatherServiceError error)
 {
     switch (error) {
     case WeatherServiceError::InvalidInput: return QStringLiteral("请输入至少两个字符的城市名");
+    case WeatherServiceError::ConfigurationMissing: return QStringLiteral("请先配置和风天气 API Host 与 API Key");
+    case WeatherServiceError::AuthenticationFailed: return QStringLiteral("和风天气认证失败，请检查 API Host 与 API Key");
     case WeatherServiceError::NetworkUnavailable: return QStringLiteral("网络不可用，请稍后重试");
     case WeatherServiceError::RateLimited: return QStringLiteral("天气服务请求过于频繁，请稍后重试");
     case WeatherServiceError::ServiceUnavailable: return QStringLiteral("天气服务暂时不可用");

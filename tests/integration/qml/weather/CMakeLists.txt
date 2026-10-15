@@ -8,6 +8,8 @@ set(STUKIT_WEATHER_TEST_QML_FILES
     ${CMAKE_SOURCE_DIR}/src/features/weather/qml/components/DailyForecastGrid.qml
     ${CMAKE_SOURCE_DIR}/src/shared/qml/theme/AppTheme.qml
     ${CMAKE_SOURCE_DIR}/src/shared/qml/components/AppButton.qml
+    ${CMAKE_SOURCE_DIR}/src/shared/qml/components/AppSectionCard.qml
+    ${CMAKE_SOURCE_DIR}/src/shared/qml/components/AppTextField.qml
 )
 
 set_source_files_properties(
@@ -25,6 +27,14 @@ set_source_files_properties(
 set_source_files_properties(
     ${CMAKE_SOURCE_DIR}/src/shared/qml/components/AppButton.qml
     PROPERTIES QT_RESOURCE_ALIAS AppButton.qml
+)
+set_source_files_properties(
+    ${CMAKE_SOURCE_DIR}/src/shared/qml/components/AppSectionCard.qml
+    PROPERTIES QT_RESOURCE_ALIAS AppSectionCard.qml
+)
+set_source_files_properties(
+    ${CMAKE_SOURCE_DIR}/src/shared/qml/components/AppTextField.qml
+    PROPERTIES QT_RESOURCE_ALIAS AppTextField.qml
 )
 set_source_files_properties(
     ${CMAKE_SOURCE_DIR}/src/shared/qml/theme/AppTheme.qml
@@ -53,5 +63,5 @@ add_test(
 )
 
 set_tests_properties(app.weather_qml PROPERTIES
-    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_QPA_FONTDIR=C:/Windows/Fonts"
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_QPA_FONTDIR=C:/Windows/Fonts;QT_QUICK_CONTROLS_STYLE=Basic"
 )

@@ -8,7 +8,9 @@ Page {
     id: root
 
     required property var viewModel
-    readonly property bool compactLayout: width <= 640
+    readonly property bool compactLayout:
+        width < AppTheme.breakpointCompact
+    readonly property int pagePadding: AppTheme.pagePadding(width)
     readonly property bool hasLocation: viewModel
         && viewModel.locationName.length > 0
     readonly property int searchResultCount: viewModel
@@ -32,110 +34,83 @@ Page {
     }
 
     ScrollView {
+        id: pageScrollView
+
         anchors.fill: parent
+        clip: true
         contentWidth: availableWidth
+        ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
         ColumnLayout {
-            width: root.width
+            width: Math.min(
+                pageScrollView.availableWidth - root.pagePadding * 2,
+                AppTheme.contentMaxWidth)
+            x: Math.max(root.pagePadding,
+                        (pageScrollView.availableWidth - width) / 2)
             spacing: AppTheme.spacingMedium
 
-            ColumnLayout {
-                Layout.fillWidth: true
-                Layout.leftMargin: root.compactLayout
-                    ? AppTheme.spacingMedium : AppTheme.spacingLarge
-                Layout.rightMargin: root.compactLayout
-                    ? AppTheme.spacingMedium : AppTheme.spacingLarge
-                Layout.topMargin: AppTheme.spacingLarge
-                spacing: AppTheme.spacingExtraSmall
-
-                Label {
-                    Layout.fillWidth: true
-                    text: qsTr("天气")
-                    color: AppTheme.textPrimaryColor
-                    font.pixelSize: AppTheme.fontSizeDisplay
-                    font.bold: true
-                }
-
-                Label {
-                    Layout.fillWidth: true
-                    text: qsTr("搜索城市，查看当前天气与未来 7 天预报")
-                    color: AppTheme.textSecondaryColor
-                    wrapMode: Text.WordWrap
-                }
+            Item {
+                Layout.preferredHeight: root.pagePadding
             }
 
-            GridLayout {
+            AppSectionCard {
+                objectName: "weatherSearchCard"
                 Layout.fillWidth: true
-                Layout.leftMargin: root.compactLayout
-                    ? AppTheme.spacingMedium : AppTheme.spacingLarge
-                Layout.rightMargin: root.compactLayout
-                    ? AppTheme.spacingMedium : AppTheme.spacingLarge
-                columns: root.compactLayout ? 1 : 2
-                rowSpacing: AppTheme.spacingSmall
-                columnSpacing: AppTheme.spacingSmall
+                title: qsTr("天气")
+                description: qsTr("搜索并保存城市，查看当前天气与未来 7 天预报")
+                accentColor: AppTheme.primaryColor
 
-                TextField {
-                    id: citySearchField
-
-                    objectName: "weatherCitySearchField"
+                GridLayout {
                     Layout.fillWidth: true
-                    placeholderText: qsTr("输入城市名，例如：上海或 Shanghai")
-                    selectByMouse: true
-                    enabled: root.viewModel && !root.viewModel.searching
-                    onAccepted: {
-                        if (searchButton.enabled)
-                            root.viewModel.search(text)
+                    columns: root.compactLayout ? 1 : 2
+                    rowSpacing: AppTheme.spacingSmall
+                    columnSpacing: AppTheme.spacingSmall
+
+                    AppTextField {
+                        id: citySearchField
+
+                        objectName: "weatherCitySearchField"
+                        Layout.fillWidth: true
+                        placeholderText: qsTr("输入城市名，例如：上海或 Shanghai")
+                        enabled: root.viewModel && !root.viewModel.searching
+                        onAccepted: {
+                            if (searchButton.enabled)
+                                root.viewModel.search(text)
+                        }
+                    }
+
+                    AppButton {
+                        id: searchButton
+
+                        objectName: "weatherSearchButton"
+                        Layout.fillWidth: root.compactLayout
+                        Layout.preferredWidth: root.compactLayout ? -1 : 120
+                        text: root.viewModel && root.viewModel.searching
+                            ? qsTr("搜索中…") : qsTr("搜索")
+                        highlighted: true
+                        enabled: root.viewModel
+                            && !root.viewModel.searching
+                            && citySearchField.text.trim().length >= 2
+                        onClicked: root.viewModel.search(citySearchField.text)
                     }
                 }
-
-                AppButton {
-                    id: searchButton
-
-                    objectName: "weatherSearchButton"
-                    Layout.fillWidth: root.compactLayout
-                    Layout.preferredWidth: root.compactLayout ? -1 : 120
-                    text: root.viewModel && root.viewModel.searching
-                        ? qsTr("搜索中…") : qsTr("搜索")
-                    highlighted: true
-                    enabled: root.viewModel
-                        && !root.viewModel.searching
-                        && citySearchField.text.trim().length >= 2
-                    onClicked: root.viewModel.search(citySearchField.text)
-                }
             }
 
-            Rectangle {
+            AppSectionCard {
+                objectName: "weatherSearchResultsCard"
                 Layout.fillWidth: true
-                Layout.leftMargin: root.compactLayout
-                    ? AppTheme.spacingMedium : AppTheme.spacingLarge
-                Layout.rightMargin: root.compactLayout
-                    ? AppTheme.spacingMedium : AppTheme.spacingLarge
-                Layout.preferredHeight: searchResultsColumn.implicitHeight
-                    + AppTheme.spacingSmall * 2
                 visible: root.searchResultCount > 0
-                radius: AppTheme.radiusMedium
-                color: AppTheme.surfaceColor
-                border.color: AppTheme.borderColor
+                title: qsTr("选择城市")
+                description: qsTr("请选择最符合的地点，选择后会立即加载天气。")
 
                 ColumnLayout {
-                    id: searchResultsColumn
-
-                    anchors.fill: parent
-                    anchors.margins: AppTheme.spacingSmall
+                    Layout.fillWidth: true
                     spacing: AppTheme.spacingExtraSmall
-
-                    Label {
-                        Layout.fillWidth: true
-                        text: qsTr("选择城市")
-                        color: AppTheme.textSecondaryColor
-                        font.pixelSize: 12
-                    }
 
                     Repeater {
                         id: searchResultsRepeater
 
                         objectName: "weatherSearchResultsRepeater"
-
                         model: root.viewModel
                             ? root.viewModel.searchResults : []
 
@@ -158,26 +133,18 @@ Page {
                 }
             }
 
-            Rectangle {
-                objectName: "weatherEmptyState"
+            AppSectionCard {
+                objectName: "weatherErrorCard"
                 Layout.fillWidth: true
-                Layout.leftMargin: root.compactLayout
-                    ? AppTheme.spacingMedium : AppTheme.spacingLarge
-                Layout.rightMargin: root.compactLayout
-                    ? AppTheme.spacingMedium : AppTheme.spacingLarge
-                Layout.preferredHeight: weatherErrorLabel.implicitHeight
-                    + AppTheme.spacingMedium * 2
                 visible: root.errorShown
-                radius: AppTheme.radiusMedium
-                color: AppTheme.surfaceColor
-                border.color: AppTheme.errorColor
+                title: qsTr("天气更新失败")
+                accentColor: AppTheme.errorColor
 
                 Label {
                     id: weatherErrorLabel
 
                     objectName: "weatherErrorLabel"
-                    anchors.fill: parent
-                    anchors.margins: AppTheme.spacingMedium
+                    Layout.fillWidth: true
                     text: root.viewModel
                         ? root.viewModel.errorMessage : ""
                     color: AppTheme.errorColor
@@ -187,17 +154,16 @@ Page {
 
             RowLayout {
                 Layout.fillWidth: true
-                Layout.leftMargin: root.compactLayout
-                    ? AppTheme.spacingMedium : AppTheme.spacingLarge
-                Layout.rightMargin: root.compactLayout
-                    ? AppTheme.spacingMedium : AppTheme.spacingLarge
                 visible: root.hasLocation
 
                 Label {
                     Layout.fillWidth: true
                     text: root.viewModel && root.viewModel.loading
-                        ? qsTr("正在刷新天气…") : ""
+                        ? qsTr("正在刷新天气…")
+                        : qsTr("已保存：%1").arg(
+                            root.viewModel ? root.viewModel.locationName : "")
                     color: AppTheme.textSecondaryColor
+                    elide: Text.ElideRight
                 }
 
                 BusyIndicator {
@@ -218,78 +184,29 @@ Page {
                 }
             }
 
-            Rectangle {
+            AppSectionCard {
                 objectName: "weatherCacheBanner"
                 Layout.fillWidth: true
-                Layout.leftMargin: root.compactLayout
-                    ? AppTheme.spacingMedium : AppTheme.spacingLarge
-                Layout.rightMargin: root.compactLayout
-                    ? AppTheme.spacingMedium : AppTheme.spacingLarge
-                Layout.preferredHeight: cacheLabel.implicitHeight
-                    + AppTheme.spacingSmall * 2
                 visible: root.viewModel
                     && root.viewModel.usingCachedForecast
-                radius: AppTheme.radiusMedium
-                color: AppTheme.surfaceColor
-                border.color: AppTheme.primaryColor
-
-                Label {
-                    id: cacheLabel
-
-                    anchors.fill: parent
-                    anchors.margins: AppTheme.spacingSmall
-                    text: qsTr("正在显示上次缓存的数据 · %1")
-                        .arg(root.viewModel
-                            ? root.viewModel.updatedText : "")
-                    color: AppTheme.textSecondaryColor
-                    wrapMode: Text.WordWrap
-                }
+                title: qsTr("正在使用离线天气")
+                description: qsTr("显示上次缓存的数据 · %1")
+                    .arg(root.viewModel
+                        ? root.viewModel.updatedText : "")
+                accentColor: AppTheme.primaryColor
+                contentPadding: AppTheme.spacingMedium
             }
 
-            Rectangle {
+            AppSectionCard {
+                objectName: "weatherEmptyState"
                 Layout.fillWidth: true
-                Layout.leftMargin: root.compactLayout
-                    ? AppTheme.spacingMedium : AppTheme.spacingLarge
-                Layout.rightMargin: root.compactLayout
-                    ? AppTheme.spacingMedium : AppTheme.spacingLarge
-                Layout.preferredHeight: emptyStateContent.implicitHeight
-                    + AppTheme.spacingLarge * 2
                 visible: root.emptyStateShown
-                radius: AppTheme.radiusLarge
-                color: AppTheme.surfaceColor
-                border.color: AppTheme.borderColor
-
-                ColumnLayout {
-                    id: emptyStateContent
-
-                    anchors.fill: parent
-                    anchors.margins: AppTheme.spacingLarge
-                    spacing: AppTheme.spacingSmall
-
-                    Label {
-                        Layout.alignment: Qt.AlignHCenter
-                        text: qsTr("还没有选择城市")
-                        color: AppTheme.textPrimaryColor
-                        font.pixelSize: AppTheme.fontSizeSubtitle
-                        font.bold: true
-                    }
-
-                    Label {
-                        Layout.fillWidth: true
-                        text: qsTr("在上方输入至少两个字符，然后从结果中选择地点")
-                        color: AppTheme.textSecondaryColor
-                        horizontalAlignment: Text.AlignHCenter
-                        wrapMode: Text.WordWrap
-                    }
-                }
+                title: qsTr("还没有选择城市")
+                description: qsTr("在上方输入至少两个字符，然后从结果中选择地点。城市会保存在本机，下次启动可以直接刷新。")
             }
 
             CurrentWeatherCard {
                 Layout.fillWidth: true
-                Layout.leftMargin: root.compactLayout
-                    ? AppTheme.spacingMedium : AppTheme.spacingLarge
-                Layout.rightMargin: root.compactLayout
-                    ? AppTheme.spacingMedium : AppTheme.spacingLarge
                 visible: root.forecastShown
                 viewModel: root.viewModel
                 compactLayout: root.compactLayout
@@ -297,10 +214,6 @@ Page {
 
             Label {
                 Layout.fillWidth: true
-                Layout.leftMargin: root.compactLayout
-                    ? AppTheme.spacingMedium : AppTheme.spacingLarge
-                Layout.rightMargin: root.compactLayout
-                    ? AppTheme.spacingMedium : AppTheme.spacingLarge
                 visible: root.forecastShown
                 text: qsTr("未来 7 天")
                 color: AppTheme.textPrimaryColor
@@ -310,10 +223,6 @@ Page {
 
             DailyForecastGrid {
                 Layout.fillWidth: true
-                Layout.leftMargin: root.compactLayout
-                    ? AppTheme.spacingMedium : AppTheme.spacingLarge
-                Layout.rightMargin: root.compactLayout
-                    ? AppTheme.spacingMedium : AppTheme.spacingLarge
                 visible: root.forecastShown
                 forecastModel: root.viewModel
                     ? root.viewModel.dailyForecasts : []
@@ -323,20 +232,22 @@ Page {
             Label {
                 objectName: "weatherAttributionLabel"
                 Layout.fillWidth: true
-                Layout.leftMargin: root.compactLayout
-                    ? AppTheme.spacingMedium : AppTheme.spacingLarge
-                Layout.rightMargin: root.compactLayout
-                    ? AppTheme.spacingMedium : AppTheme.spacingLarge
-                Layout.bottomMargin: AppTheme.spacingLarge
+                Layout.bottomMargin: root.pagePadding
                 visible: root.forecastShown
-                text: qsTr("天气数据：<a href=\"https://open-meteo.com/\">Open-Meteo</a> · CC BY 4.0")
+                text: qsTr("天气服务由 <a href=\"https://www.qweather.com/\">QWeather 和风天气</a> 提供 · <a href=\"https://developer.qweather.com/attribution.html\">数据来源</a>")
                 textFormat: Text.RichText
                 linkColor: AppTheme.primaryColor
                 color: AppTheme.textSecondaryColor
-                font.pixelSize: 12
-                horizontalAlignment: Text.AlignRight
+                font.pixelSize: AppTheme.fontSizeCaption
+                horizontalAlignment: root.compactLayout
+                    ? Text.AlignLeft : Text.AlignRight
                 wrapMode: Text.WordWrap
                 onLinkActivated: link => Qt.openUrlExternally(link)
+            }
+
+            Item {
+                Layout.preferredHeight: root.forecastShown
+                    ? 0 : root.pagePadding
             }
         }
     }

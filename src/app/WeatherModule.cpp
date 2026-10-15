@@ -2,7 +2,8 @@
 
 #include "GetWeatherForecast.h"
 #include "JsonWeatherForecastCache.h"
-#include "OpenMeteoWeatherService.h"
+#include "QWeatherBuildConfig.h"
+#include "QWeatherWeatherService.h"
 #include "SearchWeatherLocations.h"
 #include "WeatherViewModel.h"
 
@@ -31,8 +32,20 @@ bool WeatherModule::initialize()
     m_cache.reset();
     m_network.reset();
 
+    QString apiHost = qEnvironmentVariable("STUKIT_QWEATHER_API_HOST").trimmed();
+    QByteArray apiKey = qgetenv("STUKIT_QWEATHER_API_KEY").trimmed();
+    if (apiHost.isEmpty()) {
+        apiHost = QStringLiteral(STUKIT_QWEATHER_DEFAULT_API_HOST);
+    }
+    if (apiKey.isEmpty()) {
+        apiKey = QByteArrayLiteral(STUKIT_QWEATHER_DEFAULT_API_KEY);
+    }
+
     m_network = std::make_unique<QNetworkAccessManager>();
-    m_service = std::make_unique<weather::OpenMeteoWeatherService>(*m_network);
+    m_service = std::make_unique<weather::QWeatherWeatherService>(
+        *m_network,
+        std::move(apiHost),
+        std::move(apiKey));
     m_cache = std::make_unique<weather::JsonWeatherForecastCache>(
         QDir(m_appDataDirectory).filePath(
             QStringLiteral("weather-cache-v1.json")));

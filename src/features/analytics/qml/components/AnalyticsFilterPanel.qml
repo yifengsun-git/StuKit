@@ -9,9 +9,12 @@ Rectangle {
 
     required property var viewModel
     property bool expanded: true
+    property bool compactLayout: false
+    readonly property int contentPadding: compactLayout
+        ? AppTheme.spacingMedium : AppTheme.spacingLarge
 
-    implicitHeight: panel.implicitHeight + AppTheme.spacingMedium * 2
-    radius: AppTheme.radiusMedium
+    implicitHeight: panel.implicitHeight + contentPadding * 2
+    radius: AppTheme.radiusLarge
     color: AppTheme.surfaceColor
     border.color: AppTheme.borderColor
 
@@ -21,7 +24,7 @@ Rectangle {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        anchors.margins: AppTheme.spacingMedium
+        anchors.margins: root.contentPadding
         spacing: AppTheme.spacingMedium
 
         RowLayout {
@@ -66,14 +69,14 @@ Rectangle {
                 spacing: AppTheme.spacingSmall
 
                 AppButton {
-                    height: AppTheme.controlHeight
+                    height: AppTheme.touchTargetHeight
                     text: qsTr("上一月")
                     onClicked: root.viewModel.showPreviousMonth()
                 }
 
                 Label {
                     width: 90
-                    height: AppTheme.controlHeight
+                    height: AppTheme.touchTargetHeight
                     text: root.viewModel ? root.viewModel.monthLabel : "--"
                     color: AppTheme.textPrimaryColor
                     font.bold: true
@@ -82,15 +85,14 @@ Rectangle {
                 }
 
                 AppButton {
-                    height: AppTheme.controlHeight
+                    height: AppTheme.touchTargetHeight
                     text: qsTr("下一月")
                     onClicked: root.viewModel.showNextMonth()
                 }
 
-                ComboBox {
+                AppComboBox {
                     objectName: "analyticsRangeBox"
-                    width: 120
-                    height: AppTheme.controlHeight
+                    width: root.compactLayout ? 150 : 160
                     textRole: "label"
                     valueRole: "value"
                     model: [
@@ -116,7 +118,7 @@ Rectangle {
                 }
 
                 AppButton {
-                    height: AppTheme.controlHeight
+                    height: AppTheme.touchTargetHeight
                     text: qsTr("恢复默认")
                     onClicked: root.viewModel.resetFilters()
                 }
@@ -165,7 +167,7 @@ Rectangle {
 
                         required property var modelData
 
-                        height: AppTheme.controlHeight
+                        height: AppTheme.touchTargetHeight
                         text: accountOption.modelData.archived ? qsTr("%1（已归档）").arg(accountOption.modelData.label) : accountOption.modelData.label
                         checked: accountOption.modelData.selected
                         onToggled: root.viewModel.setAccountSelected(accountOption.modelData.value, checked)
@@ -210,7 +212,7 @@ Rectangle {
 
                         required property var modelData
 
-                        height: AppTheme.controlHeight
+                        height: AppTheme.touchTargetHeight
                         text: qsTr("%1 · %2%3").arg(categoryOption.modelData.isIncome ? qsTr("收入") : qsTr("支出")).arg(categoryOption.modelData.label).arg(categoryOption.modelData.archived ? qsTr("（已归档）") : "")
                         checked: categoryOption.modelData.selected
                         onToggled: root.viewModel.setCategorySelected(categoryOption.modelData.value, checked)

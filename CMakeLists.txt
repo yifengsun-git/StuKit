@@ -57,7 +57,14 @@ set(STUKIT_QML_FILES
     src/features/tasks/qml/TasksHomePage.qml
     src/shared/qml/theme/AppTheme.qml
     src/shared/qml/components/AppButton.qml
+    src/shared/qml/components/AppComboBox.qml
+    src/shared/qml/components/AppDialog.qml
+    src/shared/qml/components/AppNavigationButton.qml
+    src/shared/qml/components/AppSectionCard.qml
+    src/shared/qml/components/AppTextArea.qml
+    src/shared/qml/components/AppTextField.qml
     src/shared/qml/components/DateTimePickerDialog.qml
+    src/shared/qml/components/FeatureCard.qml
     src/shared/qml/components/FeaturePlaceholder.qml
 )
 
@@ -174,8 +181,43 @@ set_source_files_properties(
 )
 
 set_source_files_properties(
+    src/shared/qml/components/AppComboBox.qml
+    PROPERTIES QT_RESOURCE_ALIAS AppComboBox.qml
+)
+
+set_source_files_properties(
+    src/shared/qml/components/AppDialog.qml
+    PROPERTIES QT_RESOURCE_ALIAS AppDialog.qml
+)
+
+set_source_files_properties(
+    src/shared/qml/components/AppNavigationButton.qml
+    PROPERTIES QT_RESOURCE_ALIAS AppNavigationButton.qml
+)
+
+set_source_files_properties(
+    src/shared/qml/components/AppSectionCard.qml
+    PROPERTIES QT_RESOURCE_ALIAS AppSectionCard.qml
+)
+
+set_source_files_properties(
+    src/shared/qml/components/AppTextArea.qml
+    PROPERTIES QT_RESOURCE_ALIAS AppTextArea.qml
+)
+
+set_source_files_properties(
+    src/shared/qml/components/AppTextField.qml
+    PROPERTIES QT_RESOURCE_ALIAS AppTextField.qml
+)
+
+set_source_files_properties(
     src/shared/qml/components/DateTimePickerDialog.qml
     PROPERTIES QT_RESOURCE_ALIAS DateTimePickerDialog.qml
+)
+
+set_source_files_properties(
+    src/shared/qml/components/FeatureCard.qml
+    PROPERTIES QT_RESOURCE_ALIAS FeatureCard.qml
 )
 
 set_source_files_properties(
@@ -228,6 +270,8 @@ if(ANDROID)
     set_target_properties(StuKit PROPERTIES
         QT_ANDROID_APP_NAME "StuKit"
         QT_ANDROID_PACKAGE_NAME "${STUKIT_ANDROID_PACKAGE_NAME}"
+        QT_ANDROID_PACKAGE_SOURCE_DIR
+            "${CMAKE_CURRENT_SOURCE_DIR}/android"
         QT_ANDROID_MIN_SDK_VERSION 28
         QT_ANDROID_TARGET_SDK_VERSION 36
         QT_ANDROID_VERSION_CODE "${STUKIT_ANDROID_VERSION_CODE}"

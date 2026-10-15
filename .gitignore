@@ -27,3 +27,9 @@ compile_commands.json
 *.db3
 *.sqlite-shm
 *.sqlite-wal
+
+# Local weather provider credentials
+.env
+.env.*
+!.env.example
+qweather.local.*

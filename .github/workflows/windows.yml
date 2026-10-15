@@ -1,4 +1,4 @@
-name: Windows CI and Release
+name: CI and Release
 
 on:
   push:
@@ -20,18 +20,19 @@ concurrency:
 
 env:
   QT_VERSION: "6.10.3"
-  QT_ARCH: "win64_msvc2022_64"
-  QT_INSTALL_ARCH: "msvc2022_64"
-  QT_ROOT: ${{ github.workspace }}\Qt
-  BUILD_DIR: ${{ github.workspace }}\build\ci-windows
-  INSTALL_DIR: ${{ github.workspace }}\dist\StuKit
-  ARCHIVE_PATH: ${{ github.workspace }}\dist\StuKit-windows-x64.zip
 
 jobs:
-  build-and-test:
-    name: Build, test, and package Windows
+  windows:
+    name: Windows x64
     runs-on: windows-2022
-    timeout-minutes: 45
+    timeout-minutes: 50
+    env:
+      QT_ARCH: win64_msvc2022_64
+      QT_INSTALL_ARCH: msvc2022_64
+      QT_ROOT: ${{ github.workspace }}\Qt
+      BUILD_DIR: ${{ github.workspace }}\build\ci-windows
+      INSTALL_DIR: ${{ github.workspace }}\dist\StuKit
+      ARCHIVE_PATH: ${{ github.workspace }}\dist\StuKit-windows-x64.zip
 
     steps:
       - name: Check out repository
@@ -83,6 +84,19 @@ jobs:
           if ($env:GITHUB_REF_NAME -ne $expectedTag) {
             throw "Tag $env:GITHUB_REF_NAME does not match project version $expectedTag"
           }
+          "STUKIT_VERSION=$($Matches[1])" |
+            Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Read project version
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        shell: pwsh
+        run: |
+          $cmake = Get-Content -Raw -LiteralPath CMakeLists.txt
+          if ($cmake -notmatch 'project\(StuKit VERSION ([0-9]+\.[0-9]+\.[0-9]+)') {
+            throw "Unable to read the StuKit version from CMakeLists.txt"
+          }
+          "STUKIT_VERSION=$($Matches[1])" |
+            Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Configure CMake
         shell: pwsh
@@ -120,7 +134,6 @@ jobs:
           if (-not (Test-Path -LiteralPath $executable)) {
             throw "Deployed executable was not found at $executable"
           }
-
           $process = Start-Process -FilePath $executable -PassThru
           Start-Sleep -Seconds 5
           if ($process.HasExited) {
@@ -128,46 +141,177 @@ jobs:
           }
           Stop-Process -Id $process.Id
 
-      - name: Create ZIP package
+      - name: Create portable ZIP
         shell: pwsh
         run: |
-          $archiveDirectory = Split-Path -Parent $env:ARCHIVE_PATH
-          New-Item -ItemType Directory -Force -Path $archiveDirectory | Out-Null
           Compress-Archive `
             -LiteralPath $env:INSTALL_DIR `
             -DestinationPath $env:ARCHIVE_PATH `
             -CompressionLevel Optimal `
             -Force
 
-      - name: Upload Windows package
+      - name: Create Windows installer
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path -LiteralPath $iscc)) {
+            choco install innosetup --no-progress -y
+          }
+          if (-not (Test-Path -LiteralPath $iscc)) {
+            throw "Inno Setup compiler was not found at $iscc"
+          }
+          & $iscc `
+            "/DSourceDir=$env:INSTALL_DIR" `
+            "/DOutputDir=$($env:GITHUB_WORKSPACE)\dist" `
+            "/DAppVersion=$env:STUKIT_VERSION" `
+            "$($env:GITHUB_WORKSPACE)\packaging\windows\StuKit.iss"
+
+      - name: Upload Windows packages
         uses: actions/upload-artifact@v7
         with:
           name: StuKit-windows-x64
-          path: ${{ env.ARCHIVE_PATH }}
+          path: |
+            ${{ env.ARCHIVE_PATH }}
+            ${{ github.workspace }}\dist\StuKit-*-windows-x64-setup.exe
+          if-no-files-found: error
+          retention-days: 14
+
+  android:
+    name: Android arm64-v8a
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    env:
+      QT_ROOT: ${{ github.workspace }}/Qt
+      BUILD_DIR: ${{ github.workspace }}/build/ci-android
+      ANDROID_NDK_VERSION: 27.2.12479018
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        shell: bash
+        run: >-
+          sdkmanager
+          "platforms;android-36"
+          "build-tools;36.0.0"
+          "ndk;$ANDROID_NDK_VERSION"
+
+      - name: Restore Qt cache
+        id: qt-cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.QT_ROOT }}
+          key: qt-${{ runner.os }}-${{ env.QT_VERSION }}-android-arm64-v8a-qtcharts-v1
+
+      - name: Install host and Android Qt
+        if: steps.qt-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          python -m pip install --disable-pip-version-check aqtinstall==3.3.0
+          python -m aqt install-qt linux desktop \
+            "$QT_VERSION" linux_gcc_64 \
+            --outputdir "$QT_ROOT" \
+            --modules qtcharts
+          python -m aqt install-qt linux android \
+            "$QT_VERSION" android_arm64_v8a \
+            --outputdir "$QT_ROOT" \
+            --modules qtcharts
+
+      - name: Configure Android environment
+        shell: bash
+        run: |
+          qt_host_dir="$QT_ROOT/$QT_VERSION/gcc_64"
+          qt_android_dir="$QT_ROOT/$QT_VERSION/android_arm64_v8a"
+          ndk_dir="$ANDROID_SDK_ROOT/ndk/$ANDROID_NDK_VERSION"
+          test -x "$qt_android_dir/bin/qt-cmake"
+          test -d "$qt_host_dir/lib/cmake/Qt6"
+          test -d "$ndk_dir"
+          echo "QT_HOST_DIR=$qt_host_dir" >> "$GITHUB_ENV"
+          echo "QT_ANDROID_DIR=$qt_android_dir" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=$ndk_dir" >> "$GITHUB_ENV"
+
+      - name: Configure CMake
+        shell: bash
+        run: |
+          "$QT_ANDROID_DIR/bin/qt-cmake" \
+            -S . -B "$BUILD_DIR" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DQT_HOST_PATH="$QT_HOST_DIR" \
+            -DANDROID_SDK_ROOT="$ANDROID_SDK_ROOT" \
+            -DANDROID_NDK_ROOT="$ANDROID_NDK_ROOT" \
+            -DQT_ANDROID_BUILD_ALL_ABIS=OFF \
+            -DBUILD_TESTING=OFF
+
+      - name: Build installable APK
+        shell: bash
+        run: cmake --build "$BUILD_DIR" --target apk --parallel 2
+
+      - name: Collect APK
+        shell: bash
+        run: |
+          apk_path=$(find "$BUILD_DIR" -type f -name "*-debug.apk" -print -quit)
+          if [[ -z "$apk_path" ]]; then
+            echo "No debug APK was generated" >&2
+            exit 1
+          fi
+          mkdir -p dist
+          cp "$apk_path" dist/StuKit-android-arm64-v8a.apk
+
+      - name: Upload Android package
+        uses: actions/upload-artifact@v7
+        with:
+          name: StuKit-android-arm64-v8a
+          path: dist/StuKit-android-arm64-v8a.apk
           if-no-files-found: error
           retention-days: 14
 
   release:
     name: Publish GitHub Release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: build-and-test
+    needs:
+      - windows
+      - android
     runs-on: ubuntu-latest
     permissions:
       contents: write
 
     steps:
-      - name: Download Windows package
+      - name: Download Windows packages
         uses: actions/download-artifact@v8
         with:
           name: StuKit-windows-x64
-          path: release-assets
+          path: release-assets/windows
+
+      - name: Download Android package
+        uses: actions/download-artifact@v8
+        with:
+          name: StuKit-android-arm64-v8a
+          path: release-assets/android
 
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
           gh release create "${GITHUB_REF_NAME}"
-          release-assets/StuKit-windows-x64.zip
+          release-assets/windows/*
+          release-assets/android/*
           --verify-tag
           --generate-notes
           --title "StuKit ${GITHUB_REF_NAME}"

@@ -17,6 +17,11 @@ Page {
 
     signal analyticsRequested()
 
+    readonly property bool compactLayout:
+        width < AppTheme.breakpointCompact
+    readonly property int pagePadding: AppTheme.pagePadding(width)
+    property bool dataToolsExpanded: false
+
     // Keep every accounting dialog inside the page on narrow windows. Dialog
     // content must use the dialog's content width instead of calculating a
     // second, potentially wider width from the page.
@@ -146,54 +151,90 @@ Page {
     }
 
     ScrollView {
+        id: pageScrollView
+
         anchors.fill: parent
         contentWidth: availableWidth
+        clip: true
+        ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
         ColumnLayout {
-            width: root.width
+            x: Math.max(0, (pageScrollView.availableWidth - width) / 2)
+            width: Math.min(
+                pageScrollView.availableWidth,
+                AppTheme.contentMaxWidth)
             spacing: AppTheme.spacingMedium
 
-            RowLayout {
+            AppSectionCard {
+                objectName: "accountingPrimaryCard"
                 Layout.fillWidth: true
-                Layout.leftMargin: AppTheme.spacingLarge
-                Layout.rightMargin: AppTheme.spacingLarge
-                Layout.topMargin: AppTheme.spacingLarge
+                Layout.leftMargin: root.pagePadding
+                Layout.rightMargin: root.pagePadding
+                Layout.topMargin: root.pagePadding
+                accentColor: AppTheme.primaryColor
 
-                AppButton {
-                    text: qsTr("上一月")
-                    enabled: root.viewModel !== null
-                    onClicked: root.viewModel.showPreviousMonth()
-                }
-
-                Label {
+                RowLayout {
                     Layout.fillWidth: true
-                    horizontalAlignment: Text.AlignHCenter
-                    color: AppTheme.textPrimaryColor
-                    font.pixelSize: AppTheme.fontSizeHeading
-                    font.bold: true
-                    text: root.viewModel ? root.viewModel.monthLabel : qsTr("记账本")
+
+                    AppButton {
+                        text: qsTr("上一月")
+                        enabled: root.viewModel !== null
+                        onClicked: root.viewModel.showPreviousMonth()
+                    }
+
+                    Label {
+                        Layout.fillWidth: true
+                        horizontalAlignment: Text.AlignHCenter
+                        color: AppTheme.textPrimaryColor
+                        font.pixelSize: root.compactLayout
+                            ? AppTheme.fontSizeTitle
+                            : AppTheme.fontSizeHeading
+                        font.bold: true
+                        text: root.viewModel
+                            ? root.viewModel.monthLabel : qsTr("记账本")
+                    }
+
+                    AppButton {
+                        text: qsTr("下一月")
+                        enabled: root.viewModel !== null
+                        onClicked: root.viewModel.showNextMonth()
+                    }
                 }
 
-                AppButton {
-                    text: qsTr("下一月")
-                    enabled: root.viewModel !== null
-                    onClicked: root.viewModel.showNextMonth()
-                }
-            }
+                Flow {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: implicitHeight
+                    spacing: AppTheme.spacingSmall
 
-            AppButton {
-                Layout.alignment: Qt.AlignHCenter
-                text: root.viewModel
-                    ? qsTr("时区：%1  ·  更改").arg(root.viewModel.timeZoneId)
-                    : ""
-                visible: text.length > 0
-                onClicked: root.openTimeZoneDialog()
+                    AppButton {
+                        text: qsTr("记一笔")
+                        enabled: root.transactionViewModel !== null
+                            && root.transactionViewModel.ready
+                            && root.activeError.length === 0
+                        highlighted: true
+                        onClicked: root.openTransactionDialog()
+                    }
+
+                    AppButton {
+                        text: qsTr("数据分析")
+                        onClicked: root.analyticsRequested()
+                    }
+
+                    AppButton {
+                        flat: true
+                        text: root.viewModel
+                            ? qsTr("时区：%1").arg(root.viewModel.timeZoneId)
+                            : ""
+                        visible: text.length > 0
+                        onClicked: root.openTimeZoneDialog()
+                    }
+                }
             }
 
             Rectangle {
                 Layout.fillWidth: true
-                Layout.leftMargin: AppTheme.spacingLarge
-                Layout.rightMargin: AppTheme.spacingLarge
+                Layout.leftMargin: root.pagePadding
+                Layout.rightMargin: root.pagePadding
                 Layout.preferredHeight: setupLayout.implicitHeight
                     + AppTheme.spacingMedium * 2
                 radius: AppTheme.radiusMedium
@@ -238,125 +279,119 @@ Page {
                 }
             }
 
-            Flow {
+            AppSectionCard {
+                objectName: "accountingSetupCard"
                 Layout.fillWidth: true
-                Layout.leftMargin: AppTheme.spacingLarge
-                Layout.rightMargin: AppTheme.spacingLarge
-                spacing: AppTheme.spacingSmall
+                Layout.leftMargin: root.pagePadding
+                Layout.rightMargin: root.pagePadding
+                title: qsTr("账户与分类")
+                description: qsTr("维护资金账户和收支分类。归档后的项目不会出现在新账单选项中。")
                 visible: root.setupViewModel !== null
 
-                AppButton {
-                    text: qsTr("新增账户")
-                    onClicked: root.openAccountDialog()
-                }
-
-                AppButton {
-                    text: qsTr("新增支出分类")
-                    onClicked: root.openCategoryDialog(false)
-                }
-
-                AppButton {
-                    text: qsTr("新增收入分类")
-                    onClicked: root.openCategoryDialog(true)
-                }
-
-                AppButton {
-                    text: qsTr("管理账户与分类")
-                    onClicked: setupManagementDialog.open()
-                }
-            }
-
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.leftMargin: AppTheme.spacingLarge
-                Layout.rightMargin: AppTheme.spacingLarge
-                Layout.preferredHeight: dataToolsLayout.implicitHeight
-                    + AppTheme.spacingMedium * 2
-                radius: AppTheme.radiusMedium
-                color: AppTheme.surfaceColor
-                border.color: AppTheme.borderColor
-                visible: root.maintenanceViewModel !== null
-
-                ColumnLayout {
-                    id: dataToolsLayout
-
-                    anchors.fill: parent
-                    anchors.margins: AppTheme.spacingMedium
+                Flow {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: implicitHeight
                     spacing: AppTheme.spacingSmall
 
-                    Label {
-                        text: qsTr("数据工具")
-                        color: AppTheme.textPrimaryColor
-                        font.bold: true
-                        font.pixelSize: AppTheme.fontSizeBody
+                    AppButton {
+                        text: qsTr("新增账户")
+                        onClicked: root.openAccountDialog()
                     }
 
-                    Label {
-                        Layout.fillWidth: true
-                        text: qsTr("数据库备份用于完整恢复；CSV 导出便于使用表格软件查看和分析流水。")
-                        color: AppTheme.textSecondaryColor
-                        wrapMode: Text.WordWrap
+                    AppButton {
+                        text: qsTr("新增支出分类")
+                        onClicked: root.openCategoryDialog(false)
                     }
 
-                    Flow {
-                        Layout.fillWidth: true
-                        spacing: AppTheme.spacingSmall
-
-                        AppButton {
-                            text: qsTr("备份数据库")
-                            enabled: !root.maintenanceViewModel.busy
-                            onClicked: backupFileDialog.open()
-                        }
-
-                        AppButton {
-                            text: qsTr("恢复数据库")
-                            enabled: !root.maintenanceViewModel.busy
-                            onClicked: restoreFileDialog.open()
-                        }
-
-                        AppButton {
-                            text: qsTr("导出全部流水 CSV")
-                            enabled: !root.maintenanceViewModel.busy
-                            highlighted: true
-                            onClicked: exportCsvFileDialog.open()
-                        }
+                    AppButton {
+                        text: qsTr("新增收入分类")
+                        onClicked: root.openCategoryDialog(true)
                     }
 
-                    Label {
-                        Layout.fillWidth: true
-                        color: root.maintenanceViewModel.hasError
-                            ? AppTheme.errorColor
-                            : AppTheme.textSecondaryColor
-                        text: root.maintenanceViewModel.hasError
-                            ? root.maintenanceViewModel.errorMessage
-                            : root.maintenanceViewModel.statusMessage
-                        wrapMode: Text.WrapAnywhere
-                        visible: text.length > 0
+                    AppButton {
+                        flat: true
+                        text: qsTr("管理全部")
+                        onClicked: setupManagementDialog.open()
                     }
                 }
             }
 
-            AppButton {
-                Layout.alignment: Qt.AlignHCenter
-                text: qsTr("记一笔")
-                enabled: root.transactionViewModel !== null
-                    && root.transactionViewModel.ready
-                    && root.activeError.length === 0
-                highlighted: true
-                onClicked: root.openTransactionDialog()
-            }
+            AppSectionCard {
+                objectName: "accountingDataToolsCard"
+                Layout.fillWidth: true
+                Layout.leftMargin: root.pagePadding
+                Layout.rightMargin: root.pagePadding
+                title: qsTr("数据工具")
+                description: qsTr("备份或恢复数据库，也可以导出 CSV 后使用表格软件分析。")
+                visible: root.maintenanceViewModel !== null
 
-            AppButton {
-                Layout.alignment: Qt.AlignHCenter
-                text: qsTr("数据分析")
-                onClicked: root.analyticsRequested()
+                AppButton {
+                    flat: true
+                    text: root.dataToolsExpanded
+                        ? qsTr("收起数据工具") : qsTr("展开数据工具")
+                    onClicked: root.dataToolsExpanded
+                        = !root.dataToolsExpanded
+                }
+
+                GridLayout {
+                    objectName: "accountingDataToolsFlow"
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: visible
+                        ? (root.compactLayout
+                            ? AppTheme.touchTargetHeight * 3
+                                + AppTheme.spacingSmall * 2
+                            : AppTheme.touchTargetHeight)
+                        : 0
+                    Layout.minimumHeight: Layout.preferredHeight
+                    Layout.maximumHeight: Layout.preferredHeight
+                    columns: root.compactLayout ? 1 : 3
+                    columnSpacing: AppTheme.spacingSmall
+                    rowSpacing: AppTheme.spacingSmall
+                    visible: root.dataToolsExpanded
+
+                    AppButton {
+                        Layout.fillWidth: true
+                        text: qsTr("备份数据库")
+                        enabled: !root.maintenanceViewModel.busy
+                        onClicked: backupFileDialog.open()
+                    }
+
+                    AppButton {
+                        Layout.fillWidth: true
+                        text: qsTr("恢复数据库")
+                        enabled: !root.maintenanceViewModel.busy
+                        onClicked: restoreFileDialog.open()
+                    }
+
+                    AppButton {
+                        Layout.fillWidth: true
+                        text: qsTr("导出全部流水 CSV")
+                        enabled: !root.maintenanceViewModel.busy
+                        highlighted: true
+                        onClicked: exportCsvFileDialog.open()
+                    }
+                }
+
+                Label {
+                    Layout.fillWidth: true
+                    color: root.maintenanceViewModel.hasError
+                        ? AppTheme.errorColor
+                        : AppTheme.textSecondaryColor
+                    text: root.maintenanceViewModel.hasError
+                        ? root.maintenanceViewModel.errorMessage
+                        : root.maintenanceViewModel.statusMessage
+                    wrapMode: Text.WrapAnywhere
+                    visible: text.length > 0
+                }
             }
 
             GridLayout {
+                objectName: "accountingSummaryGrid"
                 Layout.fillWidth: true
-                Layout.leftMargin: AppTheme.spacingLarge
-                Layout.rightMargin: AppTheme.spacingLarge
-                columns: root.width >= 820 ? 4 : 2
+                Layout.leftMargin: root.pagePadding
+                Layout.rightMargin: root.pagePadding
+                columns: root.width >= 820 ? 4
+                    : root.width < 480 ? 1 : 2
                 columnSpacing: AppTheme.spacingMedium
                 rowSpacing: AppTheme.spacingMedium
                 visible: root.viewModel !== null
@@ -420,8 +455,8 @@ Page {
 
             Rectangle {
                 Layout.fillWidth: true
-                Layout.leftMargin: AppTheme.spacingLarge
-                Layout.rightMargin: AppTheme.spacingLarge
+                Layout.leftMargin: root.pagePadding
+                Layout.rightMargin: root.pagePadding
                 Layout.preferredHeight: errorLayout.implicitHeight
                     + AppTheme.spacingMedium * 2
                 radius: AppTheme.radiusMedium
@@ -462,8 +497,8 @@ Page {
 
             Rectangle {
                 Layout.fillWidth: true
-                Layout.leftMargin: AppTheme.spacingLarge
-                Layout.rightMargin: AppTheme.spacingLarge
+                Layout.leftMargin: root.pagePadding
+                Layout.rightMargin: root.pagePadding
                 Layout.preferredHeight: transactionFilterLayout.implicitHeight
                     + AppTheme.spacingMedium * 2
                 radius: AppTheme.radiusMedium
@@ -492,7 +527,7 @@ Page {
                         columnSpacing: AppTheme.spacingSmall
                         rowSpacing: AppTheme.spacingSmall
 
-                        ComboBox {
+                        AppComboBox {
                             id: transactionTypeFilterBox
 
                             Layout.fillWidth: true
@@ -509,7 +544,7 @@ Page {
                             onActivated: root.viewModel.typeFilter = currentValue
                         }
 
-                        ComboBox {
+                        AppComboBox {
                             id: transactionAccountFilterBox
 
                             Layout.fillWidth: true
@@ -529,7 +564,7 @@ Page {
                                 = currentValue
                         }
 
-                        ComboBox {
+                        AppComboBox {
                             id: transactionCategoryFilterBox
 
                             Layout.fillWidth: true
@@ -550,7 +585,7 @@ Page {
                         }
                     }
 
-                    TextField {
+                    AppTextField {
                         id: transactionSearchField
 
                         Layout.fillWidth: true
@@ -591,8 +626,8 @@ Page {
                 id: transactionList
 
                 Layout.fillWidth: true
-                Layout.leftMargin: AppTheme.spacingLarge
-                Layout.rightMargin: AppTheme.spacingLarge
+                Layout.leftMargin: root.pagePadding
+                Layout.rightMargin: root.pagePadding
                 Layout.preferredHeight: contentHeight
                 Layout.maximumHeight: 480
                 spacing: AppTheme.spacingSmall
@@ -686,13 +721,29 @@ Page {
         }
     }
 
-    Dialog {
+    AppDialog {
         id: setupManagementDialog
+        objectName: "accountingSetupManagementDialog"
 
         anchors.centerIn: parent
         width: Math.min(root.availableDialogWidth, 660)
         modal: true
         title: qsTr("账户与分类管理")
+
+        footer: Item {
+            implicitHeight: setupManagementCloseButton.implicitHeight
+                + AppTheme.spacingMedium * 2
+
+            AppButton {
+                id: setupManagementCloseButton
+
+                anchors.right: parent.right
+                anchors.rightMargin: AppTheme.spacingLarge
+                anchors.verticalCenter: parent.verticalCenter
+                text: qsTr("关闭")
+                onClicked: setupManagementDialog.close()
+            }
+        }
 
         ColumnLayout {
             width: parent.width
@@ -708,19 +759,70 @@ Page {
             TabBar {
                 id: setupManagementTabs
                 Layout.fillWidth: true
-
-                TabButton {
-                    text: qsTr("账户")
+                spacing: AppTheme.spacingSmall
+                background: Rectangle {
+                    color: "transparent"
                 }
 
                 TabButton {
+                    objectName: "managedAccountsTab"
+                    text: qsTr("账户")
+                    contentItem: Label {
+                        text: parent.text
+                        color: parent.checked
+                            ? "#ffffff" : AppTheme.textPrimaryColor
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                    background: Rectangle {
+                        objectName: "managedAccountsTabBackground"
+                        radius: AppTheme.radiusSmall
+                        color: parent.checked
+                            ? "#171717"
+                            : (parent.hovered
+                                ? AppTheme.surfaceHoverColor
+                                : AppTheme.surfaceVariantColor)
+                        border.color: parent.checked
+                            ? "#171717" : AppTheme.borderColor
+
+                        Behavior on color {
+                            ColorAnimation { duration: AppTheme.animationFast }
+                        }
+                    }
+                }
+
+                TabButton {
+                    objectName: "managedCategoriesTab"
                     text: qsTr("分类")
+                    contentItem: Label {
+                        text: parent.text
+                        color: parent.checked
+                            ? "#ffffff" : AppTheme.textPrimaryColor
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                    background: Rectangle {
+                        objectName: "managedCategoriesTabBackground"
+                        radius: AppTheme.radiusSmall
+                        color: parent.checked
+                            ? "#171717"
+                            : (parent.hovered
+                                ? AppTheme.surfaceHoverColor
+                                : AppTheme.surfaceVariantColor)
+                        border.color: parent.checked
+                            ? "#171717" : AppTheme.borderColor
+
+                        Behavior on color {
+                            ColorAnimation { duration: AppTheme.animationFast }
+                        }
+                    }
                 }
             }
 
             StackLayout {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 360
+                Layout.preferredHeight: Math.max(
+                    180, Math.min(360, root.height - 280))
                 currentIndex: setupManagementTabs.currentIndex
 
                 ListView {
@@ -921,15 +1023,10 @@ Page {
                 wrapMode: Text.WordWrap
             }
 
-            AppButton {
-                Layout.alignment: Qt.AlignRight
-                text: qsTr("关闭")
-                onClicked: setupManagementDialog.close()
-            }
         }
     }
 
-    Dialog {
+    AppDialog {
         id: renameSetupItemDialog
 
         property string itemKind: ""
@@ -946,7 +1043,7 @@ Page {
             width: parent.width
             spacing: AppTheme.spacingMedium
 
-            TextField {
+            AppTextField {
                 id: renameSetupItemField
                 Layout.fillWidth: true
                 placeholderText: qsTr("新名称")
@@ -980,7 +1077,7 @@ Page {
         }
     }
 
-    Dialog {
+    AppDialog {
         id: archiveSetupItemDialog
 
         property string itemKind: ""
@@ -1002,16 +1099,20 @@ Page {
                 root.setupViewModel.setCategoryArchived(itemId, true)
         }
 
-        Label {
+        ColumnLayout {
             width: parent.width
-            text: qsTr("确定归档“%1”吗？它将不再出现在新增或编辑账单的选项中，历史账单不受影响。")
-                .arg(archiveSetupItemDialog.itemName)
-            color: AppTheme.textPrimaryColor
-            wrapMode: Text.WordWrap
+
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("确定归档“%1”吗？它将不再出现在新增或编辑账单的选项中，历史账单不受影响。")
+                    .arg(archiveSetupItemDialog.itemName)
+                color: AppTheme.textPrimaryColor
+                wrapMode: Text.WordWrap
+            }
         }
     }
 
-    Dialog {
+    AppDialog {
         id: accountDialog
 
         anchors.centerIn: parent
@@ -1030,14 +1131,14 @@ Page {
                 wrapMode: Text.WordWrap
             }
 
-            TextField {
+            AppTextField {
                 id: accountNameField
                 Layout.fillWidth: true
                 placeholderText: qsTr("账户名称")
                 maximumLength: 40
             }
 
-            TextField {
+            AppTextField {
                 id: openingBalanceField
                 Layout.fillWidth: true
                 placeholderText: qsTr("期初余额")
@@ -1067,7 +1168,7 @@ Page {
         }
     }
 
-    Dialog {
+    AppDialog {
         id: categoryDialog
 
         property bool income: false
@@ -1089,7 +1190,7 @@ Page {
                 color: AppTheme.textSecondaryColor
             }
 
-            TextField {
+            AppTextField {
                 id: categoryNameField
                 Layout.fillWidth: true
                 placeholderText: qsTr("分类名称")
@@ -1118,8 +1219,9 @@ Page {
         }
     }
 
-    Dialog {
+    AppDialog {
         id: transactionDialog
+        objectName: "accountingTransactionDialog"
 
         anchors.centerIn: parent
         width: Math.min(root.availableDialogWidth, 460)
@@ -1127,6 +1229,38 @@ Page {
         title: root.transactionViewModel && root.transactionViewModel.editing
             ? qsTr("编辑账单")
             : qsTr("新增账单")
+
+        footer: Item {
+            implicitHeight: transactionDialogFooter.implicitHeight
+                + AppTheme.spacingMedium * 2
+
+            RowLayout {
+                id: transactionDialogFooter
+
+                anchors.right: parent.right
+                anchors.rightMargin: AppTheme.spacingLarge
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: AppTheme.spacingSmall
+
+                AppButton {
+                    text: qsTr("取消")
+                    onClicked: transactionDialog.close()
+                }
+
+                AppButton {
+                    text: root.transactionViewModel
+                        ? root.transactionViewModel.submitButtonText
+                        : qsTr("保存")
+                    enabled: root.transactionViewModel
+                        && root.transactionViewModel.canSubmit
+                    highlighted: true
+                    onClicked: {
+                        if (root.transactionViewModel.submit())
+                            transactionDialog.close()
+                    }
+                }
+            }
+        }
 
         ColumnLayout {
             width: parent.width
@@ -1160,7 +1294,7 @@ Page {
                 }
             }
 
-            TextField {
+            AppTextField {
                 id: amountField
                 Layout.fillWidth: true
                 placeholderText: qsTr("金额，例如 12.34")
@@ -1173,7 +1307,7 @@ Page {
                 color: AppTheme.textSecondaryColor
             }
 
-            ComboBox {
+            AppComboBox {
                 id: accountBox
                 Layout.fillWidth: true
                 model: root.transactionViewModel
@@ -1192,7 +1326,7 @@ Page {
                 color: AppTheme.textSecondaryColor
             }
 
-            ComboBox {
+            AppComboBox {
                 id: categoryBox
                 Layout.fillWidth: true
                 model: root.transactionViewModel
@@ -1207,7 +1341,7 @@ Page {
             RowLayout {
                 Layout.fillWidth: true
 
-                TextField {
+                AppTextField {
                     id: dateField
                     Layout.fillWidth: true
                     placeholderText: qsTr("日期 YYYY-MM-DD")
@@ -1215,7 +1349,7 @@ Page {
                     onTextEdited: root.transactionViewModel.occurredDateText = text
                 }
 
-                TextField {
+                AppTextField {
                     id: timeField
                     Layout.preferredWidth: 120
                     placeholderText: qsTr("时间 HH:mm")
@@ -1224,7 +1358,7 @@ Page {
                 }
             }
 
-            TextArea {
+            AppTextArea {
                 id: noteField
                 Layout.fillWidth: true
                 Layout.preferredHeight: 72
@@ -1247,30 +1381,10 @@ Page {
                 wrapMode: Text.WordWrap
             }
 
-            RowLayout {
-                Layout.alignment: Qt.AlignRight
-
-                AppButton {
-                    text: qsTr("取消")
-                    onClicked: transactionDialog.close()
-                }
-
-                AppButton {
-                    text: root.transactionViewModel
-                        ? root.transactionViewModel.submitButtonText
-                        : qsTr("保存")
-                    enabled: root.transactionViewModel
-                        && root.transactionViewModel.canSubmit
-                    onClicked: {
-                        if (root.transactionViewModel.submit())
-                            transactionDialog.close()
-                    }
-                }
-            }
         }
     }
 
-    Dialog {
+    AppDialog {
         id: timeZoneDialog
 
         anchors.centerIn: parent
@@ -1309,7 +1423,7 @@ Page {
                 color: AppTheme.textSecondaryColor
             }
 
-            ComboBox {
+            AppComboBox {
                 id: timeZoneModeCombo
                 Layout.fillWidth: true
                 model: [qsTr("地区时区（自动处理夏令时）"),
@@ -1322,7 +1436,7 @@ Page {
                 visible: timeZoneModeCombo.currentIndex === 0
             }
 
-            ComboBox {
+            AppComboBox {
                 id: regionTimeZoneCombo
                 Layout.fillWidth: true
                 visible: timeZoneModeCombo.currentIndex === 0
@@ -1344,7 +1458,7 @@ Page {
                 visible: timeZoneModeCombo.currentIndex === 1
             }
 
-            ComboBox {
+            AppComboBox {
                 id: fixedOffsetCombo
                 Layout.fillWidth: true
                 visible: timeZoneModeCombo.currentIndex === 1
@@ -1397,7 +1511,7 @@ Page {
         onAccepted: root.maintenanceViewModel.exportTransactionsTo(selectedFile)
     }
 
-    Dialog {
+    AppDialog {
         id: restoreConfirmationDialog
 
         property url backupFile
@@ -1409,15 +1523,19 @@ Page {
         standardButtons: Dialog.Yes | Dialog.No
         onAccepted: root.maintenanceViewModel.restoreFrom(backupFile)
 
-        Label {
+        ColumnLayout {
             width: parent.width
-            text: qsTr("恢复会用所选备份替换当前记账数据。StuKit 会先自动保存当前数据库，确定继续吗？")
-            color: AppTheme.textPrimaryColor
-            wrapMode: Text.WordWrap
+
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("恢复会用所选备份替换当前记账数据。StuKit 会先自动保存当前数据库，确定继续吗？")
+                color: AppTheme.textPrimaryColor
+                wrapMode: Text.WordWrap
+            }
         }
     }
 
-    Dialog {
+    AppDialog {
         id: transactionDetailDialog
 
         property string transactionId: ""
@@ -1537,7 +1655,7 @@ Page {
         }
     }
 
-    Dialog {
+    AppDialog {
         id: deleteTransactionDialog
 
         anchors.centerIn: parent

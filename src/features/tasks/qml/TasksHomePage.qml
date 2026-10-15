@@ -7,11 +7,13 @@ import QtQuick.Layouts
 Page {
     id: root
     required property var viewModel
-    readonly property bool compact: width < 680
+    readonly property bool compact: width < AppTheme.breakpointCompact
+    readonly property int pagePadding: AppTheme.pagePadding(width)
     property var editingTask: null
     property string deletingId: ""
     property string dueValue: ""
     property string reminderValue: ""
+    property bool filtersExpanded: false
 
     background: Rectangle { color: AppTheme.backgroundColor }
 
@@ -38,36 +40,64 @@ Page {
     }
 
     ScrollView {
+        id: pageScrollView
+
         anchors.fill: parent
         contentWidth: availableWidth
+        clip: true
+        ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
         ColumnLayout {
-            width: root.width
+            x: Math.max(0, (pageScrollView.availableWidth - width) / 2)
+            width: Math.min(
+                pageScrollView.availableWidth,
+                AppTheme.contentMaxWidth)
             spacing: AppTheme.spacingMedium
 
-            RowLayout {
+            AppSectionCard {
+                objectName: "taskPrimaryCard"
                 Layout.fillWidth: true
-                Layout.margins: AppTheme.spacingLarge
-                Layout.bottomMargin: 0
+                Layout.leftMargin: root.pagePadding
+                Layout.rightMargin: root.pagePadding
+                Layout.topMargin: root.pagePadding
+                accentColor: AppTheme.primaryColor
 
-                ColumnLayout {
+                GridLayout {
                     Layout.fillWidth: true
-                    spacing: AppTheme.spacingExtraSmall
-                    Label {
-                        text: qsTr("待办")
-                        color: AppTheme.textPrimaryColor
-                        font.pixelSize: AppTheme.fontSizeDisplay
-                        font.bold: true
+                    columns: root.compact ? 1 : 2
+                    columnSpacing: AppTheme.spacingMedium
+                    rowSpacing: AppTheme.spacingMedium
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: AppTheme.spacingExtraSmall
+
+                        Label {
+                            Layout.fillWidth: true
+                            text: qsTr("待办")
+                            color: AppTheme.textPrimaryColor
+                            font.pixelSize: root.compact
+                                ? AppTheme.fontSizeHeading
+                                : AppTheme.fontSizeDisplay
+                            font.bold: true
+                        }
+
+                        Label {
+                            Layout.fillWidth: true
+                            text: qsTr("管理作业、考试与竞赛任务")
+                            color: AppTheme.textSecondaryColor
+                            wrapMode: Text.WordWrap
+                        }
                     }
-                    Label {
-                        text: qsTr("管理作业、考试与竞赛任务")
-                        color: AppTheme.textSecondaryColor
+
+                    AppButton {
+                        Layout.fillWidth: root.compact
+                        Layout.alignment: root.compact
+                            ? Qt.AlignLeft : Qt.AlignRight
+                        text: qsTr("新建任务")
+                        highlighted: true
+                        onClicked: root.openEditor(null)
                     }
-                }
-                AppButton {
-                    text: qsTr("新建任务")
-                    highlighted: true
-                    onClicked: root.openEditor(null)
                 }
             }
 
@@ -79,8 +109,8 @@ Page {
                     required property var modelData
                     required property int index
                     Layout.fillWidth: true
-                    Layout.leftMargin: AppTheme.spacingLarge
-                    Layout.rightMargin: AppTheme.spacingLarge
+                    Layout.leftMargin: root.pagePadding
+                    Layout.rightMargin: root.pagePadding
                     Layout.preferredHeight: reminderRow.implicitHeight
                         + AppTheme.spacingMedium * 2
                     radius: AppTheme.radiusMedium
@@ -103,8 +133,8 @@ Page {
             GridLayout {
                 objectName: "taskStatsGrid"
                 Layout.fillWidth: true
-                Layout.leftMargin: AppTheme.spacingLarge
-                Layout.rightMargin: AppTheme.spacingLarge
+                Layout.leftMargin: root.pagePadding
+                Layout.rightMargin: root.pagePadding
                 columns: root.compact ? 2 : 4
                 columnSpacing: AppTheme.spacingSmall
                 rowSpacing: AppTheme.spacingSmall
@@ -134,42 +164,70 @@ Page {
                 }
             }
 
-            GridLayout {
+            AppSectionCard {
+                objectName: "taskFilterCard"
                 Layout.fillWidth: true
-                Layout.leftMargin: AppTheme.spacingLarge
-                Layout.rightMargin: AppTheme.spacingLarge
-                columns: root.compact ? 1 : 3
-                TextField {
-                    Layout.fillWidth: true
-                    placeholderText: qsTr("搜索标题、说明或课程")
-                    onAccepted: root.viewModel.setKeyword(text)
-                }
-                ComboBox {
-                    Layout.fillWidth: true
-                    model: [qsTr("全部分类")].concat(
-                        root.viewModel ? root.viewModel.categoryOptions : [])
-                    onActivated: root.viewModel.setCategoryFilter(currentIndex - 1)
-                }
-                CheckBox {
-                    text: qsTr("显示已归档")
-                    checked: root.viewModel ? root.viewModel.includeArchived : false
-                    onToggled: root.viewModel.setIncludeArchived(checked)
-                }
+                Layout.leftMargin: root.pagePadding
+                Layout.rightMargin: root.pagePadding
+                title: qsTr("筛选与分类")
+                description: root.compact
+                    ? qsTr("搜索、分类筛选和归档显示集中在这里。")
+                    : qsTr("按关键字或分类缩小任务范围。")
+
                 AppButton {
-                    Layout.fillWidth: root.compact
-                    text: qsTr("新增分类")
-                    onClicked: {
-                        categoryNameField.text = ""
-                        categoryDialog.open()
-                        categoryNameField.forceActiveFocus()
+                    visible: root.compact
+                    flat: true
+                    text: root.filtersExpanded
+                        ? qsTr("收起筛选") : qsTr("展开筛选")
+                    onClicked: root.filtersExpanded = !root.filtersExpanded
+                }
+
+                GridLayout {
+                    objectName: "taskFilterContent"
+                    Layout.fillWidth: true
+                    columns: root.compact ? 1 : 3
+                    columnSpacing: AppTheme.spacingSmall
+                    rowSpacing: AppTheme.spacingSmall
+                    visible: !root.compact || root.filtersExpanded
+
+                    AppTextField {
+                        Layout.fillWidth: true
+                        placeholderText: qsTr("搜索标题、说明或课程")
+                        onAccepted: root.viewModel.setKeyword(text)
+                    }
+
+                    AppComboBox {
+                        Layout.fillWidth: true
+                        model: [qsTr("全部分类")].concat(
+                            root.viewModel ? root.viewModel.categoryOptions : [])
+                        onActivated: root.viewModel.setCategoryFilter(
+                            currentIndex - 1)
+                    }
+
+                    CheckBox {
+                        Layout.fillWidth: true
+                        text: qsTr("显示已归档")
+                        checked: root.viewModel
+                            ? root.viewModel.includeArchived : false
+                        onToggled: root.viewModel.setIncludeArchived(checked)
+                    }
+
+                    AppButton {
+                        Layout.fillWidth: root.compact
+                        text: qsTr("新增分类")
+                        onClicked: {
+                            categoryNameField.text = ""
+                            categoryDialog.open()
+                            categoryNameField.forceActiveFocus()
+                        }
                     }
                 }
             }
 
             Label {
                 Layout.fillWidth: true
-                Layout.leftMargin: AppTheme.spacingLarge
-                Layout.rightMargin: AppTheme.spacingLarge
+                Layout.leftMargin: root.pagePadding
+                Layout.rightMargin: root.pagePadding
                 visible: root.viewModel && root.viewModel.hasError
                 text: root.viewModel ? root.viewModel.errorMessage : ""
                 color: AppTheme.errorColor
@@ -196,8 +254,8 @@ Page {
                         || root.viewModel.tasks[taskDelegate.index - 1].groupLabel
                             !== taskDelegate.modelData.groupLabel
                     Layout.fillWidth: true
-                    Layout.leftMargin: AppTheme.spacingLarge
-                    Layout.rightMargin: AppTheme.spacingLarge
+                    Layout.leftMargin: root.pagePadding
+                    Layout.rightMargin: root.pagePadding
                     spacing: AppTheme.spacingSmall
 
                     Label {
@@ -254,24 +312,95 @@ Page {
         }
     }
 
-    Dialog {
+    AppDialog {
         id: editorDialog
+        objectName: "taskEditorDialog"
+
         anchors.centerIn: parent
-        width: Math.min(root.width - AppTheme.spacingLarge * 2, 540)
+        width: Math.min(root.width - AppTheme.spacingMedium * 2, 540)
         modal: true
         title: root.editingTask ? qsTr("编辑任务") : qsTr("新建任务")
         closePolicy: Popup.NoAutoClose
+
+        footer: Item {
+            implicitHeight: editorFooter.implicitHeight
+                + AppTheme.spacingMedium * 2
+
+            RowLayout {
+                id: editorFooter
+
+                anchors.right: parent.right
+                anchors.rightMargin: AppTheme.spacingLarge
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: AppTheme.spacingSmall
+
+                AppButton {
+                    text: qsTr("取消")
+                    onClicked: editorDialog.close()
+                }
+
+                AppButton {
+                    text: qsTr("保存")
+                    highlighted: true
+                    enabled: titleField.text.trim().length > 0
+                    onClicked: {
+                        const option = root.viewModel.courseOptions[
+                            courseBox.currentIndex]
+                        const categoryName = categoryBox.currentText
+                        if (root.viewModel.save(
+                                root.editingTask ? root.editingTask.id : "",
+                                titleField.text,
+                                descriptionField.text,
+                                root.dueValue,
+                                root.reminderValue,
+                                priorityBox.currentIndex,
+                                categoryName,
+                                option ? option.id : "")) {
+                            editorDialog.close()
+                        }
+                    }
+                }
+            }
+        }
+
         ColumnLayout {
             width: parent.width
-            TextField { id: titleField; Layout.fillWidth: true; placeholderText: qsTr("任务标题（必填）") }
-            TextArea { id: descriptionField; Layout.fillWidth: true; placeholderText: qsTr("任务说明"); wrapMode: TextArea.Wrap }
-            ComboBox {
+            spacing: AppTheme.spacingMedium
+
+            AppTextField {
+                id: titleField
+                Layout.fillWidth: true
+                placeholderText: qsTr("任务标题（必填）")
+            }
+
+            AppTextArea {
+                id: descriptionField
+                Layout.fillWidth: true
+                Layout.preferredHeight: 96
+                placeholderText: qsTr("任务说明")
+                wrapMode: TextArea.Wrap
+            }
+
+            AppComboBox {
                 id: categoryBox
                 Layout.fillWidth: true
                 model: root.viewModel ? root.viewModel.categoryOptions : []
             }
-            ComboBox { id: priorityBox; Layout.fillWidth: true; model: [qsTr("低优先级"), qsTr("普通优先级"), qsTr("高优先级"), qsTr("紧急")] }
-            ComboBox { id: courseBox; Layout.fillWidth: true; model: root.viewModel ? root.viewModel.courseOptions : []; textRole: "label" }
+
+            AppComboBox {
+                id: priorityBox
+                Layout.fillWidth: true
+                model: [qsTr("低优先级"), qsTr("普通优先级"),
+                        qsTr("高优先级"), qsTr("紧急")]
+            }
+
+            AppComboBox {
+                id: courseBox
+                Layout.fillWidth: true
+                model: root.viewModel ? root.viewModel.courseOptions : []
+                textRole: "label"
+            }
+
             RowLayout {
                 Layout.fillWidth: true
                 Label {
@@ -301,21 +430,6 @@ Page {
                     onClicked: reminderPicker.openFor(root.reminderValue)
                 }
             }
-            RowLayout {
-                Layout.alignment: Qt.AlignRight
-                AppButton { text: qsTr("取消"); onClicked: editorDialog.close() }
-                AppButton {
-                    text: qsTr("保存")
-                    highlighted: true
-                    enabled: titleField.text.trim().length > 0
-                    onClicked: {
-                        const option = root.viewModel.courseOptions[courseBox.currentIndex]
-                        const categoryName = categoryBox.currentText
-                        if (root.viewModel.save(root.editingTask ? root.editingTask.id : "", titleField.text, descriptionField.text, root.dueValue, root.reminderValue, priorityBox.currentIndex, categoryName, option ? option.id : ""))
-                            editorDialog.close()
-                    }
-                }
-            }
         }
     }
 
@@ -339,9 +453,10 @@ Page {
         onDateTimeSelected: value => root.reminderValue = value
     }
 
-    Dialog {
+    AppDialog {
         id: categoryDialog
         anchors.centerIn: parent
+        width: Math.min(root.width - AppTheme.spacingMedium * 2, 400)
         modal: true
         title: qsTr("新增待办分类")
         standardButtons: Dialog.Save | Dialog.Cancel
@@ -351,14 +466,14 @@ Page {
         }
 
         ColumnLayout {
-            width: Math.min(root.width - AppTheme.spacingLarge * 4, 360)
+            width: parent.width
             Label {
                 Layout.fillWidth: true
                 text: qsTr("分类会保存在本机，之后新建待办时可以直接选择。")
                 color: AppTheme.textSecondaryColor
                 wrapMode: Text.WordWrap
             }
-            TextField {
+            AppTextField {
                 id: categoryNameField
                 Layout.fillWidth: true
                 placeholderText: qsTr("分类名称，例如：社团、实习")
@@ -367,13 +482,23 @@ Page {
         }
     }
 
-    Dialog {
+    AppDialog {
         id: deleteDialog
         anchors.centerIn: parent
+        width: Math.min(root.width - AppTheme.spacingMedium * 2, 420)
         modal: true
         title: qsTr("删除任务")
         standardButtons: Dialog.Yes | Dialog.No
-        Label { text: qsTr("此操作会永久删除任务，是否继续？"); wrapMode: Text.WordWrap }
+        ColumnLayout {
+            width: parent.width
+
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("此操作会永久删除任务，是否继续？")
+                color: AppTheme.textPrimaryColor
+                wrapMode: Text.WordWrap
+            }
+        }
         onAccepted: root.viewModel.remove(root.deletingId)
     }
 }

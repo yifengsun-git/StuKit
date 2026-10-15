@@ -8,9 +8,9 @@
 天气是独立功能模块，不依赖记账或课表业务。它只复用应用外壳、主题、通用按钮、
 QSettings 和 Qt 的网络基础设施。
 
-当前进度：第 47～52 课已完成。Domain、异步 Application 端口、Open-Meteo 网络/JSON
-基础设施、Presentation、应用组合根、响应式页面和持久化离线缓存已经建立，并通过
-不访问公网的自动化测试。天气模块 MVP 已完成。
+当前进度：第 47～52 课完成天气 MVP，第 71 课把供应商迁移到和风天气。Domain、异步
+Application 端口、和风天气网络/JSON 基础设施、Presentation、应用组合根、响应式页面
+和持久化离线缓存已经建立，并通过不访问公网的自动化测试。
 
 ## 2. MVP 功能范围
 
@@ -21,7 +21,7 @@ QSettings 和 Qt 的网络基础设施。
 - 展示当前温度、体感温度、天气状态、湿度、降水和风况。
 - 展示 7 天最高/最低温、天气状态和降水概率。
 - 支持手动刷新、加载状态、错误状态和无网络时的最近缓存。
-- 明确显示数据更新时间与 Open-Meteo 数据署名。
+- 明确显示数据更新时间与和风天气数据署名。
 - 宽窗口与 360～640 像素窄窗口都能完成搜索和查看。
 
 ### 后续增强
@@ -37,17 +37,18 @@ QSettings 和 Qt 的网络基础设施。
 
 ## 3. 数据来源
 
-初始实现使用 [Open-Meteo Forecast API](https://open-meteo.com/en/docs) 和
-[Open-Meteo Geocoding API](https://open-meteo.com/en/docs/geocoding-api)：
+当前实现使用和风天气的 GeoAPI 城市搜索、实时天气 v1 与每日预报 v1：
 
-- 个人非商业版本不需要 API Key。
-- 免费接口有调用频率限制且不承诺可用性，因此必须限流并提供本地缓存。
-- 天气数据采用 CC BY 4.0，界面必须保留适当署名。
-- 如果项目以后加入广告、收费或其他商业用途，应在发布前更换为商业许可端点或其他
-  合法数据源。
+- API Host 必须使用控制台为项目分配的专属 Host，不能把旧公共 Host 写死。
+- API Key 通过 `X-QW-Api-Key` 请求头传递，不放进 URL、源码或 Git。
+- Windows 开发默认从环境变量读取；Android 可通过本机 CMake Cache 注入，配置方法见
+  [和风天气配置说明](QWEATHER_SETUP.md)。
+- 实时天气与每日预报并行请求，任一失败会取消另一条请求。
+- 免费额度和服务可用性都不是无限的，因此继续保留本地缓存与请求取消机制。
+- 页面必须展示 QWeather 和风天气名称、官网链接与接口返回要求的数据归因链接。
 
-业务层不直接写死 Open-Meteo JSON。供应商 URL、查询参数和字段映射全部放在
-Infrastructure，后续更换服务不会重写页面和领域模型。
+业务层不直接写死和风天气 JSON。供应商 URL、认证请求头和字段映射全部放在
+Infrastructure，页面和领域模型不依赖供应商协议。
 
 ## 4. 核心模型
 
@@ -58,8 +59,9 @@ Infrastructure，后续更换服务不会重写页面和领域模型。
 
 ### `WeatherCondition`
 
-把 WMO 天气代码归一为晴、多云、阴、雾、毛毛雨、雨、雪、阵雨和雷暴等稳定枚举。
-QML 只消费稳定状态，不理解供应商数字代码。
+把供应商天气代码归一为晴、多云、阴、雾、毛毛雨、雨、雪、阵雨和雷暴等稳定枚举。
+QML 只消费稳定状态，不理解和风天气数字代码。原有 WMO 映射保留在 Domain 作为历史
+兼容能力，和风天气映射位于它自己的 JSON 解析器中。
 
 ### `WeatherForecast`
 
@@ -79,7 +81,7 @@ QML 只消费稳定状态，不理解供应商数字代码。
 src/features/weather/
   domain/          地点、天气状态、当前与逐日预报
   application/     城市搜索与获取预报端口、用例和错误分类
-  infrastructure/  Open-Meteo HTTP、JSON 解析、缓存与设置
+  infrastructure/  和风天气 HTTP、JSON 解析、缓存与设置
   presentation/    WeatherViewModel 与列表模型
   qml/             天气首页和地点搜索组件
 ```
@@ -114,6 +116,7 @@ Infrastructure 操纵界面状态。每次请求带请求标识或取消语义�
 | 50 | Presentation 与组合根 | ViewModel、保存所选城市、刷新与错误状态 |
 | 51 | 响应式天气 UI | 城市搜索、当前天气、7 日预报和署名 |
 | 52 | 离线与集成验收 | 已完成：缓存回退、错误恢复、QML 测试和模块收尾 |
+| 71 | 和风天气迁移 | 专属 API Host、请求头认证、v1 实时/7 日预报和配置说明 |
 
 ## 8. 完成标准
 

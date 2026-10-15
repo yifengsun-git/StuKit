@@ -6,13 +6,14 @@
 
 namespace stukit::weather {
 
-class OpenMeteoJsonParser final
+class QWeatherJsonParser final
 {
 public:
     [[nodiscard]] static LocationSearchResult parseLocations(
         const QByteArray &json);
     [[nodiscard]] static ForecastResult parseForecast(
-        const QByteArray &json,
+        const QByteArray &currentJson,
+        const QByteArray &dailyJson,
         const WeatherLocation &location,
         QDateTime fetchedAtUtc);
 };

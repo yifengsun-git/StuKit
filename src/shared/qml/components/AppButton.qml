@@ -5,7 +5,7 @@ Button {
     id: control
 
     hoverEnabled: Qt.platform.os !== "android"
-    implicitHeight: AppTheme.controlHeight
+    implicitHeight: Math.max(AppTheme.controlHeight, AppTheme.touchTargetHeight)
     leftPadding: AppTheme.spacingMedium
     rightPadding: AppTheme.spacingMedium
     topPadding: AppTheme.spacingSmall
@@ -17,7 +17,8 @@ Button {
         if (control.highlighted || control.checked)
             return AppTheme.primaryColor
         if (control.hovered)
-            return AppTheme.surfaceColor
+            return control.flat
+                ? AppTheme.surfaceHoverColor : AppTheme.surfaceColor
         return control.flat ? "transparent" : AppTheme.surfaceVariantColor
     }
 
@@ -40,5 +41,9 @@ Button {
             ? AppTheme.primaryColor
             : AppTheme.borderColor
         opacity: control.enabled ? 1 : 0.45
+
+        Behavior on color {
+            ColorAnimation { duration: AppTheme.animationFast }
+        }
     }
 }

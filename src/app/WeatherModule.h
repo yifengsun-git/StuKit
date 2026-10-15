@@ -10,7 +10,7 @@ class QSettings;
 namespace stukit::weather {
 class GetWeatherForecast;
 class JsonWeatherForecastCache;
-class OpenMeteoWeatherService;
+class QWeatherWeatherService;
 class SearchWeatherLocations;
 namespace presentation { class WeatherViewModel; }
 }
@@ -36,7 +36,7 @@ private:
     QString m_lastError;
     std::unique_ptr<QNetworkAccessManager> m_network;
     std::unique_ptr<weather::JsonWeatherForecastCache> m_cache;
-    std::unique_ptr<weather::OpenMeteoWeatherService> m_service;
+    std::unique_ptr<weather::QWeatherWeatherService> m_service;
     std::unique_ptr<weather::SearchWeatherLocations> m_searchLocations;
     std::unique_ptr<weather::GetWeatherForecast> m_getForecast;
     std::unique_ptr<weather::presentation::WeatherViewModel> m_viewModel;

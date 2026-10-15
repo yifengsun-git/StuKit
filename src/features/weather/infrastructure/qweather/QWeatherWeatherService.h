@@ -9,13 +9,15 @@
 
 namespace stukit::weather {
 
-class OpenMeteoWeatherService final : public QObject,
-                                      public ILocationSearchService,
-                                      public IWeatherForecastService
+class QWeatherWeatherService final : public QObject,
+                                     public ILocationSearchService,
+                                     public IWeatherForecastService
 {
 public:
-    explicit OpenMeteoWeatherService(
+    QWeatherWeatherService(
         QNetworkAccessManager &network,
+        QString apiHost,
+        QByteArray apiKey,
         QObject *parent = nullptr);
 
     WeatherRequestId search(
@@ -27,6 +29,8 @@ public:
     void cancel(WeatherRequestId requestId) override;
 
 private:
+    enum class ForecastPart { Current, Daily };
+
     struct PendingSearch
     {
         QPointer<QNetworkReply> reply;
@@ -35,16 +39,30 @@ private:
 
     struct PendingForecast
     {
-        QPointer<QNetworkReply> reply;
+        QPointer<QNetworkReply> currentReply;
+        QPointer<QNetworkReply> dailyReply;
+        QByteArray currentJson;
+        QByteArray dailyJson;
         WeatherLocation location;
         ForecastCompletion completion;
+        bool currentFinished{false};
+        bool dailyFinished{false};
     };
 
     [[nodiscard]] WeatherRequestId nextRequestId();
+    [[nodiscard]] QNetworkRequest requestFor(const QUrl &url) const;
+    [[nodiscard]] bool hasConfiguration() const;
     void finishSearch(WeatherRequestId requestId);
-    void finishForecast(WeatherRequestId requestId);
+    void finishForecastPart(
+        WeatherRequestId requestId,
+        ForecastPart part);
+    void failForecast(
+        WeatherRequestId requestId,
+        WeatherServiceError error);
 
     QNetworkAccessManager &m_network;
+    QString m_apiHost;
+    QByteArray m_apiKey;
     WeatherRequestId m_lastRequestId{InvalidWeatherRequestId};
     QHash<WeatherRequestId, PendingSearch> m_searches;
     QHash<WeatherRequestId, PendingForecast> m_forecasts;

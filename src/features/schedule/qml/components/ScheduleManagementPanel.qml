@@ -8,6 +8,8 @@ Item {
     id: root
 
     required property var viewModel
+    readonly property bool compactLayout:
+        width < AppTheme.breakpointCompact
 
     function openNewTerm() {
         termDialog.termId = ""
@@ -319,7 +321,7 @@ Item {
                                 anchors.right: parent.right
                                 anchors.verticalCenter: parent.verticalCenter
                                 anchors.margins: AppTheme.spacingSmall
-                                columns: 2
+                                columns: root.compactLayout ? 1 : 2
                                 rowSpacing: AppTheme.spacingExtraSmall
                                 columnSpacing: AppTheme.spacingSmall
 
@@ -328,7 +330,7 @@ Item {
                                         periodDelegate.modelData.periodNumber)
                                     color: AppTheme.textSecondaryColor
                                 }
-                                TextField {
+                                AppTextField {
                                     id: periodNameField
                                     Layout.fillWidth: true
                                     text: periodDelegate.modelData.name
@@ -341,7 +343,7 @@ Item {
                                 }
                                 RowLayout {
                                     Layout.fillWidth: true
-                                    TextField {
+                                    AppTextField {
                                         id: periodStartField
                                         Layout.fillWidth: true
                                         text: periodDelegate.modelData.startTime
@@ -349,7 +351,7 @@ Item {
                                         inputMethodHints: Qt.ImhTime
                                     }
                                     Label { text: "—" }
-                                    TextField {
+                                    AppTextField {
                                         id: periodEndField
                                         Layout.fillWidth: true
                                         text: periodDelegate.modelData.endTime
@@ -398,13 +400,13 @@ Item {
         }
     }
 
-    Dialog {
+    AppDialog {
         id: termDialog
+        objectName: "scheduleTermDialog"
         property string termId: ""
         property bool archived: false
         parent: Overlay.overlay
-        anchors.centerIn: parent
-        modal: true
+        preferredWidth: 440
         title: termId.length > 0 ? qsTr("编辑学期") : qsTr("新增学期")
         standardButtons: Dialog.NoButton
 
@@ -416,7 +418,7 @@ Item {
                 color: AppTheme.textPrimaryColor
                 font.bold: true
             }
-            TextField {
+            AppTextField {
                 id: termNameField
                 Layout.fillWidth: true
                 placeholderText: qsTr("学期名称，例如 2026 秋季学期")
@@ -426,7 +428,7 @@ Item {
                 color: AppTheme.textPrimaryColor
                 font.bold: true
             }
-            TextField {
+            AppTextField {
                 id: termStartDateField
                 Layout.fillWidth: true
                 placeholderText: qsTr("例如 2026-09-07")
@@ -470,99 +472,90 @@ Item {
         }
     }
 
-    Dialog {
+    AppDialog {
         id: courseDialog
+        objectName: "scheduleCourseDialog"
         property string courseId: ""
         parent: Overlay.overlay
-        anchors.centerIn: parent
-        modal: true
-        width: Math.min(root.width - AppTheme.spacingLarge * 2, 560)
-        height: Math.min(root.height - AppTheme.spacingLarge * 2, 620)
+        preferredWidth: 560
         title: courseId.length > 0 ? qsTr("编辑课程") : qsTr("新增课程")
         standardButtons: Dialog.NoButton
 
-        ScrollView {
-            anchors.fill: parent
-            contentWidth: availableWidth
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: AppTheme.spacingSmall
+            AppTextField { id: courseNameField; Layout.fillWidth: true; placeholderText: qsTr("课程名称") }
+            AppTextField { id: courseTeacherField; Layout.fillWidth: true; placeholderText: qsTr("教师（可选）") }
+            AppTextField { id: courseLocationField; Layout.fillWidth: true; placeholderText: qsTr("教室（可选）") }
+            AppTextField { id: courseColorField; Layout.fillWidth: true; placeholderText: qsTr("颜色，例如 #3B82F6") }
 
-            ColumnLayout {
-                width: parent.width
-                spacing: AppTheme.spacingSmall
-                TextField { id: courseNameField; Layout.fillWidth: true; placeholderText: qsTr("课程名称") }
-                TextField { id: courseTeacherField; Layout.fillWidth: true; placeholderText: qsTr("教师（可选）") }
-                TextField { id: courseLocationField; Layout.fillWidth: true; placeholderText: qsTr("教室（可选）") }
-                TextField { id: courseColorField; Layout.fillWidth: true; placeholderText: qsTr("颜色，例如 #3B82F6") }
+            Label {
+                text: qsTr("期末考核标准")
+                color: AppTheme.textPrimaryColor
+                font.bold: true
+            }
+            AppTextArea {
+                id: courseAssessmentField
+                Layout.fillWidth: true
+                Layout.preferredHeight: 110
+                placeholderText: qsTr("例如：平时成绩 30%，期末考试 70%")
+                wrapMode: TextEdit.Wrap
+            }
 
-                Label {
-                    text: qsTr("期末考核标准")
-                    color: AppTheme.textPrimaryColor
-                    font.bold: true
-                }
-                TextArea {
-                    id: courseAssessmentField
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 110
-                    placeholderText: qsTr("例如：平时成绩 30%，期末考试 70%")
-                    wrapMode: TextEdit.Wrap
-                }
+            Label {
+                text: qsTr("课程教学安排")
+                color: AppTheme.textPrimaryColor
+                font.bold: true
+            }
+            AppTextArea {
+                id: courseTeachingPlanField
+                Layout.fillWidth: true
+                Layout.preferredHeight: 150
+                placeholderText: qsTr("记录章节进度、实验安排、作业节点等")
+                wrapMode: TextEdit.Wrap
+            }
 
-                Label {
-                    text: qsTr("课程教学安排")
-                    color: AppTheme.textPrimaryColor
-                    font.bold: true
-                }
-                TextArea {
-                    id: courseTeachingPlanField
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 150
-                    placeholderText: qsTr("记录章节进度、实验安排、作业节点等")
-                    wrapMode: TextEdit.Wrap
-                }
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    AppButton {
-                        visible: courseDialog.courseId.length > 0
-                        text: qsTr("删除课程")
-                        onClicked: {
-                            deleteCourseDialog.courseId = courseDialog.courseId
-                            deleteCourseDialog.courseName = courseNameField.text
-                            courseDialog.close()
-                            deleteCourseDialog.open()
-                        }
+            RowLayout {
+                Layout.fillWidth: true
+                AppButton {
+                    visible: courseDialog.courseId.length > 0
+                    text: qsTr("删除课程")
+                    onClicked: {
+                        deleteCourseDialog.courseId = courseDialog.courseId
+                        deleteCourseDialog.courseName = courseNameField.text
+                        courseDialog.close()
+                        deleteCourseDialog.open()
                     }
-                    Item { Layout.fillWidth: true }
-                    AppButton { text: qsTr("取消"); onClicked: courseDialog.close() }
-                    AppButton {
-                        text: qsTr("保存")
-                        highlighted: true
-                        onClicked: {
-                            if (root.viewModel.saveCourseDetails(
-                                    courseDialog.courseId,
-                                    root.viewModel.selectedTermId,
-                                    courseNameField.text,
-                                    courseTeacherField.text,
-                                    courseLocationField.text,
-                                    courseColorField.text,
-                                    courseAssessmentField.text,
-                                    courseTeachingPlanField.text))
-                                courseDialog.close()
-                        }
+                }
+                Item { Layout.fillWidth: true }
+                AppButton { text: qsTr("取消"); onClicked: courseDialog.close() }
+                AppButton {
+                    text: qsTr("保存")
+                    highlighted: true
+                    onClicked: {
+                        if (root.viewModel.saveCourseDetails(
+                                courseDialog.courseId,
+                                root.viewModel.selectedTermId,
+                                courseNameField.text,
+                                courseTeacherField.text,
+                                courseLocationField.text,
+                                courseColorField.text,
+                                courseAssessmentField.text,
+                                courseTeachingPlanField.text))
+                            courseDialog.close()
                     }
                 }
             }
         }
     }
 
-    Dialog {
+    AppDialog {
         id: deleteCourseDialog
+        objectName: "scheduleDeleteCourseDialog"
         property string courseId: ""
         property string courseName: ""
         parent: Overlay.overlay
-        anchors.centerIn: parent
-        modal: true
-        width: Math.min(
-            parent.width - AppTheme.spacingSmall * 2, 460)
+        preferredWidth: 460
         title: qsTr("确认删除课程")
         standardButtons: Dialog.NoButton
 

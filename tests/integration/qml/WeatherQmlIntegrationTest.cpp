@@ -200,6 +200,8 @@ void WeatherQmlIntegrationTest::showsEmptyStateAndResponsiveLayout()
         QStringLiteral("weatherCitySearchField"));
     QObject *searchButton = page->findChild<QObject *>(
         QStringLiteral("weatherSearchButton"));
+    QObject *searchCard = page->findChild<QObject *>(
+        QStringLiteral("weatherSearchCard"));
     QObject *emptyState = page->findChild<QObject *>(
         QStringLiteral("weatherEmptyState"));
     QObject *metricGrid = page->findChild<QObject *>(
@@ -208,6 +210,7 @@ void WeatherQmlIntegrationTest::showsEmptyStateAndResponsiveLayout()
         QStringLiteral("dailyForecastGrid"));
     QVERIFY(searchField);
     QVERIFY(searchButton);
+    QVERIFY(searchCard);
     QVERIFY(emptyState);
     QVERIFY(metricGrid);
     QVERIFY(forecastGrid);
@@ -215,10 +218,15 @@ void WeatherQmlIntegrationTest::showsEmptyStateAndResponsiveLayout()
     QCOMPARE(metricGrid->property("columns").toInt(), 2);
     QCOMPARE(forecastGrid->property("columns").toInt(), 1);
     QVERIFY(searchButton->property("implicitHeight").toReal() >= 44.0);
+    QVERIFY(searchField->property("implicitHeight").toReal() >= 48.0);
+    QVERIFY(searchCard->property("width").toReal() <= 328.0);
 
     page->setProperty("width", 960);
     QTRY_COMPARE(page->property("compactLayout").toBool(), false);
     QTRY_COMPARE(metricGrid->property("columns").toInt(), 3);
+
+    page->setProperty("width", 1440);
+    QTRY_VERIFY(searchCard->property("width").toReal() <= 1180.0);
 }
 
 void WeatherQmlIntegrationTest::searchesSelectsAndRendersForecast()

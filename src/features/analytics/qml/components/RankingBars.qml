@@ -11,6 +11,7 @@ Item {
     property color barColor: AppTheme.primaryColor
     property int maximumItems: 8
     property string emptyText: qsTr("本月暂无分类数据")
+    property bool compactLayout: false
 
     implicitHeight: content.implicitHeight
 
@@ -41,8 +42,11 @@ Item {
                 visible: rankingRow.index < root.maximumItems
                 spacing: AppTheme.spacingExtraSmall
 
-                RowLayout {
+                GridLayout {
                     Layout.fillWidth: true
+                    columns: root.compactLayout ? 1 : 2
+                    rowSpacing: AppTheme.spacingExtraSmall
+                    columnSpacing: AppTheme.spacingSmall
 
                     Label {
                         Layout.fillWidth: true
@@ -52,8 +56,12 @@ Item {
                     }
 
                     Label {
+                        Layout.fillWidth: root.compactLayout
                         text: qsTr("%1 · %2 · %3 笔").arg(rankingRow.amountText).arg(rankingRow.percentageText).arg(rankingRow.transactionCount)
                         color: AppTheme.textSecondaryColor
+                        horizontalAlignment: root.compactLayout
+                            ? Text.AlignRight : Text.AlignLeft
+                        wrapMode: Text.WordWrap
                     }
                 }
 

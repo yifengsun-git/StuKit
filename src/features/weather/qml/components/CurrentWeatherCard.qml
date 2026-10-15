@@ -9,7 +9,9 @@ Rectangle {
     property bool compactLayout: false
 
     objectName: "currentWeatherCard"
-    implicitHeight: content.implicitHeight + AppTheme.spacingLarge * 2
+    implicitHeight: content.implicitHeight
+        + (root.compactLayout
+            ? AppTheme.spacingMedium : AppTheme.spacingLarge) * 2
     radius: AppTheme.radiusLarge
     color: AppTheme.surfaceColor
     border.color: AppTheme.borderColor
@@ -18,7 +20,8 @@ Rectangle {
         id: content
 
         anchors.fill: parent
-        anchors.margins: AppTheme.spacingLarge
+        anchors.margins: root.compactLayout
+            ? AppTheme.spacingMedium : AppTheme.spacingLarge
         spacing: AppTheme.spacingMedium
 
         RowLayout {
@@ -106,9 +109,12 @@ Rectangle {
                 delegate: Rectangle {
                     id: metricCard
 
+                    required property int index
                     required property var modelData
 
                     Layout.fillWidth: true
+                    Layout.columnSpan: root.compactLayout
+                            && metricCard.index === 2 ? 2 : 1
                     Layout.preferredHeight: 68
                     radius: AppTheme.radiusSmall
                     color: AppTheme.surfaceVariantColor

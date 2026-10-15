@@ -12,6 +12,8 @@ set(STUKIT_ANALYTICS_TEST_QML_FILES
     ${CMAKE_SOURCE_DIR}/src/features/analytics/qml/components/RankingBars.qml
     ${CMAKE_SOURCE_DIR}/src/shared/qml/theme/AppTheme.qml
     ${CMAKE_SOURCE_DIR}/src/shared/qml/components/AppButton.qml
+    ${CMAKE_SOURCE_DIR}/src/shared/qml/components/AppComboBox.qml
+    ${CMAKE_SOURCE_DIR}/src/shared/qml/components/AppSectionCard.qml
 )
 
 set_source_files_properties(
@@ -45,6 +47,14 @@ set_source_files_properties(
 set_source_files_properties(
     ${CMAKE_SOURCE_DIR}/src/shared/qml/components/AppButton.qml
     PROPERTIES QT_RESOURCE_ALIAS AppButton.qml
+)
+set_source_files_properties(
+    ${CMAKE_SOURCE_DIR}/src/shared/qml/components/AppComboBox.qml
+    PROPERTIES QT_RESOURCE_ALIAS AppComboBox.qml
+)
+set_source_files_properties(
+    ${CMAKE_SOURCE_DIR}/src/shared/qml/components/AppSectionCard.qml
+    PROPERTIES QT_RESOURCE_ALIAS AppSectionCard.qml
 )
 set_source_files_properties(
     ${CMAKE_SOURCE_DIR}/src/shared/qml/theme/AppTheme.qml
@@ -81,9 +91,11 @@ add_test(
 )
 
 set_tests_properties(app.analytics_qml PROPERTIES
-    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_QPA_FONTDIR=C:/Windows/Fonts"
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_QPA_FONTDIR=C:/Windows/Fonts;QT_QUICK_CONTROLS_STYLE=Basic"
 )
 
+add_subdirectory(accounting)
 add_subdirectory(schedule)
+add_subdirectory(shell)
 add_subdirectory(weather)
 add_subdirectory(tasks)

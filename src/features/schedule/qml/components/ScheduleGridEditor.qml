@@ -122,7 +122,7 @@ Item {
                         color: AppTheme.textPrimaryColor
                     }
 
-                    ComboBox {
+                    AppComboBox {
                         id: courseSelector
                         objectName: "scheduleEditorCourseSelector"
                         Layout.fillWidth: true
@@ -239,7 +239,7 @@ Item {
         }
     }
 
-    Dialog {
+    AppDialog {
         id: meetingDialog
 
         property string meetingId: ""
@@ -287,28 +287,17 @@ Item {
 
         objectName: "scheduleGridMeetingDialog"
         parent: Overlay.overlay
-        anchors.centerIn: parent
-        modal: true
-        width: Math.min(
-            root.viewportWidth - AppTheme.spacingSmall * 2,
-            parent.width - AppTheme.spacingSmall * 2,
-            560)
-        height: Math.min(
-            root.viewportHeight - AppTheme.spacingMedium * 2,
-            parent.height - AppTheme.spacingMedium * 2,
-            680)
+        viewportWidth: Math.min(root.viewportWidth, parent.width)
+        viewportHeight: Math.min(root.viewportHeight, parent.height)
+        preferredWidth: 560
         title: meetingId.length > 0
             ? qsTr("编辑“%1”的课程安排").arg(courseName)
             : qsTr("为“%1”添加课程安排").arg(courseName)
         standardButtons: Dialog.NoButton
 
-        ScrollView {
-            anchors.fill: parent
-            contentWidth: availableWidth
-
-            ColumnLayout {
-                width: parent.width
-                spacing: AppTheme.spacingSmall
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: AppTheme.spacingSmall
 
             Label {
                 Layout.fillWidth: true
@@ -333,7 +322,7 @@ Item {
                 columnSpacing: AppTheme.spacingSmall
 
                 Label { text: qsTr("星期") }
-                ComboBox {
+                AppComboBox {
                     id: weekdayBox
                     model: [qsTr("周一"), qsTr("周二"), qsTr("周三"),
                             qsTr("周四"), qsTr("周五"), qsTr("周六"), qsTr("周日")]
@@ -438,11 +427,16 @@ Item {
                 }
             }
 
-            RowLayout {
+            GridLayout {
                 Layout.fillWidth: true
+                columns: root.compactLayout ? 2 : 3
+                rowSpacing: AppTheme.spacingSmall
+                columnSpacing: AppTheme.spacingSmall
 
                 AppButton {
                     visible: meetingDialog.meetingId.length > 0
+                    Layout.columnSpan: root.compactLayout ? 2 : 1
+                    Layout.fillWidth: root.compactLayout
                     text: qsTr("删除安排")
                     onClicked: {
                         deleteMeetingDialog.meetingId = meetingDialog.meetingId
@@ -451,14 +445,14 @@ Item {
                     }
                 }
 
-                Item { Layout.fillWidth: true }
-
                 AppButton {
+                    Layout.fillWidth: root.compactLayout
                     text: qsTr("取消")
                     onClicked: meetingDialog.close()
                 }
 
                 AppButton {
+                    Layout.fillWidth: root.compactLayout
                     text: root.compactLayout
                         ? qsTr("保存") : qsTr("保存到所选周次")
                     highlighted: true
@@ -476,7 +470,6 @@ Item {
                 }
             }
         }
-        }
 
         onClosed: root.viewModel.clearMessages()
     }
@@ -489,16 +482,14 @@ Item {
         onAccepted: root.viewModel.importScheduleCsv(selectedFile)
     }
 
-    Dialog {
+    AppDialog {
         id: deleteMeetingDialog
+        objectName: "scheduleDeleteMeetingDialog"
 
         property string meetingId: ""
 
         parent: Overlay.overlay
-        anchors.centerIn: parent
-        modal: true
-        width: Math.min(
-            parent.width - AppTheme.spacingSmall * 2, 420)
+        preferredWidth: 420
         title: qsTr("确认删除上课安排")
         standardButtons: Dialog.NoButton
 

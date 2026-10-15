@@ -11,6 +11,8 @@
 #include <QDebug>
 #include <QQmlComponent>
 #include <QQmlEngine>
+#include <QQuickItem>
+#include <QQuickWindow>
 #include <QTest>
 #include <QTimeZone>
 #include <QVariantMap>
@@ -75,7 +77,8 @@ struct Fixture
 };
 
 std::unique_ptr<QObject> createTasksPage(
-    QQmlEngine &engine, TasksViewModel &viewModel, qreal width)
+    QQmlEngine &engine, TasksViewModel &viewModel, qreal width,
+    qreal height = 720.0)
 {
     QQmlComponent component(&engine);
     component.loadFromModule(
@@ -87,7 +90,7 @@ std::unique_ptr<QObject> createTasksPage(
         {QStringLiteral("viewModel"),
          QVariant::fromValue(static_cast<QObject *>(&viewModel))},
         {QStringLiteral("width"), width},
-        {QStringLiteral("height"), 720.0},
+        {QStringLiteral("height"), height},
     }));
     if (!page) {
         qWarning().noquote() << component.errorString();
@@ -107,6 +110,7 @@ private slots:
     void rendersTaskAndResponsiveLayout();
     void rendersAndDismissesReminder();
     void usesScrollableDateTimePicker();
+    void constrainsTaskEditorToTheViewport();
 };
 
 void TasksQmlIntegrationTest::rendersTaskAndResponsiveLayout()
@@ -119,11 +123,19 @@ void TasksQmlIntegrationTest::rendersTaskAndResponsiveLayout()
     QObject *stats = page->findChild<QObject *>(QStringLiteral("taskStatsGrid"));
     QObject *empty = page->findChild<QObject *>(QStringLiteral("taskEmptyState"));
     QObject *tasks = page->findChild<QObject *>(QStringLiteral("taskListRepeater"));
+    QObject *primaryCard = page->findChild<QObject *>(
+        QStringLiteral("taskPrimaryCard"));
+    QObject *filterContent = page->findChild<QObject *>(
+        QStringLiteral("taskFilterContent"));
     QVERIFY(stats);
     QVERIFY(empty);
     QVERIFY(tasks);
+    QVERIFY(primaryCard);
+    QVERIFY(filterContent);
     QVERIFY(page->property("compact").toBool());
     QCOMPARE(stats->property("columns").toInt(), 2);
+    QCOMPARE(filterContent->property("visible").toBool(), false);
+    QVERIFY(primaryCard->property("width").toReal() <= 360.0);
     QVERIFY(empty->property("visible").toBool());
     QCOMPARE(tasks->property("count").toInt(), 0);
 
@@ -149,6 +161,7 @@ void TasksQmlIntegrationTest::rendersTaskAndResponsiveLayout()
     page->setProperty("width", 960.0);
     QTRY_VERIFY(!page->property("compact").toBool());
     QTRY_COMPARE(stats->property("columns").toInt(), 4);
+    QTRY_COMPARE(filterContent->property("visible").toBool(), true);
 }
 
 void TasksQmlIntegrationTest::rendersAndDismissesReminder()
@@ -197,6 +210,46 @@ void TasksQmlIntegrationTest::usesScrollableDateTimePicker()
         picker, "selectedValue", Q_RETURN_ARG(QVariant, selected)));
     QCOMPARE(selected.toString(), QStringLiteral("2030-06-15 09:30"));
     QVERIFY(QMetaObject::invokeMethod(picker, "close"));
+}
+
+void TasksQmlIntegrationTest::constrainsTaskEditorToTheViewport()
+{
+    Fixture fixture;
+    QQmlEngine engine;
+    QQuickWindow window;
+    window.resize(360, 480);
+    window.show();
+    auto page = createTasksPage(engine, fixture.viewModel, 360, 480);
+    QVERIFY(page);
+    auto *pageItem = qobject_cast<QQuickItem *>(page.get());
+    QVERIFY(pageItem);
+    pageItem->setParentItem(window.contentItem());
+    QCoreApplication::processEvents();
+
+    QObject *editor = page->findChild<QObject *>(
+        QStringLiteral("taskEditorDialog"));
+    QObject *filterContent = page->findChild<QObject *>(
+        QStringLiteral("taskFilterContent"));
+    QVERIFY(editor);
+    QVERIFY(filterContent);
+
+    QVERIFY(editor->property("width").toReal() <= 328.0);
+    QVERIFY(editor->property("height").toReal() <= 448.0);
+    QCOMPARE(editor->property("maximumDialogHeight").toReal(), 448.0);
+    QTRY_COMPARE(editor->property("contentScrollable").toBool(), true);
+
+    QVERIFY(QMetaObject::invokeMethod(editor, "open"));
+    QTRY_COMPARE(editor->property("opened").toBool(), true);
+    QVariant handled;
+    QVERIFY(QMetaObject::invokeMethod(
+        editor, "handleBackRequest",
+        Q_RETURN_ARG(QVariant, handled)));
+    QCOMPARE(handled.toBool(), true);
+    QTRY_COMPARE(editor->property("opened").toBool(), false);
+
+    QCOMPARE(filterContent->property("visible").toBool(), false);
+    page->setProperty("filtersExpanded", true);
+    QTRY_COMPARE(filterContent->property("visible").toBool(), true);
 }
 
 QTEST_MAIN(TasksQmlIntegrationTest)

@@ -8,9 +8,12 @@ Rectangle {
     default property alias contentData: body.data
     property string title: ""
     property string description: ""
+    property bool compactLayout: false
+    readonly property int contentPadding: compactLayout
+        ? AppTheme.spacingMedium : AppTheme.spacingLarge
 
-    implicitHeight: body.implicitHeight + AppTheme.spacingLarge * 2
-    radius: AppTheme.radiusMedium
+    implicitHeight: body.implicitHeight + contentPadding * 2
+    radius: AppTheme.radiusLarge
     color: AppTheme.surfaceColor
     border.color: AppTheme.borderColor
 
@@ -18,7 +21,7 @@ Rectangle {
         id: body
 
         anchors.fill: parent
-        anchors.margins: AppTheme.spacingLarge
+        anchors.margins: root.contentPadding
         spacing: AppTheme.spacingSmall
 
         Label {

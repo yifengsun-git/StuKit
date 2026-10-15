@@ -1,18 +1,18 @@
 add_library(StuKitWeatherInfrastructure STATIC
     cache/JsonWeatherForecastCache.cpp
     cache/JsonWeatherForecastCache.h
-    openmeteo/OpenMeteoJsonParser.cpp
-    openmeteo/OpenMeteoJsonParser.h
-    openmeteo/OpenMeteoUrlBuilder.cpp
-    openmeteo/OpenMeteoUrlBuilder.h
-    openmeteo/OpenMeteoWeatherService.cpp
-    openmeteo/OpenMeteoWeatherService.h
+    qweather/QWeatherJsonParser.cpp
+    qweather/QWeatherJsonParser.h
+    qweather/QWeatherUrlBuilder.cpp
+    qweather/QWeatherUrlBuilder.h
+    qweather/QWeatherWeatherService.cpp
+    qweather/QWeatherWeatherService.h
 )
 
 target_include_directories(StuKitWeatherInfrastructure
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/cache
-        ${CMAKE_CURRENT_SOURCE_DIR}/openmeteo
+        ${CMAKE_CURRENT_SOURCE_DIR}/qweather
 )
 
 target_link_libraries(StuKitWeatherInfrastructure

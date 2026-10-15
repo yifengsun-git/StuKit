@@ -157,6 +157,7 @@ private slots:
     void supportsCompactScheduleEditing();
     void blocksMeetingCreationWithoutCourse();
     void rebindsReplacementViewModel();
+    void constrainsManagementDialogToTheViewport();
 };
 
 void ScheduleQmlIntegrationTest::switchesResponsiveLayouts()
@@ -168,6 +169,14 @@ void ScheduleQmlIntegrationTest::switchesResponsiveLayouts()
     QVERIFY(page);
 
     QCOMPARE(page->property("layoutMode").toString(), QStringLiteral("daily"));
+    QObject *primaryCard = page->findChild<QObject *>(
+        QStringLiteral("schedulePrimaryCard"));
+    QObject *navigationCard = page->findChild<QObject *>(
+        QStringLiteral("scheduleWeekNavigationCard"));
+    QVERIFY(primaryCard);
+    QVERIFY(navigationCard);
+    QVERIFY(primaryCard->property("width").toReal() <= 640.0);
+    QVERIFY(navigationCard->property("width").toReal() <= 640.0);
     QTRY_VERIFY(page->findChild<QObject *>(
         QStringLiteral("dayScheduleList")) != nullptr);
     QCOMPARE(fixture.viewModel.weekDays().size(), 7);
@@ -395,6 +404,22 @@ void ScheduleQmlIntegrationTest::rebindsReplacementViewModel()
 
     QTRY_COMPARE(grid->property("meetingCount").toInt(), 0);
     QTRY_COMPARE(grid->property("renderedMeetingCount").toInt(), 0);
+}
+
+void ScheduleQmlIntegrationTest::constrainsManagementDialogToTheViewport()
+{
+    Fixture fixture(false);
+    QQmlEngine engine;
+    auto page = createSchedulePage(
+        engine, fixture.viewModel, fixture.managementViewModel, 360, 480);
+    QVERIFY(page);
+
+    QObject *dialog = page->findChild<QObject *>(
+        QStringLiteral("scheduleManagementDialog"));
+    QVERIFY(dialog);
+    QVERIFY(dialog->property("width").toReal() <= 328.0);
+    QVERIFY(dialog->property("height").toReal() <= 448.0);
+    QCOMPARE(dialog->property("maximumDialogHeight").toReal(), 448.0);
 }
 
 QTEST_MAIN(ScheduleQmlIntegrationTest)

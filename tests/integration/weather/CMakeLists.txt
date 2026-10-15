@@ -1,8 +1,8 @@
-add_executable(StuKitOpenMeteoParserTest
-    OpenMeteoParserTest.cpp
+add_executable(StuKitQWeatherParserTest
+    QWeatherParserTest.cpp
 )
 
-target_link_libraries(StuKitOpenMeteoParserTest
+target_link_libraries(StuKitQWeatherParserTest
     PRIVATE
         Qt6::Test
         Qt6::Network
@@ -10,8 +10,8 @@ target_link_libraries(StuKitOpenMeteoParserTest
 )
 
 add_test(
-    NAME weather.openmeteo_parser
-    COMMAND StuKitOpenMeteoParserTest
+    NAME weather.qweather_parser
+    COMMAND StuKitQWeatherParserTest
 )
 
 add_executable(StuKitWeatherCacheTest

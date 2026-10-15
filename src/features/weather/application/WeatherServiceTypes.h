@@ -17,6 +17,8 @@ inline constexpr WeatherRequestId InvalidWeatherRequestId = 0;
 enum class WeatherServiceError
 {
     InvalidInput,
+    ConfigurationMissing,
+    AuthenticationFailed,
     NetworkUnavailable,
     RateLimited,
     ServiceUnavailable,

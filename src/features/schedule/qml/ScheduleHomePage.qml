@@ -11,7 +11,9 @@ Page {
     required property var managementViewModel
     required property string startupError
 
-    readonly property bool compactLayout: width <= 640
+    readonly property bool compactLayout:
+        width < AppTheme.breakpointCompact
+    readonly property int pagePadding: AppTheme.pagePadding(width)
     readonly property string layoutMode: editingSchedule
         ? "editor"
         : compactLayout ? "daily" : "grid"
@@ -68,162 +70,181 @@ Page {
     }
 
     ScrollView {
+        id: pageScrollView
+
         anchors.fill: parent
         contentWidth: availableWidth
+        clip: true
+        ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
         ColumnLayout {
-            width: root.width
+            x: Math.max(0, (pageScrollView.availableWidth - width) / 2)
+            width: Math.min(
+                pageScrollView.availableWidth,
+                AppTheme.contentMaxWidth)
             spacing: AppTheme.spacingMedium
 
-            GridLayout {
+            AppSectionCard {
+                objectName: "schedulePrimaryCard"
                 Layout.fillWidth: true
-                Layout.leftMargin: AppTheme.spacingLarge
-                Layout.rightMargin: AppTheme.spacingLarge
-                Layout.topMargin: AppTheme.spacingLarge
-                columns: root.compactLayout ? 1 : 3
-                rowSpacing: AppTheme.spacingSmall
-                columnSpacing: AppTheme.spacingSmall
+                Layout.leftMargin: root.pagePadding
+                Layout.rightMargin: root.pagePadding
+                Layout.topMargin: root.pagePadding
+                title: qsTr("课程表")
+                description: root.editingSchedule
+                    ? qsTr("正在编辑学期排课，完成后请退出编辑模式。")
+                    : qsTr("选择学期查看课表，或进入编辑模式调整排课。")
+                accentColor: root.editingSchedule
+                    ? AppTheme.warningColor : AppTheme.primaryColor
 
-                ComboBox {
-                    id: termSelector
-
+                GridLayout {
                     Layout.fillWidth: true
-                    Layout.maximumWidth: 360
-                    model: root.viewModel ? root.viewModel.termOptions : []
-                    textRole: "label"
-                    valueRole: "id"
-                    enabled: root.viewModel && root.viewModel.hasTerms
-                    onActivated: root.selectTerm(currentValue)
+                    columns: root.compactLayout ? 1 : 3
+                    rowSpacing: AppTheme.spacingSmall
+                    columnSpacing: AppTheme.spacingSmall
 
-                    function syncSelection() {
-                        if (!root.viewModel) {
-                            currentIndex = -1
-                            return
+                    AppComboBox {
+                        id: termSelector
+
+                        Layout.fillWidth: true
+                        Layout.maximumWidth: root.compactLayout ? 1000 : 360
+                        model: root.viewModel ? root.viewModel.termOptions : []
+                        textRole: "label"
+                        valueRole: "id"
+                        enabled: root.viewModel && root.viewModel.hasTerms
+                        onActivated: root.selectTerm(currentValue)
+
+                        function syncSelection() {
+                            if (!root.viewModel) {
+                                currentIndex = -1
+                                return
+                            }
+                            const index = indexOfValue(
+                                root.viewModel.selectedTermId)
+                            currentIndex = index >= 0 ? index : -1
                         }
-                        const index = indexOfValue(root.viewModel.selectedTermId)
-                        currentIndex = index >= 0 ? index : -1
+
+                        Component.onCompleted: syncSelection()
+
+                        Connections {
+                            target: root.viewModel
+                            function onTermsChanged() {
+                                termSelector.syncSelection()
+                            }
+                            function onSelectedTermChanged() {
+                                termSelector.syncSelection()
+                            }
+                        }
                     }
 
-                    Component.onCompleted: syncSelection()
-
-                    Connections {
-                        target: root.viewModel
-                        function onTermsChanged() { termSelector.syncSelection() }
-                        function onSelectedTermChanged() { termSelector.syncSelection() }
+                    AppButton {
+                        Layout.fillWidth: root.compactLayout
+                        text: qsTr("学期与课程资料")
+                        enabled: root.managementViewModel !== null
+                        onClicked: managementDialog.open()
                     }
-                }
 
-                AppButton {
-                    Layout.fillWidth: root.compactLayout
-                    text: qsTr("学期与课程资料")
-                    enabled: root.managementViewModel !== null
-                    onClicked: managementDialog.open()
-                }
-
-                AppButton {
-                    objectName: "scheduleEditModeButton"
-                    Layout.fillWidth: root.compactLayout
-                    text: root.editingSchedule
-                        ? qsTr("完成编辑")
-                        : qsTr("编辑课表")
-                    highlighted: root.editingSchedule
-                    enabled: root.viewModel
-                        && root.viewModel.hasTerms
-                        && root.managementViewModel !== null
-                        && (!root.managementViewModel.selectedTermArchived
-                            || root.editingSchedule)
-                    onClicked: root.toggleScheduleEditing()
+                    AppButton {
+                        objectName: "scheduleEditModeButton"
+                        Layout.fillWidth: root.compactLayout
+                        text: root.editingSchedule
+                            ? qsTr("完成编辑")
+                            : qsTr("编辑课表")
+                        highlighted: root.editingSchedule
+                        enabled: root.viewModel
+                            && root.viewModel.hasTerms
+                            && root.managementViewModel !== null
+                            && (!root.managementViewModel.selectedTermArchived
+                                || root.editingSchedule)
+                        onClicked: root.toggleScheduleEditing()
+                    }
                 }
             }
 
-            RowLayout {
+            AppSectionCard {
+                objectName: "scheduleWeekNavigationCard"
                 Layout.fillWidth: true
-                Layout.leftMargin: AppTheme.spacingLarge
-                Layout.rightMargin: AppTheme.spacingLarge
-                AppButton {
-                    objectName: "schedulePreviousWeekButton"
-                    text: qsTr("上一周")
-                    enabled: root.viewModel && root.viewModel.canShowPreviousWeek
-                    onClicked: root.viewModel.showPreviousWeek()
-                }
+                Layout.leftMargin: root.pagePadding
+                Layout.rightMargin: root.pagePadding
+                title: root.viewModel
+                    ? root.viewModel.weekLabel : qsTr("课表")
+                description: root.viewModel
+                    ? root.viewModel.weekDateRange : ""
 
-                ColumnLayout {
+                RowLayout {
                     Layout.fillWidth: true
-                    spacing: AppTheme.spacingExtraSmall
 
-                    Label {
-                        Layout.alignment: Qt.AlignHCenter
-                        color: AppTheme.textPrimaryColor
-                        font.pixelSize: AppTheme.fontSizeHeading
-                        font.bold: true
-                        text: root.viewModel
-                            ? root.viewModel.weekLabel
-                            : qsTr("课表")
+                    AppButton {
+                        objectName: "schedulePreviousWeekButton"
+                        Layout.fillWidth: true
+                        text: qsTr("上一周")
+                        enabled: root.viewModel
+                            && root.viewModel.canShowPreviousWeek
+                        onClicked: root.viewModel.showPreviousWeek()
                     }
 
+                    AppButton {
+                        objectName: "scheduleCurrentWeekButton"
+                        Layout.fillWidth: true
+                        text: qsTr("当前周")
+                        visible: root.viewModel
+                            && root.viewModel.currentWeekAvailable
+                        enabled: root.viewModel
+                            && !root.viewModel.showingCurrentWeek
+                        onClicked: root.viewModel.showCurrentWeek()
+                    }
+
+                    AppButton {
+                        objectName: "scheduleNextWeekButton"
+                        Layout.fillWidth: true
+                        text: qsTr("下一周")
+                        enabled: root.viewModel
+                            && root.viewModel.canShowNextWeek
+                        onClicked: root.viewModel.showNextWeek()
+                    }
+                }
+
+                GridLayout {
+                    Layout.fillWidth: true
+                    visible: root.editingSchedule
+                        && root.viewModel
+                        && root.viewModel.hasTerms
+                    rowSpacing: AppTheme.spacingSmall
+                    columnSpacing: AppTheme.spacingSmall
+                    columns: root.compactLayout ? 2 : 3
+
                     Label {
+                        Layout.columnSpan: root.compactLayout ? 2 : 1
                         Layout.alignment: Qt.AlignHCenter
+                        text: qsTr("当前显示 %1 节").arg(
+                            root.schedulePeriodCount)
                         color: AppTheme.textSecondaryColor
-                        text: root.viewModel ? root.viewModel.weekDateRange : ""
                     }
-                }
 
-                AppButton {
-                    objectName: "scheduleNextWeekButton"
-                    text: qsTr("下一周")
-                    enabled: root.viewModel && root.viewModel.canShowNextWeek
-                    onClicked: root.viewModel.showNextWeek()
-                }
-            }
+                    AppButton {
+                        objectName: "scheduleDecreasePeriodsButton"
+                        Layout.fillWidth: root.compactLayout
+                        text: qsTr("− 减少一节")
+                        enabled: root.schedulePeriodCount > 1
+                        onClicked: root.schedulePeriodCount = Math.max(
+                            1, root.schedulePeriodCount - 1)
+                    }
 
-            AppButton {
-                objectName: "scheduleCurrentWeekButton"
-                Layout.alignment: Qt.AlignHCenter
-                text: qsTr("返回当前周")
-                visible: root.viewModel
-                    && root.viewModel.currentWeekAvailable
-                enabled: root.viewModel && !root.viewModel.showingCurrentWeek
-                onClicked: root.viewModel.showCurrentWeek()
-            }
-
-            GridLayout {
-                Layout.alignment: Qt.AlignHCenter
-                visible: root.editingSchedule
-                    && root.viewModel
-                    && root.viewModel.hasTerms
-                rowSpacing: AppTheme.spacingSmall
-                columnSpacing: AppTheme.spacingSmall
-                columns: root.compactLayout ? 2 : 3
-
-                Label {
-                    Layout.columnSpan: root.compactLayout ? 2 : 1
-                    Layout.alignment: Qt.AlignHCenter
-                    text: qsTr("当前显示 %1 节").arg(
-                        root.schedulePeriodCount)
-                    color: AppTheme.textSecondaryColor
-                }
-
-                AppButton {
-                    objectName: "scheduleDecreasePeriodsButton"
-                    text: qsTr("− 减少一节")
-                    enabled: root.schedulePeriodCount > 1
-                    onClicked: root.schedulePeriodCount = Math.max(
-                        1, root.schedulePeriodCount - 1)
-                }
-
-                AppButton {
-                    objectName: "scheduleIncreasePeriodsButton"
-                    text: qsTr("+ 增加一节")
-                    enabled: root.schedulePeriodCount < 20
-                    onClicked: root.schedulePeriodCount = Math.min(
-                        20, root.schedulePeriodCount + 1)
+                    AppButton {
+                        objectName: "scheduleIncreasePeriodsButton"
+                        Layout.fillWidth: root.compactLayout
+                        text: qsTr("+ 增加一节")
+                        enabled: root.schedulePeriodCount < 20
+                        onClicked: root.schedulePeriodCount = Math.min(
+                            20, root.schedulePeriodCount + 1)
+                    }
                 }
             }
 
             Rectangle {
                 Layout.fillWidth: true
-                Layout.leftMargin: AppTheme.spacingLarge
-                Layout.rightMargin: AppTheme.spacingLarge
+                Layout.leftMargin: root.pagePadding
+                Layout.rightMargin: root.pagePadding
                 Layout.preferredHeight: errorLabel.implicitHeight
                     + AppTheme.spacingMedium * 2
                 radius: AppTheme.radiusMedium
@@ -243,8 +264,8 @@ Page {
 
             Rectangle {
                 Layout.fillWidth: true
-                Layout.leftMargin: AppTheme.spacingLarge
-                Layout.rightMargin: AppTheme.spacingLarge
+                Layout.leftMargin: root.pagePadding
+                Layout.rightMargin: root.pagePadding
                 Layout.preferredHeight: noTermContent.implicitHeight
                     + AppTheme.spacingMedium * 2
                 radius: AppTheme.radiusMedium
@@ -277,8 +298,8 @@ Page {
 
             Rectangle {
                 Layout.fillWidth: true
-                Layout.leftMargin: AppTheme.spacingLarge
-                Layout.rightMargin: AppTheme.spacingLarge
+                Layout.leftMargin: root.pagePadding
+                Layout.rightMargin: root.pagePadding
                 Layout.preferredHeight: weekStatusLabel.implicitHeight
                     + AppTheme.spacingSmall * 2
                 radius: AppTheme.radiusSmall
@@ -313,9 +334,9 @@ Page {
 
                 objectName: "scheduleLayoutLoader"
                 Layout.fillWidth: true
-                Layout.leftMargin: AppTheme.spacingLarge
-                Layout.rightMargin: AppTheme.spacingLarge
-                Layout.bottomMargin: AppTheme.spacingLarge
+                Layout.leftMargin: root.pagePadding
+                Layout.rightMargin: root.pagePadding
+                Layout.bottomMargin: root.pagePadding
                 Layout.preferredHeight: loadedLayout
                     ? loadedLayout.implicitHeight : 0
                 visible: root.viewModel
@@ -400,20 +421,21 @@ Page {
             periodCount: root.schedulePeriodCount
             periodDefinitions: root.managementViewModel
                 ? root.managementViewModel.periodDefinitions : []
-            viewportWidth: root.width
+            viewportWidth: scheduleLayoutLoader.width
             viewportHeight: root.height
             onRequestManageCourses: managementDialog.open()
         }
     }
 
-    Dialog {
+    AppDialog {
         id: managementDialog
+        objectName: "scheduleManagementDialog"
 
         parent: Overlay.overlay
         anchors.centerIn: parent
         modal: true
-        width: Math.min(root.width - AppTheme.spacingLarge * 2, 840)
-        height: Math.min(root.height - AppTheme.spacingLarge * 2, 600)
+        width: Math.min(root.width - AppTheme.spacingMedium * 2, 840)
+        height: Math.min(root.height - AppTheme.spacingMedium * 2, 600)
         title: qsTr("学期与课程资料")
         standardButtons: Dialog.Close
         onClosed: {
@@ -424,7 +446,9 @@ Page {
         }
 
         Loader {
-            anchors.fill: parent
+            Layout.fillWidth: true
+            Layout.preferredHeight: Math.max(
+                120, managementDialog.height - 150)
             active: managementDialog.visible
                 && root.managementViewModel !== null
             sourceComponent: Component {
@@ -435,14 +459,14 @@ Page {
         }
     }
 
-    Dialog {
+    AppDialog {
         id: courseDetailDialog
 
         objectName: "courseDetailDialog"
         parent: Overlay.overlay
         anchors.centerIn: parent
         modal: true
-        width: Math.min(root.width - AppTheme.spacingLarge * 2, 420)
+        width: Math.min(root.width - AppTheme.spacingMedium * 2, 420)
         title: root.detailCourseName
         standardButtons: Dialog.Close
 

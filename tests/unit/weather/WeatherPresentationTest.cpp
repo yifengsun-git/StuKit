@@ -140,10 +140,34 @@ class WeatherPresentationTest final : public QObject
 
 private slots:
     void rejectsInvalidSearch();
+    void showsProviderConfigurationErrors();
     void selectsPersistsAndRestoresLocation();
     void keepsForecastWhenRefreshFails();
     void restoresCacheThenReplacesItWithFreshForecast();
 };
+
+void WeatherPresentationTest::showsProviderConfigurationErrors()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    QSettings settings(directory.filePath(QStringLiteral("settings.ini")),
+                       QSettings::IniFormat);
+    FakeLocationSearchService searchService;
+    FakeForecastService forecastService;
+    SearchWeatherLocations search(searchService);
+    GetWeatherForecast getForecast(forecastService);
+    WeatherViewModel viewModel(search, getForecast, settings);
+
+    viewModel.search(QStringLiteral("上海"));
+    searchService.complete(WeatherServiceError::ConfigurationMissing);
+    QCOMPARE(viewModel.errorMessage(),
+             QStringLiteral("请先配置和风天气 API Host 与 API Key"));
+
+    viewModel.search(QStringLiteral("上海"));
+    searchService.complete(WeatherServiceError::AuthenticationFailed);
+    QCOMPARE(viewModel.errorMessage(),
+             QStringLiteral("和风天气认证失败，请检查 API Host 与 API Key"));
+}
 
 void WeatherPresentationTest::rejectsInvalidSearch()
 {

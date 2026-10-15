@@ -194,7 +194,7 @@ void AnalyticsQmlIntegrationTest::rendersEmptyStatesAndResponsiveFilter()
 {
     Fixture fixture(false);
     QQmlEngine engine;
-    auto page = createAnalyticsPage(engine, fixture.viewModel, 640, 480);
+    auto page = createAnalyticsPage(engine, fixture.viewModel, 360, 640);
     QVERIFY(page);
 
     QObject *filter = page->findChild<QObject *>(
@@ -215,6 +215,10 @@ void AnalyticsQmlIntegrationTest::rendersEmptyStatesAndResponsiveFilter()
         QStringLiteral("analyticsCategoryGrid"));
     QObject *rangeBox = page->findChild<QObject *>(
         QStringLiteral("analyticsRangeBox"));
+    QObject *primaryCard = page->findChild<QObject *>(
+        QStringLiteral("analyticsPrimaryCard"));
+    QObject *trendSelector = page->findChild<QObject *>(
+        QStringLiteral("analyticsTrendChartSelector"));
 
     QVERIFY(filter);
     QVERIFY(barChart);
@@ -225,11 +229,16 @@ void AnalyticsQmlIntegrationTest::rendersEmptyStatesAndResponsiveFilter()
     QVERIFY(trendGrid);
     QVERIFY(categoryGrid);
     QVERIFY(rangeBox);
+    QVERIFY(primaryCard);
+    QVERIFY(trendSelector);
+    QCOMPARE(page->property("compactLayout").toBool(), true);
     QVERIFY(!filter->property("expanded").toBool());
     QCOMPARE(summaryGrid->property("columns").toInt(), 1);
     QCOMPARE(trendGrid->property("columns").toInt(), 1);
     QCOMPARE(categoryGrid->property("columns").toInt(), 1);
-    QVERIFY(rangeBox->property("height").toReal() >= 44.0);
+    QVERIFY(rangeBox->property("height").toReal() >= 48.0);
+    QVERIFY(trendSelector->property("implicitHeight").toReal() >= 48.0);
+    QVERIFY(primaryCard->property("width").toReal() <= 328.0);
     QVERIFY(!barChart->property("hasValues").toBool());
     QVERIFY(!balanceChart->property("hasValues").toBool());
     QVERIFY(expenseRanking->findChild<QObject *>(
@@ -245,6 +254,7 @@ void AnalyticsQmlIntegrationTest::rendersEmptyStatesAndResponsiveFilter()
     page->setProperty("width", 1280);
     QTRY_COMPARE(trendGrid->property("columns").toInt(), 2);
     QTRY_COMPARE(categoryGrid->property("columns").toInt(), 2);
+    QTRY_VERIFY(primaryCard->property("width").toReal() <= 1180.0);
 }
 
 void AnalyticsQmlIntegrationTest::switchesChartsAndTracksMonthRange()
