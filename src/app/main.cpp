@@ -19,7 +19,6 @@
 #include <QQmlApplicationEngine>
 #include <QSettings>
 #include <QStandardPaths>
-#include <QTimer>
 #include <QVariant>
 #include <QVariantMap>
 
@@ -136,7 +135,7 @@ int main(int argc, char *argv[])
 
     if (QCoreApplication::arguments().contains(
             QStringLiteral("--smoke-test"))) {
-        QTimer::singleShot(250, &app, &QCoreApplication::quit);
+        return engine.rootObjects().isEmpty() ? 1 : 0;
     }
 
     if (!engine.rootObjects().isEmpty()) {
