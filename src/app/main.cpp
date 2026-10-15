@@ -19,6 +19,7 @@
 #include <QQmlApplicationEngine>
 #include <QSettings>
 #include <QStandardPaths>
+#include <QTimer>
 #include <QVariant>
 #include <QVariantMap>
 
@@ -132,6 +133,11 @@ int main(int argc, char *argv[])
         Qt::QueuedConnection);
 
     engine.loadFromModule("StuKit", "Main");
+
+    if (QCoreApplication::arguments().contains(
+            QStringLiteral("--smoke-test"))) {
+        QTimer::singleShot(250, &app, &QCoreApplication::quit);
+    }
 
     if (!engine.rootObjects().isEmpty()) {
         QObject *rootObject = engine.rootObjects().constFirst();
