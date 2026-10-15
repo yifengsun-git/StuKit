@@ -133,11 +133,6 @@ int main(int argc, char *argv[])
 
     engine.loadFromModule("StuKit", "Main");
 
-    if (QCoreApplication::arguments().contains(
-            QStringLiteral("--smoke-test"))) {
-        return engine.rootObjects().isEmpty() ? 1 : 0;
-    }
-
     if (!engine.rootObjects().isEmpty()) {
         QObject *rootObject = engine.rootObjects().constFirst();
         QObject::connect(

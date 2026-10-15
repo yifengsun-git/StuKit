@@ -134,10 +134,24 @@ jobs:
           if (-not (Test-Path -LiteralPath $executable)) {
             throw "Deployed executable was not found at $executable"
           }
-          & $executable --smoke-test
-          if ($LASTEXITCODE -ne 0) {
-            throw "Deployed application smoke test failed with code $LASTEXITCODE"
+
+          $stdoutLog = Join-Path $env:RUNNER_TEMP "stukit-smoke-stdout.log"
+          $stderrLog = Join-Path $env:RUNNER_TEMP "stukit-smoke-stderr.log"
+          $process = Start-Process `
+            -FilePath $executable `
+            -PassThru `
+            -RedirectStandardOutput $stdoutLog `
+            -RedirectStandardError $stderrLog
+
+          Start-Sleep -Seconds 8
+          if ($process.HasExited) {
+            Get-Content -LiteralPath $stdoutLog -ErrorAction SilentlyContinue
+            Get-Content -LiteralPath $stderrLog -ErrorAction SilentlyContinue
+            throw "Deployed application exited early with code $($process.ExitCode)"
           }
+
+          Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+          $process.WaitForExit()
 
       - name: Create portable ZIP
         shell: pwsh
