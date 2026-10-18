@@ -29,6 +29,12 @@ Item {
         termDialog.open()
     }
 
+    function requestDeleteTerm(termId, name) {
+        deleteTermDialog.termId = termId
+        deleteTermDialog.termName = name
+        deleteTermDialog.open()
+    }
+
     function openNewCourse() {
         courseDialog.courseId = ""
         courseNameField.text = ""
@@ -157,6 +163,14 @@ Item {
                                     onClicked: root.viewModel.setTermArchived(
                                         termDelegate.termId,
                                         !termDelegate.archived)
+                                }
+
+                                AppButton {
+                                    visible: termDelegate.archived
+                                    text: qsTr("删除")
+                                    onClicked: root.requestDeleteTerm(
+                                        termDelegate.termId,
+                                        termDelegate.name)
                                 }
                             }
                         }
@@ -397,6 +411,26 @@ Item {
                     wrapMode: Text.WordWrap
                 }
             }
+        }
+    }
+
+    AppDialog {
+        id: deleteTermDialog
+        property string termId: ""
+        property string termName: ""
+        parent: Overlay.overlay
+        preferredWidth: 440
+        title: qsTr("永久删除学期")
+        standardButtons: Dialog.Yes | Dialog.No
+
+        onAccepted: root.viewModel.deleteTerm(termId)
+
+        Label {
+            width: parent.width
+            text: qsTr("确定永久删除“%1”吗？该学期的课程和排课也会被删除，此操作无法撤销。")
+                .arg(deleteTermDialog.termName)
+            color: AppTheme.textPrimaryColor
+            wrapMode: Text.WordWrap
         }
     }
 

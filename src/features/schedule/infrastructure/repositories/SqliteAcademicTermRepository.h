@@ -15,6 +15,7 @@ public:
     explicit SqliteAcademicTermRepository(QSqlDatabase database);
 
     [[nodiscard]] bool save(const AcademicTerm &term) override;
+    [[nodiscard]] bool remove(const QUuid &id) override;
     [[nodiscard]] std::optional<AcademicTerm> findById(
         const QUuid &id) const override;
     [[nodiscard]] std::optional<std::vector<AcademicTerm>> findAll()

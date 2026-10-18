@@ -40,6 +40,20 @@ public:
         return true;
     }
 
+    bool remove(const QUuid &id) override
+    {
+        const auto existing = std::find_if(
+            m_terms.begin(), m_terms.end(),
+            [&id](const AcademicTerm &candidate) {
+                return candidate.id() == id;
+            });
+        if (existing == m_terms.end()) {
+            return false;
+        }
+        m_terms.erase(existing);
+        return true;
+    }
+
     std::optional<AcademicTerm> findById(const QUuid &id) const override
     {
         if (!m_queryShouldSucceed) {

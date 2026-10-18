@@ -42,6 +42,18 @@ public:
         return true;
     }
 
+    bool remove(const QUuid &id) override
+    {
+        const auto existing = std::find_if(
+            m_accounts.begin(), m_accounts.end(),
+            [&id](const Account &candidate) { return candidate.id() == id; });
+        if (existing == m_accounts.end()) {
+            return false;
+        }
+        m_accounts.erase(existing);
+        return true;
+    }
+
     std::optional<Account> findById(const QUuid &id) const override
     {
         const auto account = std::find_if(

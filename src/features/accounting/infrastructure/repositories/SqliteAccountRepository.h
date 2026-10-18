@@ -15,6 +15,7 @@ public:
     explicit SqliteAccountRepository(QSqlDatabase database);
 
     [[nodiscard]] bool save(const Account &account) override;
+    [[nodiscard]] bool remove(const QUuid &id) override;
     [[nodiscard]] std::optional<Account> findById(const QUuid &id) const override;
     [[nodiscard]] std::optional<std::vector<Account>> findAll() const override;
 

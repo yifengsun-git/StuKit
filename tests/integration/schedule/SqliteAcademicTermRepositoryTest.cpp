@@ -26,6 +26,7 @@ private slots:
     void updatesTermWithSameId();
     void returnsTermsInStableOrder();
     void persistsAcrossRepositoryInstances();
+    void removesTermAndItsScheduleData();
     void rejectsInvalidStoredRow();
     void reportsClosedDatabase();
 
@@ -123,6 +124,46 @@ void SqliteAcademicTermRepositoryTest::persistsAcrossRepositoryInstances()
         m_database->connection());
 
     QVERIFY(m_repository->findById(id).has_value());
+}
+
+void SqliteAcademicTermRepositoryTest::removesTermAndItsScheduleData()
+{
+    const QUuid termId = QUuid::createUuid();
+    const QUuid courseId = QUuid::createUuid();
+    const QUuid meetingId = QUuid::createUuid();
+    QVERIFY(m_repository->save(makeTerm(
+        termId, QStringLiteral("待删除学期"), QDate(2026, 9, 7), 18, true)));
+
+    QSqlQuery query(m_database->connection());
+    query.prepare(QStringLiteral(
+        "INSERT INTO courses(id, term_id, name, teacher, location, color) "
+        "VALUES(:id, :termId, '测试课程', '', '', '#3F51B5')"));
+    query.bindValue(QStringLiteral(":id"),
+                    courseId.toString(QUuid::WithoutBraces));
+    query.bindValue(QStringLiteral(":termId"),
+                    termId.toString(QUuid::WithoutBraces));
+    QVERIFY2(query.exec(), qPrintable(query.lastError().text()));
+
+    query.prepare(QStringLiteral(
+        "INSERT INTO course_meetings("
+        "id, course_id, weekday, start_period, end_period, "
+        "start_week, end_week, week_pattern) "
+        "VALUES(:id, :courseId, 1, 1, 2, 1, 18, 0)"));
+    query.bindValue(QStringLiteral(":id"),
+                    meetingId.toString(QUuid::WithoutBraces));
+    query.bindValue(QStringLiteral(":courseId"),
+                    courseId.toString(QUuid::WithoutBraces));
+    QVERIFY2(query.exec(), qPrintable(query.lastError().text()));
+
+    QVERIFY2(m_repository->remove(termId), qPrintable(m_repository->lastError()));
+    QVERIFY(!m_repository->findById(termId).has_value());
+
+    QVERIFY(query.exec(QStringLiteral("SELECT COUNT(*) FROM courses")));
+    QVERIFY(query.next());
+    QCOMPARE(query.value(0).toInt(), 0);
+    QVERIFY(query.exec(QStringLiteral("SELECT COUNT(*) FROM course_meetings")));
+    QVERIFY(query.next());
+    QCOMPARE(query.value(0).toInt(), 0);
 }
 
 void SqliteAcademicTermRepositoryTest::rejectsInvalidStoredRow()

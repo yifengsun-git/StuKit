@@ -12,6 +12,7 @@
 #include "CreateTransaction.h"
 #include "CreateTransactionViewModel.h"
 #include "DeleteTransaction.h"
+#include "DeleteAccountingSetupItem.h"
 #include "GetAccountingSetup.h"
 #include "GetAccountingAnalytics.h"
 #include "GetAccountBalances.h"
@@ -116,6 +117,11 @@ bool AccountingModule::initialize(
         *m_accountRepository);
     m_updateCategory = std::make_unique<accounting::UpdateCategory>(
         *m_categoryRepository);
+    m_deleteAccountingSetupItem =
+        std::make_unique<accounting::DeleteAccountingSetupItem>(
+            *m_accountRepository,
+            *m_categoryRepository,
+            *m_transactionRepository);
     m_getAccountingSetup = std::make_unique<accounting::GetAccountingSetup>(
         *m_accountRepository, *m_categoryRepository);
     m_createTransaction = std::make_unique<accounting::CreateTransaction>(
@@ -155,7 +161,8 @@ bool AccountingModule::initialize(
         *m_createAccount,
         *m_createCategory,
         *m_updateAccount,
-        *m_updateCategory);
+        *m_updateCategory,
+        *m_deleteAccountingSetupItem);
     m_transactionEditorViewModel = std::make_unique<
         accounting::presentation::CreateTransactionViewModel>(
         *m_createTransaction,
@@ -485,6 +492,7 @@ void AccountingModule::reset()
     m_getAccountingAnalytics.reset();
     m_getAccountBalances.reset();
     m_updateCategory.reset();
+    m_deleteAccountingSetupItem.reset();
     m_updateAccount.reset();
     m_createCategory.reset();
     m_createAccount.reset();

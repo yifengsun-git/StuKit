@@ -546,6 +546,9 @@ bool ScheduleManagementViewModel::deleteMeeting(const QString &meetingId)
         case DeleteScheduleItemError::TermArchived:
             setError(QStringLiteral("已归档学期不能删除上课安排"));
             break;
+        case DeleteScheduleItemError::TermNotArchived:
+            setError(QStringLiteral("学期状态不允许删除上课安排"));
+            break;
         case DeleteScheduleItemError::StorageFailure:
             setError(QStringLiteral("无法删除上课安排"));
             break;
@@ -578,6 +581,9 @@ bool ScheduleManagementViewModel::deleteCourse(const QString &courseId)
         case DeleteScheduleItemError::TermArchived:
             setError(QStringLiteral("已归档学期不能删除课程"));
             break;
+        case DeleteScheduleItemError::TermNotArchived:
+            setError(QStringLiteral("学期状态不允许删除课程"));
+            break;
         case DeleteScheduleItemError::StorageFailure:
             setError(QStringLiteral("无法删除课程"));
             break;
@@ -587,6 +593,23 @@ bool ScheduleManagementViewModel::deleteCourse(const QString &courseId)
     load();
     emit dataChanged();
     return true;
+}
+
+bool ScheduleManagementViewModel::deleteTerm(const QString &termId)
+{
+    const DeleteScheduleItemError result =
+        m_deleteScheduleItem.deleteTerm(QUuid(termId));
+    if (result != DeleteScheduleItem::Success) {
+        setError(result == DeleteScheduleItemError::TermNotArchived
+                     ? QStringLiteral("请先归档学期，再永久删除")
+                     : QStringLiteral("无法删除学期"));
+        return false;
+    }
+    m_selectedTermId = {};
+    m_selectedCourseId = {};
+    load();
+    emit dataChanged();
+    return !hasError();
 }
 
 bool ScheduleManagementViewModel::importScheduleCsv(const QUrl &fileUrl)

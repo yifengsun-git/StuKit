@@ -51,6 +51,24 @@ bool SqliteAccountRepository::save(const Account &account)
     return true;
 }
 
+bool SqliteAccountRepository::remove(const QUuid &id)
+{
+    m_lastError.clear();
+    if (!m_database.isOpen() || id.isNull()) {
+        m_lastError = QStringLiteral("Database is not open or account id is invalid");
+        return false;
+    }
+
+    QSqlQuery query(m_database);
+    query.prepare(QStringLiteral("DELETE FROM accounts WHERE id = :id"));
+    query.bindValue(QStringLiteral(":id"), id.toString(QUuid::WithoutBraces));
+    if (!query.exec() || query.numRowsAffected() != 1) {
+        m_lastError = query.lastError().text();
+        return false;
+    }
+    return true;
+}
+
 std::optional<Account> SqliteAccountRepository::findById(const QUuid &id) const
 {
     m_lastError.clear();

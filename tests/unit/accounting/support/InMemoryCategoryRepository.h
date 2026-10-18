@@ -31,6 +31,18 @@ public:
         return true;
     }
 
+    [[nodiscard]] bool remove(const QUuid &id) override
+    {
+        const auto existing = std::find_if(
+            m_categories.begin(), m_categories.end(),
+            [&id](const Category &stored) { return stored.id() == id; });
+        if (existing == m_categories.end()) {
+            return false;
+        }
+        m_categories.erase(existing);
+        return true;
+    }
+
     [[nodiscard]] std::optional<Category> findById(
         const QUuid &id) const override
     {

@@ -14,6 +14,7 @@ AccountingSetupViewModel::AccountingSetupViewModel(
     CreateCategory &createCategory,
     UpdateAccount &updateAccount,
     UpdateCategory &updateCategory,
+    DeleteAccountingSetupItem &deleteSetupItem,
     QObject *parent)
     : QObject(parent)
     , m_getAccountingSetup(getAccountingSetup)
@@ -21,6 +22,7 @@ AccountingSetupViewModel::AccountingSetupViewModel(
     , m_createCategory(createCategory)
     , m_updateAccount(updateAccount)
     , m_updateCategory(updateCategory)
+    , m_deleteSetupItem(deleteSetupItem)
     , m_accounts(this)
     , m_categories(this)
 {
@@ -196,6 +198,21 @@ bool AccountingSetupViewModel::setAccountArchived(
     return !hasError();
 }
 
+bool AccountingSetupViewModel::deleteAccount(const QString &id)
+{
+    const auto result = m_deleteSetupItem.deleteAccount(QUuid(id));
+    if (result != DeleteAccountingSetupItem::Success) {
+        setError(result == DeleteAccountingSetupItemError::ItemInUse
+                     ? QStringLiteral("该账户仍被历史账单使用，只能保留为归档状态")
+                 : result == DeleteAccountingSetupItemError::ItemNotArchived
+                     ? QStringLiteral("请先归档账户，再永久删除")
+                     : QStringLiteral("无法删除账户"));
+        return false;
+    }
+    load();
+    return !hasError();
+}
+
 bool AccountingSetupViewModel::renameCategory(
     const QString &id, const QString &name)
 {
@@ -246,6 +263,21 @@ bool AccountingSetupViewModel::setCategoryArchived(
         return false;
     }
 
+    load();
+    return !hasError();
+}
+
+bool AccountingSetupViewModel::deleteCategory(const QString &id)
+{
+    const auto result = m_deleteSetupItem.deleteCategory(QUuid(id));
+    if (result != DeleteAccountingSetupItem::Success) {
+        setError(result == DeleteAccountingSetupItemError::ItemInUse
+                     ? QStringLiteral("该分类仍被历史账单使用，只能保留为归档状态")
+                 : result == DeleteAccountingSetupItemError::ItemNotArchived
+                     ? QStringLiteral("请先归档分类，再永久删除")
+                     : QStringLiteral("无法删除分类"));
+        return false;
+    }
     load();
     return !hasError();
 }

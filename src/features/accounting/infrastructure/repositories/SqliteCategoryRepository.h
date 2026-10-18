@@ -15,6 +15,7 @@ public:
     explicit SqliteCategoryRepository(QSqlDatabase database);
 
     [[nodiscard]] bool save(const Category &category) override;
+    [[nodiscard]] bool remove(const QUuid &id) override;
     [[nodiscard]] std::optional<Category> findById(const QUuid &id) const override;
     [[nodiscard]] std::optional<std::vector<Category>> findAll() const override;
 

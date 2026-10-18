@@ -18,6 +18,7 @@ class CreateAccount;
 class CreateCategory;
 class UpdateAccount;
 class UpdateCategory;
+class DeleteAccountingSetupItem;
 class CreateTransaction;
 class DeleteTransaction;
 class GetTransaction;
@@ -108,6 +109,8 @@ private:
     std::unique_ptr<accounting::CreateCategory> m_createCategory;
     std::unique_ptr<accounting::UpdateAccount> m_updateAccount;
     std::unique_ptr<accounting::UpdateCategory> m_updateCategory;
+    std::unique_ptr<accounting::DeleteAccountingSetupItem>
+        m_deleteAccountingSetupItem;
     std::unique_ptr<accounting::CreateTransaction> m_createTransaction;
     std::unique_ptr<accounting::UpdateTransaction> m_updateTransaction;
     std::unique_ptr<accounting::DeleteTransaction> m_deleteTransaction;

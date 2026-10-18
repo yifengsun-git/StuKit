@@ -115,6 +115,7 @@ public:
         const QVariantList &activeWeeks);
     Q_INVOKABLE bool deleteMeeting(const QString &meetingId);
     Q_INVOKABLE bool deleteCourse(const QString &courseId);
+    Q_INVOKABLE bool deleteTerm(const QString &termId);
     Q_INVOKABLE bool importScheduleCsv(const QUrl &fileUrl);
     Q_INVOKABLE bool savePeriodDefinition(
         int periodNumber,

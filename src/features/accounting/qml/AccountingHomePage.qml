@@ -91,6 +91,13 @@ Page {
         archiveSetupItemDialog.open()
     }
 
+    function requestDeleteSetupItem(kind, itemId, itemName) {
+        deleteSetupItemDialog.itemKind = kind
+        deleteSetupItemDialog.itemId = itemId
+        deleteSetupItemDialog.itemName = itemName
+        deleteSetupItemDialog.open()
+    }
+
     function openTransactionDialog() {
         transactionViewModel.resetForNewTransaction()
         if (!transactionViewModel.ready)
@@ -908,6 +915,15 @@ Page {
                                     }
                                 }
                             }
+
+                            AppButton {
+                                visible: accountManagementDelegate.archived
+                                text: qsTr("删除")
+                                onClicked: root.requestDeleteSetupItem(
+                                    "account",
+                                    accountManagementDelegate.accountId,
+                                    accountManagementDelegate.name)
+                            }
                         }
                     }
 
@@ -1000,6 +1016,15 @@ Page {
                                             categoryManagementDelegate.name)
                                     }
                                 }
+                            }
+
+                            AppButton {
+                                visible: categoryManagementDelegate.archived
+                                text: qsTr("删除")
+                                onClicked: root.requestDeleteSetupItem(
+                                    "category",
+                                    categoryManagementDelegate.categoryId,
+                                    categoryManagementDelegate.name)
                             }
                         }
                     }
@@ -1106,6 +1131,41 @@ Page {
                 Layout.fillWidth: true
                 text: qsTr("确定归档“%1”吗？它将不再出现在新增或编辑账单的选项中，历史账单不受影响。")
                     .arg(archiveSetupItemDialog.itemName)
+                color: AppTheme.textPrimaryColor
+                wrapMode: Text.WordWrap
+            }
+        }
+    }
+
+    AppDialog {
+        id: deleteSetupItemDialog
+
+        property string itemKind: ""
+        property string itemId: ""
+        property string itemName: ""
+
+        anchors.centerIn: parent
+        width: Math.min(root.availableDialogWidth, 440)
+        modal: true
+        title: itemKind === "account"
+            ? qsTr("永久删除账户")
+            : qsTr("永久删除分类")
+        standardButtons: Dialog.Yes | Dialog.No
+
+        onAccepted: {
+            if (itemKind === "account")
+                root.setupViewModel.deleteAccount(itemId)
+            else
+                root.setupViewModel.deleteCategory(itemId)
+        }
+
+        ColumnLayout {
+            width: parent.width
+
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("确定永久删除“%1”吗？此操作无法撤销。仍被历史账单使用的项目不会被删除。")
+                    .arg(deleteSetupItemDialog.itemName)
                 color: AppTheme.textPrimaryColor
                 wrapMode: Text.WordWrap
             }

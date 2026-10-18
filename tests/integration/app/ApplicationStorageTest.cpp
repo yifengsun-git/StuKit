@@ -38,6 +38,7 @@ private slots:
     void resolvesInstallerManagedSiblingDirectory();
     void environmentOverrideHasPriority();
     void migratesLegacyFilesWithoutOverwritingNewData();
+    void migratesMalformedInstallerDirectoryBeforeLegacyData();
     void migratesMissingSettingsWithoutOverwritingNewValues();
 };
 
@@ -159,6 +160,53 @@ void ApplicationStorageTest::migratesLegacyFilesWithoutOverwritingNewData()
         ApplicationStorage::prepareDataDirectory(location, errorMessage),
         qPrintable(errorMessage));
     QVERIFY(!QFileInfo::exists(migratedCachePath));
+}
+
+void ApplicationStorageTest::migratesMalformedInstallerDirectoryBeforeLegacyData()
+{
+    QTemporaryDir directory(QDir(QCoreApplication::applicationDirPath())
+                                .filePath(QStringLiteral(
+                                    "stukit-storage-test-XXXXXX")));
+    QVERIFY(directory.isValid());
+    const QString malformedDirectory = QDir(directory.path()).filePath(
+        QStringLiteral("StuKit/..ata"));
+    const QString legacyDirectory = QDir(directory.path()).filePath(
+        QStringLiteral("legacy"));
+    const QString dataDirectory = QDir(directory.path()).filePath(
+        QStringLiteral("data"));
+    QVERIFY(QDir().mkpath(malformedDirectory));
+    QVERIFY(QDir().mkpath(legacyDirectory));
+
+    writeFile(
+        QDir(malformedDirectory).filePath(QStringLiteral("stukit.sqlite")),
+        QByteArrayLiteral("installer database"));
+    writeFile(
+        QDir(legacyDirectory).filePath(QStringLiteral("stukit.sqlite")),
+        QByteArrayLiteral("older legacy database"));
+    writeFile(
+        QDir(legacyDirectory).filePath(QStringLiteral("settings.ini")),
+        QByteArrayLiteral("legacy settings"));
+
+    ApplicationStorageLocation location{
+        .dataDirectory = dataDirectory,
+        .legacyDataDirectory = legacyDirectory,
+        .malformedInstallerDataDirectory = malformedDirectory,
+        .migrateLegacyData = true,
+        .migrateLegacySettings = true,
+    };
+    QString errorMessage;
+    QVERIFY2(
+        ApplicationStorage::prepareDataDirectory(location, errorMessage),
+        qPrintable(errorMessage));
+
+    QCOMPARE(
+        readFile(QDir(dataDirectory).filePath(
+            QStringLiteral("stukit.sqlite"))),
+        QByteArrayLiteral("installer database"));
+    QCOMPARE(
+        readFile(QDir(dataDirectory).filePath(
+            QStringLiteral("settings.ini"))),
+        QByteArrayLiteral("legacy settings"));
 }
 
 void ApplicationStorageTest::migratesMissingSettingsWithoutOverwritingNewValues()

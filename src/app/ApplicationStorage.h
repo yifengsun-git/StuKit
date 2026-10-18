@@ -10,6 +10,7 @@ struct ApplicationStorageLocation
 {
     QString dataDirectory;
     QString legacyDataDirectory;
+    QString malformedInstallerDataDirectory;
     bool migrateLegacyData = false;
     bool migrateLegacySettings = false;
 };

@@ -15,6 +15,7 @@ constexpr auto DataMigrationMarkerFileName =
     ".stukit-legacy-data-migrated-v1";
 constexpr auto SettingsMigrationMarkerKey =
     "Storage/LegacySettingsMigratedV1";
+constexpr auto MalformedInstallerDataDirectoryName = "..ata";
 
 QString absoluteCleanPath(const QString &path)
 {
@@ -128,6 +129,10 @@ ApplicationStorageLocation ApplicationStorage::resolve(
                 ? absoluteCleanPath(configuredDirectory)
                 : absoluteCleanPath(
                     QDir(applicationRoot).filePath(configuredDirectory));
+            location.malformedInstallerDataDirectory = absoluteCleanPath(
+                QDir(applicationRoot).filePath(
+                    QString::fromLatin1(
+                        MalformedInstallerDataDirectoryName)));
             location.migrateLegacyData = !samePath(
                 location.dataDirectory, location.legacyDataDirectory);
             location.migrateLegacySettings = true;
@@ -169,11 +174,21 @@ bool ApplicationStorage::prepareDataDirectory(
     if (QFileInfo::exists(markerPath)) {
         return true;
     }
-    if (!copyDirectoryContents(
-            location.legacyDataDirectory,
-            location.dataDirectory,
-            errorMessage)) {
-        return false;
+    const QStringList migrationSources{
+        location.malformedInstallerDataDirectory,
+        location.legacyDataDirectory,
+    };
+    for (const QString &sourceDirectory : migrationSources) {
+        if (sourceDirectory.trimmed().isEmpty()
+            || samePath(sourceDirectory, location.dataDirectory)) {
+            continue;
+        }
+        if (!copyDirectoryContents(
+                sourceDirectory,
+                location.dataDirectory,
+                errorMessage)) {
+            return false;
+        }
     }
 
     QFile marker(markerPath);

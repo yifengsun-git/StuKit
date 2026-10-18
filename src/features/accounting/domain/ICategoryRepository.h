@@ -15,6 +15,7 @@ public:
     virtual ~ICategoryRepository() = default;
 
     [[nodiscard]] virtual bool save(const Category &category) = 0;
+    [[nodiscard]] virtual bool remove(const QUuid &id) = 0;
     [[nodiscard]] virtual std::optional<Category> findById(
         const QUuid &id) const = 0;
     [[nodiscard]] virtual std::optional<std::vector<Category>> findAll() const = 0;

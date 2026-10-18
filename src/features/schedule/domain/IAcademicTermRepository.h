@@ -15,6 +15,7 @@ public:
     virtual ~IAcademicTermRepository() = default;
 
     [[nodiscard]] virtual bool save(const AcademicTerm &term) = 0;
+    [[nodiscard]] virtual bool remove(const QUuid &id) = 0;
     [[nodiscard]] virtual std::optional<AcademicTerm> findById(
         const QUuid &id) const = 0;
     [[nodiscard]] virtual std::optional<std::vector<AcademicTerm>> findAll()

@@ -47,6 +47,53 @@ bool SqliteAcademicTermRepository::save(const AcademicTerm &term)
     return true;
 }
 
+bool SqliteAcademicTermRepository::remove(const QUuid &id)
+{
+    m_lastError.clear();
+    if (!m_database.isOpen() || id.isNull()) {
+        m_lastError = QStringLiteral("Database is not open or term id is invalid");
+        return false;
+    }
+    if (!m_database.transaction()) {
+        m_lastError = m_database.lastError().text();
+        return false;
+    }
+
+    const QString idText = id.toString(QUuid::WithoutBraces);
+    QSqlQuery query(m_database);
+    query.prepare(QStringLiteral(
+        "DELETE FROM course_meetings WHERE course_id IN ("
+        "SELECT id FROM courses WHERE term_id = :termId)"));
+    query.bindValue(QStringLiteral(":termId"), idText);
+    if (!query.exec()) {
+        m_lastError = query.lastError().text();
+        m_database.rollback();
+        return false;
+    }
+
+    query.prepare(QStringLiteral("DELETE FROM courses WHERE term_id = :termId"));
+    query.bindValue(QStringLiteral(":termId"), idText);
+    if (!query.exec()) {
+        m_lastError = query.lastError().text();
+        m_database.rollback();
+        return false;
+    }
+
+    query.prepare(QStringLiteral("DELETE FROM academic_terms WHERE id = :id"));
+    query.bindValue(QStringLiteral(":id"), idText);
+    if (!query.exec() || query.numRowsAffected() != 1) {
+        m_lastError = query.lastError().text();
+        m_database.rollback();
+        return false;
+    }
+    if (!m_database.commit()) {
+        m_lastError = m_database.lastError().text();
+        m_database.rollback();
+        return false;
+    }
+    return true;
+}
+
 std::optional<AcademicTerm> SqliteAcademicTermRepository::findById(
     const QUuid &id) const
 {

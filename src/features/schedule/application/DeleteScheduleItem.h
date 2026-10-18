@@ -15,6 +15,7 @@ enum class DeleteScheduleItemError
     ItemNotFound,
     RelatedItemNotFound,
     TermArchived,
+    TermNotArchived,
     StorageFailure
 };
 
@@ -30,6 +31,8 @@ public:
         const QUuid &meetingId) const;
     [[nodiscard]] DeleteScheduleItemError deleteCourse(
         const QUuid &courseId) const;
+    [[nodiscard]] DeleteScheduleItemError deleteTerm(
+        const QUuid &termId) const;
 
     static constexpr DeleteScheduleItemError Success =
         DeleteScheduleItemError::None;

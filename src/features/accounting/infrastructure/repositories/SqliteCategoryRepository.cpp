@@ -74,6 +74,24 @@ bool SqliteCategoryRepository::save(const Category &category)
     return true;
 }
 
+bool SqliteCategoryRepository::remove(const QUuid &id)
+{
+    m_lastError.clear();
+    if (!m_database.isOpen() || id.isNull()) {
+        m_lastError = QStringLiteral("Database is not open or category id is invalid");
+        return false;
+    }
+
+    QSqlQuery query(m_database);
+    query.prepare(QStringLiteral("DELETE FROM categories WHERE id = :id"));
+    query.bindValue(QStringLiteral(":id"), id.toString(QUuid::WithoutBraces));
+    if (!query.exec() || query.numRowsAffected() != 1) {
+        m_lastError = query.lastError().text();
+        return false;
+    }
+    return true;
+}
+
 std::optional<Category> SqliteCategoryRepository::findById(const QUuid &id) const
 {
     m_lastError.clear();

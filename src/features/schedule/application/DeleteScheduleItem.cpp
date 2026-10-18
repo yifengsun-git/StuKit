@@ -84,4 +84,21 @@ DeleteScheduleItemError DeleteScheduleItem::deleteCourse(
         ? Success : DeleteScheduleItemError::StorageFailure;
 }
 
+DeleteScheduleItemError DeleteScheduleItem::deleteTerm(
+    const QUuid &termId) const
+{
+    if (termId.isNull()) {
+        return DeleteScheduleItemError::InvalidInput;
+    }
+    const auto term = m_termRepository.findById(termId);
+    if (!term.has_value()) {
+        return DeleteScheduleItemError::ItemNotFound;
+    }
+    if (!term->isArchived()) {
+        return DeleteScheduleItemError::TermNotArchived;
+    }
+    return m_termRepository.remove(termId)
+        ? Success : DeleteScheduleItemError::StorageFailure;
+}
+
 } // namespace stukit::schedule

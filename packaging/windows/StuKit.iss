@@ -7,7 +7,7 @@
 #endif
 
 #ifndef AppVersion
-  #define AppVersion "0.2.2"
+  #define AppVersion "0.2.3"
 #endif
 
 [Setup]
@@ -43,7 +43,7 @@ Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs 
 Name: "{code:GetDataDirectory}"; Flags: uninsneveruninstall
 
 [INI]
-Filename: "{app}\storage.ini"; Section: "Storage"; Key: "DataDirectory"; String: "..\data"
+Filename: "{app}\storage.ini"; Section: "Storage"; Key: "DataDirectory"; String: "../data"
 
 [Registry]
 Root: HKCU; Subkey: "Software\StuKit\Installer"; ValueType: string; ValueName: "InstallRoot"; ValueData: "{code:GetInstallRoot}"

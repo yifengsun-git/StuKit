@@ -5,6 +5,7 @@
 #include "UpdateCategory.h"
 #include "support/InMemoryAccountRepository.h"
 #include "support/InMemoryCategoryRepository.h"
+#include "support/InMemoryTransactionRepository.h"
 
 #include <QAbstractItemModel>
 #include <QTest>
@@ -58,6 +59,7 @@ private slots:
     void loadsModelsAndCreatesSetupData();
     void exposesStableInputAndStorageErrors();
     void renamesArchivesAndRestoresSetupData();
+    void deletesOnlyUnusedArchivedSetupData();
 };
 
 void AccountingSetupTest::parsesExactMoneyText()
@@ -138,9 +140,12 @@ void AccountingSetupTest::loadsModelsAndCreatesSetupData()
     CreateCategory createCategory(categories);
     UpdateAccount updateAccount(accounts);
     UpdateCategory updateCategory(categories);
+    InMemoryTransactionRepository transactions;
+    DeleteAccountingSetupItem deleteSetupItem(accounts, categories, transactions);
     GetAccountingSetup getSetup(accounts, categories);
     AccountingSetupViewModel viewModel(
-        getSetup, createAccount, createCategory, updateAccount, updateCategory);
+        getSetup, createAccount, createCategory, updateAccount, updateCategory,
+        deleteSetupItem);
 
     viewModel.load();
     QCOMPARE(viewModel.accounts()->rowCount(), 1);
@@ -175,9 +180,12 @@ void AccountingSetupTest::exposesStableInputAndStorageErrors()
     CreateCategory createCategory(categories);
     UpdateAccount updateAccount(accounts);
     UpdateCategory updateCategory(categories);
+    InMemoryTransactionRepository transactions;
+    DeleteAccountingSetupItem deleteSetupItem(accounts, categories, transactions);
     GetAccountingSetup getSetup(accounts, categories);
     AccountingSetupViewModel viewModel(
-        getSetup, createAccount, createCategory, updateAccount, updateCategory);
+        getSetup, createAccount, createCategory, updateAccount, updateCategory,
+        deleteSetupItem);
 
     QVERIFY(!viewModel.createAccount(QStringLiteral("现金"), QStringLiteral("1.234")));
     QCOMPARE(viewModel.errorMessage(), QStringLiteral("期初余额格式无效"));
@@ -207,9 +215,12 @@ void AccountingSetupTest::renamesArchivesAndRestoresSetupData()
     CreateCategory createCategory(categories);
     UpdateAccount updateAccount(accounts);
     UpdateCategory updateCategory(categories);
+    InMemoryTransactionRepository transactions;
+    DeleteAccountingSetupItem deleteSetupItem(accounts, categories, transactions);
     GetAccountingSetup getSetup(accounts, categories);
     AccountingSetupViewModel viewModel(
-        getSetup, createAccount, createCategory, updateAccount, updateCategory);
+        getSetup, createAccount, createCategory, updateAccount, updateCategory,
+        deleteSetupItem);
     viewModel.load();
 
     const QString accountId = account.id().toString(QUuid::WithoutBraces);
@@ -240,6 +251,54 @@ void AccountingSetupTest::renamesArchivesAndRestoresSetupData()
     QVERIFY(!viewModel.renameAccount(QStringLiteral("not-a-uuid"),
                                      QStringLiteral("不存在")));
     QCOMPARE(viewModel.errorMessage(), QStringLiteral("账户信息无效"));
+}
+
+void AccountingSetupTest::deletesOnlyUnusedArchivedSetupData()
+{
+    InMemoryAccountRepository accounts;
+    InMemoryCategoryRepository categories;
+    InMemoryTransactionRepository transactions;
+    DeleteAccountingSetupItem deleteSetupItem(accounts, categories, transactions);
+
+    const Account activeAccount = makeAccount(QStringLiteral("活动账户"));
+    const Account archivedAccount = makeAccount(QStringLiteral("归档账户"), true);
+    const Category archivedCategory = makeCategory(
+        QStringLiteral("归档分类"), TransactionType::Expense, true);
+    QVERIFY(accounts.save(activeAccount));
+    QVERIFY(accounts.save(archivedAccount));
+    QVERIFY(categories.save(archivedCategory));
+
+    QCOMPARE(
+        deleteSetupItem.deleteAccount(activeAccount.id()),
+        DeleteAccountingSetupItemError::ItemNotArchived);
+    QCOMPARE(
+        deleteSetupItem.deleteAccount(archivedAccount.id()),
+        DeleteAccountingSetupItem::Success);
+    QVERIFY(!accounts.findById(archivedAccount.id()).has_value());
+
+    const Account referencedAccount = makeAccount(
+        QStringLiteral("历史账户"), true);
+    QVERIFY(accounts.save(referencedAccount));
+    const auto transaction = Transaction::create(TransactionData{
+        .id = QUuid::createUuid(),
+        .type = TransactionType::Expense,
+        .amount = Money::fromCents(1200),
+        .accountId = referencedAccount.id(),
+        .categoryId = archivedCategory.id(),
+        .occurredAt = QDateTime::currentDateTimeUtc(),
+        .note = QStringLiteral("历史账单"),
+    });
+    QVERIFY(transaction.has_value());
+    QVERIFY(transactions.save(*transaction));
+
+    QCOMPARE(
+        deleteSetupItem.deleteAccount(referencedAccount.id()),
+        DeleteAccountingSetupItemError::ItemInUse);
+    QCOMPARE(
+        deleteSetupItem.deleteCategory(archivedCategory.id()),
+        DeleteAccountingSetupItemError::ItemInUse);
+    QVERIFY(accounts.findById(referencedAccount.id()).has_value());
+    QVERIFY(categories.findById(archivedCategory.id()).has_value());
 }
 
 QTEST_APPLESS_MAIN(AccountingSetupTest)
