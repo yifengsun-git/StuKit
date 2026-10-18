@@ -10,6 +10,7 @@
 #include "ScheduleViewModel.h"
 #include "TaskModule.h"
 #include "TasksViewModel.h"
+#include "UpdateModule.h"
 #include "WeatherModule.h"
 #include "WeatherViewModel.h"
 
@@ -32,6 +33,7 @@ int main(int argc, char *argv[])
 
     QCoreApplication::setOrganizationName("StuKit");
     QCoreApplication::setApplicationName("StuKit");
+    QCoreApplication::setApplicationVersion(QStringLiteral(STUKIT_VERSION));
 
     QString appDataDirectory = qEnvironmentVariable("STUKIT_APP_DATA_DIR");
     if (appDataDirectory.trimmed().isEmpty()) {
@@ -42,6 +44,10 @@ int main(int argc, char *argv[])
     QSettings settings;
     stukit::app::AccountingModule accountingModule(appDataDirectory, settings);
     stukit::app::WeatherModule weatherModule(appDataDirectory, settings);
+    stukit::app::UpdateModule updateModule(
+        accountingModule,
+        appDataDirectory,
+        QCoreApplication::applicationVersion());
     stukit::app::DataMaintenanceViewModel dataMaintenance(accountingModule);
 
     QString accountingStartupError;
@@ -109,6 +115,9 @@ int main(int argc, char *argv[])
         QVariant::fromValue(static_cast<QObject *>(
             accountingModule.taskModule() != nullptr
                 ? accountingModule.taskModule()->viewModel() : nullptr)));
+    initialProperties.insert(
+        QStringLiteral("updateViewModel"),
+        QVariant::fromValue(static_cast<QObject *>(updateModule.viewModel())));
     engine.setInitialProperties(initialProperties);
 
     if (accountingModule.taskModule() != nullptr) {

@@ -1,4 +1,6 @@
 add_library(StuKitAppCore STATIC
+    AccountingUpdatePreparation.cpp
+    AccountingUpdatePreparation.h
     AccountingModule.cpp
     AccountingModule.h
     DataMaintenanceViewModel.cpp
@@ -7,6 +9,8 @@ add_library(StuKitAppCore STATIC
     ScheduleModule.h
     TaskModule.cpp
     TaskModule.h
+    UpdateModule.cpp
+    UpdateModule.h
     UserSettings.cpp
     UserSettings.h
     WeatherModule.cpp
@@ -27,6 +31,8 @@ target_link_libraries(StuKitAppCore
         StuKitSchedulePresentation
         StuKitTasksInfrastructure
         StuKitTasksPresentation
+        StuKitUpdateInfrastructure
+        StuKitUpdatePresentation
         StuKitWeatherInfrastructure
         StuKitWeatherPresentation
 )
@@ -34,6 +40,11 @@ target_link_libraries(StuKitAppCore
 target_compile_features(StuKitAppCore
     PUBLIC
         cxx_std_20
+)
+
+target_compile_definitions(StuKitAppCore
+    PUBLIC
+        STUKIT_VERSION="${PROJECT_VERSION}"
 )
 
 set(STUKIT_QWEATHER_API_HOST "" CACHE STRING

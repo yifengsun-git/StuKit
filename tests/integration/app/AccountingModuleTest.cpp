@@ -1,4 +1,5 @@
 #include "AccountingModule.h"
+#include "AccountingUpdatePreparation.h"
 #include "AccountBalanceListModel.h"
 #include "AccountBalancesViewModel.h"
 #include "AccountingAnalyticsViewModel.h"
@@ -12,6 +13,7 @@
 #include "TasksViewModel.h"
 #include "TransactionListModel.h"
 #include "UserSettings.h"
+#include "backup/SqliteBackupService.h"
 
 #include <QDir>
 #include <QCoreApplication>
@@ -49,6 +51,7 @@ private slots:
     void createsAndRestoresSetupData();
     void createsEditsDeletesAndRestoresTransaction();
     void backsUpAndRestoresDatabase();
+    void preparesDatabaseBackupBeforeUpdate();
     void exportsTransactionsThroughMaintenanceViewModel();
     void defaultsInvalidTimeZoneToUtcPlusEight();
     void persistsSelectedFixedTimeZone();
@@ -401,6 +404,34 @@ void AccountingModuleTest::backsUpAndRestoresDatabase()
     QVERIFY(!module.restoreDatabase(invalidPath));
     QCOMPARE(module.overviewViewModel(), overviewBeforeInvalidRestore);
     QCOMPARE(module.setupViewModel()->accounts()->rowCount(), 1);
+}
+
+void AccountingModuleTest::preparesDatabaseBackupBeforeUpdate()
+{
+    QTemporaryDir directory(QDir(QCoreApplication::applicationDirPath()).filePath(
+        QStringLiteral("stukit-update-backup-test-XXXXXX")));
+    QVERIFY(directory.isValid());
+    QSettings settings(directory.filePath(QStringLiteral("settings.ini")),
+                       QSettings::IniFormat);
+    const QString appDataDirectory = directory.filePath(
+        QStringLiteral("app-data"));
+    AccountingModule module(appDataDirectory, settings);
+    QVERIFY2(module.initialize(QDate(2026, 10, 1)),
+             qPrintable(module.lastError()));
+    QVERIFY(module.setupViewModel()->createAccount(
+        QStringLiteral("升级前账户"), QStringLiteral("88.00")));
+
+    AccountingUpdatePreparation preparation(module, appDataDirectory);
+    QString backupPath;
+    QString errorMessage;
+    QVERIFY2(preparation.prepare(
+                 QStringLiteral("0.3.0"), backupPath, errorMessage),
+             qPrintable(errorMessage));
+    QVERIFY(QFileInfo::exists(backupPath));
+    QVERIFY(backupPath.contains(QStringLiteral("before-update-to-0.3.0-")));
+    const auto validation =
+        stukit::accounting::SqliteBackupService::validateBackup(backupPath);
+    QVERIFY2(validation.succeeded(), qPrintable(validation.detail));
 }
 
 void AccountingModuleTest::exportsTransactionsThroughMaintenanceViewModel()

@@ -15,6 +15,7 @@ ApplicationWindow {
     required property var scheduleManagement
     required property var weatherViewModel
     required property var tasksViewModel
+    required property var updateViewModel
     required property string accountingStartupError
     required property string scheduleStartupError
 
@@ -34,6 +35,8 @@ ApplicationWindow {
             return qsTr("天气")
         case 4:
             return qsTr("待办")
+        case 5:
+            return qsTr("更新")
         default:
             return qsTr("首页")
         }
@@ -199,6 +202,17 @@ ApplicationWindow {
                 text: qsTr("天气")
                 onClicked: window.navigateTo(3)
             }
+
+            AppNavigationButton {
+                objectName: "updateBottomNavigation"
+                visible: window.updateViewModel !== null
+                    && window.updateViewModel.supported
+                Layout.fillWidth: true
+                compact: true
+                selected: window.currentPage === 5
+                text: qsTr("更新")
+                onClicked: window.navigateTo(5)
+            }
         }
     }
 
@@ -285,6 +299,15 @@ ApplicationWindow {
                     Layout.fillHeight: true
                 }
 
+                AppNavigationButton {
+                    visible: window.updateViewModel !== null
+                        && window.updateViewModel.supported
+                    Layout.fillWidth: true
+                    selected: window.currentPage === 5
+                    text: qsTr("检查更新")
+                    onClicked: window.navigateTo(5)
+                }
+
                 Label {
                     Layout.fillWidth: true
                     text: qsTr("数据仅保存在本机")
@@ -355,6 +378,10 @@ ApplicationWindow {
 
             TasksHomePage {
                 viewModel: window.tasksViewModel
+            }
+
+            UpdatePage {
+                viewModel: window.updateViewModel
             }
         }
     }

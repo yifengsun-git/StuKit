@@ -2,9 +2,9 @@
 
 [![CI and Release](https://github.com/yifengsun-git/StuKit/actions/workflows/windows.yml/badge.svg)](https://github.com/yifengsun-git/StuKit/actions/workflows/windows.yml)
 
-StuKit 是一个使用 Qt 6 开发的个人学习与生活工具箱，同时支持 Windows 桌面和
-Android 手机。项目将界面、应用用例、领域模型与数据访问分层组织，方便在保持现有
-数据与业务逻辑的前提下持续增加新模块。
+StuKit 是一个使用 Qt 6 开发的个人学习与生活工具箱，当前以 Windows 桌面端为主要
+发布平台，并保留 Android 适配基础。项目将界面、应用用例、领域模型与数据访问分层
+组织，方便在保持现有数据与业务逻辑的前提下持续增加新模块。
 
 ## 已有功能
 
@@ -14,6 +14,8 @@ Android 手机。项目将界面、应用用例、领域模型与数据访问分
   检查时间冲突，并从 UTF-8 CSV 导入课表。
 - **待办**：创建自定义分类的任务，设置截止和提醒时间、优先级及关联课程，支持完成、
   归档、恢复、搜索和完成率统计。
+- **Windows 更新**：在应用内检查 GitHub Release、下载并校验安装包，安装前自动备份
+  SQLite 数据库，再启动覆盖安装。
 - **天气（暂时隐藏）**：和风天气查询、七日预报及离线缓存代码已经保留，目前不在
   应用导航和首页展示，后续可以重新启用。
 
@@ -24,12 +26,14 @@ Android 手机。项目将界面、应用用例、领域模型与数据访问分
 
 请从 [GitHub Releases](https://github.com/yifengsun-git/StuKit/releases) 下载最新版本：
 
-- Windows x64：可选择安装程序，或下载便携 ZIP 后运行 `bin/StuKit.exe`。
-- Android arm64-v8a：下载 APK，在系统允许当前文件来源安装应用后打开。首次发布的
-  APK 使用测试签名，适合个人设备试用，不用于应用商店分发。
+- Windows x64：推荐下载安装程序，也可以下载便携 ZIP 后运行 `bin/StuKit.exe`。
+- Android：目前暂停发布。`v0.1.0` 中的测试 APK 仅用于早期个人设备试用，不代表
+  当前 Windows 版本的完整功能和稳定性。
 
-Windows 安装程序和 Android APK 暂未进行商业代码签名，因此操作系统可能显示未知
-发布者或安全提醒。请只从本仓库的 Releases 页面下载。
+从 `v0.2.0` 开始，Windows 版支持在应用内手动检查更新。已经安装 `v0.1.0` 的用户
+需要手动安装一次 `v0.2.0`，后续版本即可使用应用内更新。Windows 安装程序暂未进行
+商业代码签名，因此操作系统可能显示未知发布者或安全提醒；请只从本仓库的 Releases
+页面下载。
 
 ## 技术栈
 

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(StuKit VERSION 0.1.0 LANGUAGES CXX)
+project(StuKit VERSION 0.2.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -11,6 +11,10 @@ qt_standard_project_setup(REQUIRES 6.10)
 
 include(CTest)
 
+add_subdirectory(src/features/update/domain)
+add_subdirectory(src/features/update/application)
+add_subdirectory(src/features/update/infrastructure)
+add_subdirectory(src/features/update/presentation)
 add_subdirectory(src/features/tasks/domain)
 add_subdirectory(src/features/tasks/application)
 add_subdirectory(src/features/tasks/infrastructure)
@@ -55,6 +59,7 @@ set(STUKIT_QML_FILES
     src/features/weather/qml/components/CurrentWeatherCard.qml
     src/features/weather/qml/components/DailyForecastGrid.qml
     src/features/tasks/qml/TasksHomePage.qml
+    src/features/update/qml/UpdatePage.qml
     src/shared/qml/theme/AppTheme.qml
     src/shared/qml/components/AppButton.qml
     src/shared/qml/components/AppComboBox.qml
@@ -166,6 +171,11 @@ set_source_files_properties(
 set_source_files_properties(
     src/features/tasks/qml/TasksHomePage.qml
     PROPERTIES QT_RESOURCE_ALIAS TasksHomePage.qml
+)
+
+set_source_files_properties(
+    src/features/update/qml/UpdatePage.qml
+    PROPERTIES QT_RESOURCE_ALIAS UpdatePage.qml
 )
 
 set_source_files_properties(
