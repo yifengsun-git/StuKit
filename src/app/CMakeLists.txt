@@ -1,4 +1,6 @@
 add_library(StuKitAppCore STATIC
+    ApplicationStorage.cpp
+    ApplicationStorage.h
     AccountingUpdatePreparation.cpp
     AccountingUpdatePreparation.h
     AccountingModule.cpp

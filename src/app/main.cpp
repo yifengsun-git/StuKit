@@ -3,6 +3,7 @@
 #include "AccountingAnalyticsViewModel.h"
 #include "AccountingOverviewViewModel.h"
 #include "AccountingSetupViewModel.h"
+#include "ApplicationStorage.h"
 #include "CreateTransactionViewModel.h"
 #include "DataMaintenanceViewModel.h"
 #include "ScheduleManagementViewModel.h"
@@ -18,6 +19,7 @@
 #include <QDebug>
 #include <QApplication>
 #include <QIcon>
+#include <QMessageBox>
 #include <QQmlApplicationEngine>
 #include <QSettings>
 #include <QStandardPaths>
@@ -37,13 +39,38 @@ int main(int argc, char *argv[])
     QCoreApplication::setApplicationName("StuKit");
     QCoreApplication::setApplicationVersion(QStringLiteral(STUKIT_VERSION));
 
-    QString appDataDirectory = qEnvironmentVariable("STUKIT_APP_DATA_DIR");
-    if (appDataDirectory.trimmed().isEmpty()) {
-        appDataDirectory = QStandardPaths::writableLocation(
-            QStandardPaths::AppDataLocation);
+    const QString environmentDataDirectory = qEnvironmentVariable(
+        "STUKIT_APP_DATA_DIR");
+    const auto storageLocation = stukit::app::ApplicationStorage::resolve(
+        QCoreApplication::applicationDirPath(),
+        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation),
+        environmentDataDirectory);
+    QString storageError;
+    if (!stukit::app::ApplicationStorage::prepareDataDirectory(
+            storageLocation, storageError)) {
+        QMessageBox::critical(
+            nullptr,
+            QStringLiteral("StuKit 数据目录错误"),
+            storageError);
+        return 1;
     }
 
-    QSettings settings;
+    const QString appDataDirectory = storageLocation.dataDirectory;
+    QSettings settings(
+        stukit::app::ApplicationStorage::settingsPath(appDataDirectory),
+        QSettings::IniFormat);
+    if (storageLocation.migrateLegacySettings) {
+        QSettings legacySettings;
+        if (!stukit::app::ApplicationStorage::migrateSettings(
+                legacySettings, settings, storageError)) {
+            QMessageBox::critical(
+                nullptr,
+                QStringLiteral("StuKit 设置迁移失败"),
+                storageError);
+            return 1;
+        }
+    }
+
     stukit::app::AccountingModule accountingModule(appDataDirectory, settings);
     stukit::app::WeatherModule weatherModule(appDataDirectory, settings);
     stukit::app::UpdateModule updateModule(

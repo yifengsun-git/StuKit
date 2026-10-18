@@ -196,8 +196,8 @@ Infrastructure ------------------> Domain
 - 创建 `QApplication`，启动 Qt GUI 事件循环，并为 Qt Charts 提供样式服务。
 - 设置组织名和应用名，供设置、路径等 Qt API 使用。
 - 创建 `QQmlApplicationEngine`。
-- 使用 `QStandardPaths` 获取正式应用数据目录。
-- 创建 `QSettings`、`AccountingModule` 和 `DataMaintenanceViewModel`。
+- 通过 `ApplicationStorage` 解析安装器配置的数据目录，并兼容开发环境覆盖路径。
+- 在数据目录中创建 INI 设置、`AccountingModule` 和 `DataMaintenanceViewModel`。
 - 通过根初始属性把 ViewModel 与启动错误传给 QML。
 - 恢复数据库后把重建的记账 ViewModel 重新设置到 QML 根属性。
 - 从 QML 模块 `StuKit` 加载 `Main.qml`。
@@ -211,8 +211,24 @@ Infrastructure ------------------> Domain
 - 金额计算。
 
 对象的具体创建集中在应用组合根；`main.cpp` 只安排应用启动，不包含业务
-规则或 SQL。`STUKIT_APP_DATA_DIR` 只用于开发测试显式覆盖数据目录，默认仍使用
-跨平台标准路径。
+规则或 SQL。`STUKIT_APP_DATA_DIR` 只用于开发测试显式覆盖数据目录；正式 Windows
+安装读取程序目录中的 `storage.ini`，便携 ZIP 在没有该文件时回退到跨平台标准路径。
+
+### `src/app/ApplicationStorage.h/.cpp`
+
+负责解析、准备和迁移应用数据目录：
+
+- 环境变量覆盖路径具有最高优先级，仅用于开发和测试。
+- 安装版读取 `StuKit/storage.ini`，把相对路径 `..\data` 解析为安装根目录的同级
+  `data` 文件夹。
+- 没有安装器标记的便携版回退到 `QStandardPaths::AppDataLocation`。
+- 首次切换到安装根目录时，递归复制旧数据库、天气缓存与备份，但不覆盖新目录中
+  已经存在的文件，也不删除旧目录；成功后写入迁移标记，避免以后重复恢复用户已
+  主动删除的旧文件。
+- 将旧版 Windows 注册表中的应用设置复制到 `data/settings.ini`，之后业务设置与
+  数据库一起迁移和备份；设置迁移同样只执行一次。
+- 单个文件先复制到临时迁移文件，再重命名到目标位置，减少中途失败留下半文件的
+  风险。
 
 ### `src/app/UserSettings.h/.cpp`
 

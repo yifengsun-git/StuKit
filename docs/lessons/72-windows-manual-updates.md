@@ -51,8 +51,11 @@ CMake 将它传给应用，应用再通过 `QCoreApplication::applicationVersion
 
 ## 数据为什么不会丢失
 
-程序安装在 `%LOCALAPPDATA%/Programs/StuKit`，数据库保存在 Qt 的
-`AppDataLocation`。两个目录彼此独立，所以覆盖安装只替换程序文件。
+当前安装器让用户选择一个根目录。若选择 `D:\stu`，程序安装到
+`D:\stu\StuKit`，数据库、设置、缓存和备份统一保存在 `D:\stu\data`。
+两个目录彼此独立，所以覆盖安装只替换程序文件，卸载也不会自动删除
+`data`。旧版本位于 Qt `AppDataLocation` 的数据会在首次启动时复制到新目录，
+原文件仍会保留，迁移不会覆盖新目录中已经存在的文件。
 
 点击“安装并退出”前还会在数据目录下创建：
 

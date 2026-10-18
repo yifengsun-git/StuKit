@@ -29,3 +29,18 @@ add_test(
     NAME app.schedule_module
     COMMAND StuKitScheduleModuleIntegrationTest
 )
+
+add_executable(StuKitApplicationStorageIntegrationTest
+    ApplicationStorageTest.cpp
+)
+
+target_link_libraries(StuKitApplicationStorageIntegrationTest
+    PRIVATE
+        Qt6::Test
+        StuKitAppCore
+)
+
+add_test(
+    NAME app.application_storage
+    COMMAND StuKitApplicationStorageIntegrationTest
+)
