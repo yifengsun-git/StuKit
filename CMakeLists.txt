@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(StuKit VERSION 0.2.0 LANGUAGES CXX)
+project(StuKit VERSION 0.2.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -34,8 +34,34 @@ add_subdirectory(src/features/analytics/presentation)
 add_subdirectory(src/features/accounting/presentation)
 add_subdirectory(src/app)
 
+set(STUKIT_PLATFORM_SOURCES)
+if(WIN32)
+    set(STUKIT_WINDOWS_ICON_PATH
+        "${CMAKE_CURRENT_SOURCE_DIR}/packaging/windows/StuKit.ico")
+    configure_file(
+        packaging/windows/StuKit.rc.in
+        "${CMAKE_CURRENT_BINARY_DIR}/StuKit.rc"
+        @ONLY
+    )
+    set_source_files_properties(
+        "${CMAKE_CURRENT_BINARY_DIR}/StuKit.rc"
+        PROPERTIES
+            OBJECT_DEPENDS "${STUKIT_WINDOWS_ICON_PATH}"
+    )
+    list(APPEND STUKIT_PLATFORM_SOURCES
+        "${CMAKE_CURRENT_BINARY_DIR}/StuKit.rc")
+endif()
+
 qt_add_executable(StuKit
     src/app/main.cpp
+    ${STUKIT_PLATFORM_SOURCES}
+)
+
+qt_add_resources(StuKit "stukit_app_assets"
+    PREFIX "/"
+    BASE assets
+    FILES
+        assets/icons/stukit.png
 )
 
 set(STUKIT_QML_FILES

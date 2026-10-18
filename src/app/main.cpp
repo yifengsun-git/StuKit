@@ -17,6 +17,7 @@
 #include <QCoreApplication>
 #include <QDebug>
 #include <QApplication>
+#include <QIcon>
 #include <QQmlApplicationEngine>
 #include <QSettings>
 #include <QStandardPaths>
@@ -30,6 +31,7 @@ int main(int argc, char *argv[])
     }
 
     QApplication app(argc, argv);
+    app.setWindowIcon(QIcon(QStringLiteral(":/icons/stukit.png")));
 
     QCoreApplication::setOrganizationName("StuKit");
     QCoreApplication::setApplicationName("StuKit");
