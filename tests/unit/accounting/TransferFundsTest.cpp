@@ -51,11 +51,16 @@ struct Fixture
 
     Fixture()
     {
-        Q_ASSERT(accounts.save(source));
-        Q_ASSERT(accounts.save(destination));
-        Q_ASSERT(categories.save(outgoing));
-        Q_ASSERT(categories.save(incoming));
-        Q_ASSERT(categories.save(fee));
+        // The saves must run outside Q_ASSERT: NDEBUG compiles the assertion away, which
+        // previously left the repositories empty in Release builds.
+        const bool accountsSaved =
+            accounts.save(source) && accounts.save(destination);
+        const bool categoriesSaved = categories.save(outgoing)
+            && categories.save(incoming) && categories.save(fee);
+        Q_ASSERT(accountsSaved);
+        Q_ASSERT(categoriesSaved);
+        Q_UNUSED(accountsSaved);
+        Q_UNUSED(categoriesSaved);
     }
 
     TransferFundsRequest request() const
