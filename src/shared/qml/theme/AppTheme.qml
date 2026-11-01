@@ -3,25 +3,33 @@ pragma Singleton
 import QtQuick
 
 QtObject {
+    property string themeId: "default"
+    property string themeDisplayName: qsTr("StuKit 默认")
     property bool darkMode: false
 
-    readonly property color backgroundColor: darkMode ? "#111827" : "#F3F4F6"
-    readonly property color surfaceColor: darkMode ? "#1F2937" : "#FFFFFF"
-    readonly property color surfaceRaisedColor: darkMode ? "#273449" : "#FFFFFF"
-    readonly property color surfaceVariantColor: darkMode ? "#374151" : "#E5E7EB"
-    readonly property color surfaceHoverColor: darkMode ? "#334155" : "#F8FAFC"
-    readonly property color selectionColor: darkMode ? "#1E3A5F" : "#DBEAFE"
-    readonly property color primaryColor: darkMode ? "#60A5FA" : "#2563EB"
-    readonly property color primaryHoverColor: darkMode ? "#93C5FD" : "#1D4ED8"
-    readonly property color primaryPressedColor: darkMode ? "#3B82F6" : "#1D4ED8"
-    readonly property color textPrimaryColor: darkMode ? "#F9FAFB" : "#111827"
-    readonly property color textSecondaryColor: darkMode ? "#D1D5DB" : "#4B5563"
-    readonly property color borderColor: darkMode ? "#4B5563" : "#D1D5DB"
-    readonly property color borderStrongColor: darkMode ? "#64748B" : "#94A3B8"
-    readonly property color textOnPrimaryColor: "#FFFFFF"
-    readonly property color errorColor: darkMode ? "#FCA5A5" : "#DC2626"
-    readonly property color successColor: darkMode ? "#6EE7B7" : "#059669"
-    readonly property color warningColor: darkMode ? "#FCD34D" : "#D97706"
+    property color backgroundColor: "#F3F4F6"
+    property color surfaceColor: "#FFFFFF"
+    property color surfaceRaisedColor: "#FFFFFF"
+    property color surfaceVariantColor: "#E5E7EB"
+    property color surfaceHoverColor: "#F8FAFC"
+    property color selectionColor: "#DBEAFE"
+    property color primaryColor: "#2563EB"
+    property color primaryHoverColor: "#1D4ED8"
+    property color primaryPressedColor: "#1D4ED8"
+    property color textPrimaryColor: "#111827"
+    property color textSecondaryColor: "#4B5563"
+    property color borderColor: "#D1D5DB"
+    property color borderStrongColor: "#94A3B8"
+    property color textOnPrimaryColor: "#FFFFFF"
+    property color errorColor: "#DC2626"
+    property color successColor: "#059669"
+    property color warningColor: "#D97706"
+
+    property url backgroundImageUrl: ""
+    property real backgroundImageOpacity: 0
+    property string backgroundImageFillMode: "cover"
+    property url navigationLogoUrl: ""
+    property var navigationIconUrls: ({})
 
     readonly property int spacingExtraSmall: 4
     readonly property int spacingSmall: 8
@@ -29,9 +37,9 @@ QtObject {
     readonly property int spacingLarge: 24
     readonly property int spacingExtraLarge: 32
 
-    readonly property int radiusSmall: 6
-    readonly property int radiusMedium: 10
-    readonly property int radiusLarge: 16
+    property int radiusSmall: 6
+    property int radiusMedium: 10
+    property int radiusLarge: 16
 
     readonly property int fontSizeBody: 14
     readonly property int fontSizeCaption: 12
@@ -42,7 +50,7 @@ QtObject {
 
     readonly property int controlHeight: 44
     readonly property int touchTargetHeight: 48
-    readonly property int navigationRailWidth: 224
+    property int navigationRailWidth: 224
     readonly property int contentMaxWidth: 1180
 
     readonly property int breakpointCompact: 720
@@ -50,6 +58,52 @@ QtObject {
 
     readonly property int animationFast: 100
     readonly property int animationNormal: 180
+
+    function applyTheme(definition) {
+        if (!definition || !definition.themeId
+                || !definition.primaryColor
+                || !definition.backgroundColor) {
+            return false
+        }
+
+        themeId = definition.themeId
+        themeDisplayName = definition.name
+        darkMode = definition.dark
+        backgroundColor = definition.backgroundColor
+        surfaceColor = definition.surfaceColor
+        surfaceRaisedColor = definition.surfaceRaisedColor
+        surfaceVariantColor = definition.surfaceVariantColor
+        surfaceHoverColor = definition.surfaceHoverColor
+        selectionColor = definition.selectionColor
+        primaryColor = definition.primaryColor
+        primaryHoverColor = definition.primaryHoverColor
+        primaryPressedColor = definition.primaryPressedColor
+        textPrimaryColor = definition.textPrimaryColor
+        textSecondaryColor = definition.textSecondaryColor
+        borderColor = definition.borderColor
+        borderStrongColor = definition.borderStrongColor
+        textOnPrimaryColor = definition.textOnPrimaryColor
+        errorColor = definition.errorColor
+        successColor = definition.successColor
+        warningColor = definition.warningColor
+        backgroundImageUrl = definition.backgroundImageUrl || ""
+        backgroundImageOpacity = definition.backgroundImageUrl
+            ? (definition.backgroundImageOpacity || 0) : 0
+        backgroundImageFillMode = definition.backgroundImageFillMode || "cover"
+        navigationLogoUrl = definition.navigationLogoUrl || ""
+        navigationIconUrls = definition.navigationIconUrls || ({})
+        radiusSmall = definition.radiusSmall
+        radiusMedium = definition.radiusMedium
+        radiusLarge = definition.radiusLarge
+        navigationRailWidth = definition.navigationRailWidth
+        return true
+    }
+
+    function navigationIcon(slot) {
+        if (!navigationIconUrls || navigationIconUrls[slot] === undefined)
+            return ""
+        return navigationIconUrls[slot]
+    }
 
     function pagePadding(availableWidth) {
         return availableWidth < breakpointCompact

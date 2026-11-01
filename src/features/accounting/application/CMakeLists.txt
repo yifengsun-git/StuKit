@@ -5,6 +5,8 @@ add_library(StuKitAccountingApplication STATIC
     CreateCategory.h
     CreateTransaction.cpp
     CreateTransaction.h
+    TransferFunds.cpp
+    TransferFunds.h
     DeleteTransaction.cpp
     DeleteTransaction.h
     DeleteAccountingSetupItem.cpp

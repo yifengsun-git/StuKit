@@ -90,6 +90,7 @@ private slots:
     void rejectsMissingAccountForeignKey();
     void rejectsMissingCategoryForeignKey();
     void restrictsDeletingReferencedAccountAndCategory();
+    void savesBatchAtomically();
     void worksWithCreateTransactionUseCase();
 
 private:
@@ -352,6 +353,28 @@ void SqliteTransactionRepositoryTest::restrictsDeletingReferencedAccountAndCateg
                         categoryId.toString(QUuid::WithoutBraces));
         QVERIFY(!query.exec());
     }
+}
+
+void SqliteTransactionRepositoryTest::savesBatchAtomically()
+{
+    const auto accountId = QUuid::createUuid();
+    const auto categoryId = QUuid::createUuid();
+    seedReferences(accountId, categoryId, TransactionType::Expense);
+    const QDateTime occurredAt = QDateTime::currentDateTimeUtc();
+
+    const std::vector<Transaction> batch{
+        makeTransaction(
+            QUuid::createUuid(), TransactionType::Expense, 100,
+            accountId, categoryId, occurredAt),
+        makeTransaction(
+            QUuid::createUuid(), TransactionType::Expense, 200,
+            accountId, QUuid::createUuid(), occurredAt),
+    };
+
+    QVERIFY(!m_transactions->saveAll(batch));
+    const auto stored = m_transactions->findAll();
+    QVERIFY(stored.has_value());
+    QVERIFY(stored->empty());
 }
 
 void SqliteTransactionRepositoryTest::worksWithCreateTransactionUseCase()

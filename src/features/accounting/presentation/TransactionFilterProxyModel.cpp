@@ -35,12 +35,18 @@ const QString &TransactionFilterProxyModel::searchText() const noexcept
     return m_searchText;
 }
 
+const QString &TransactionFilterProxyModel::localDateFilter() const noexcept
+{
+    return m_localDateFilter;
+}
+
 bool TransactionFilterProxyModel::hasActiveFilters() const noexcept
 {
     return m_typeFilter != AllTransactions
         || !m_accountIdFilter.isEmpty()
         || !m_categoryIdFilter.isEmpty()
-        || !m_searchText.isEmpty();
+        || !m_searchText.isEmpty()
+        || !m_localDateFilter.isEmpty();
 }
 
 void TransactionFilterProxyModel::setTypeFilter(TypeFilter filter)
@@ -86,6 +92,16 @@ void TransactionFilterProxyModel::setSearchText(QString searchText)
     invalidateRowsFilter();
 }
 
+void TransactionFilterProxyModel::setLocalDateFilter(QString localDate)
+{
+    localDate = localDate.trimmed();
+    if (m_localDateFilter == localDate) {
+        return;
+    }
+    m_localDateFilter = std::move(localDate);
+    invalidateRowsFilter();
+}
+
 void TransactionFilterProxyModel::clearFilters()
 {
     if (!hasActiveFilters()) {
@@ -96,6 +112,7 @@ void TransactionFilterProxyModel::clearFilters()
     m_accountIdFilter.clear();
     m_categoryIdFilter.clear();
     m_searchText.clear();
+    m_localDateFilter.clear();
     invalidateRowsFilter();
 }
 
@@ -125,6 +142,12 @@ bool TransactionFilterProxyModel::filterAcceptsRow(
     if (!m_categoryIdFilter.isEmpty()
         && model->data(sourceIndex, TransactionListModel::CategoryIdRole)
                .toString() != m_categoryIdFilter) {
+        return false;
+    }
+
+    if (!m_localDateFilter.isEmpty()
+        && model->data(sourceIndex, TransactionListModel::LocalDateTextRole)
+               .toString() != m_localDateFilter) {
         return false;
     }
 

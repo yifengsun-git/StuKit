@@ -12,6 +12,7 @@ Page {
     required property var balancesViewModel
     required property var setupViewModel
     required property var transactionViewModel
+    required property var transferViewModel
     required property var maintenanceViewModel
     required property string startupError
 
@@ -21,6 +22,7 @@ Page {
         width < AppTheme.breakpointCompact
     readonly property int pagePadding: AppTheme.pagePadding(width)
     property bool dataToolsExpanded: false
+    property string transactionDisplayMode: "calendar"
 
     // Keep every accounting dialog inside the page on narrow windows. Dialog
     // content must use the dialog's content width instead of calculating a
@@ -131,6 +133,23 @@ Page {
         categoryBox.currentIndex = categoryIndex >= 0 ? categoryIndex : 0
     }
 
+    function openTransferDialog() {
+        transferViewModel.prepare()
+        transferAmountField.text = ""
+        transferFeeField.text = "0.00"
+        transferNoteField.text = ""
+        transferDateField.text = transferViewModel.occurredDateText
+        transferTimeField.text = transferViewModel.occurredTimeText
+        transferSourceAccountBox.currentIndex = 0
+        transferDestinationAccountBox.currentIndex =
+            transferDestinationAccountBox.count > 1 ? 1 : 0
+        transferOutgoingCategoryBox.currentIndex = 0
+        transferIncomingCategoryBox.currentIndex = 0
+        transferFeeCategoryBox.currentIndex = 0
+        transferDialog.open()
+        transferAmountField.forceActiveFocus()
+    }
+
     function openTransactionDetails(transactionId, typeText, isIncome,
                                     amountText, accountName, categoryName,
                                     occurredAtText, note) {
@@ -214,12 +233,21 @@ Page {
                     spacing: AppTheme.spacingSmall
 
                     AppButton {
+                        objectName: "accountingNewTransactionButton"
                         text: qsTr("记一笔")
                         enabled: root.transactionViewModel !== null
                             && root.transactionViewModel.ready
                             && root.activeError.length === 0
                         highlighted: true
                         onClicked: root.openTransactionDialog()
+                    }
+
+                    AppButton {
+                        objectName: "accountingTransferButton"
+                        text: qsTr("账户转账")
+                        enabled: root.transferViewModel !== null
+                            && root.activeError.length === 0
+                        onClicked: root.openTransferDialog()
                     }
 
                     AppButton {
@@ -522,10 +550,32 @@ Page {
                     anchors.margins: AppTheme.spacingMedium
                     spacing: AppTheme.spacingSmall
 
-                    Label {
-                        text: qsTr("筛选本月流水")
-                        color: AppTheme.textPrimaryColor
-                        font.bold: true
+                    RowLayout {
+                        Layout.fillWidth: true
+
+                        Label {
+                            Layout.fillWidth: true
+                            text: qsTr("本月流水")
+                            color: AppTheme.textPrimaryColor
+                            font.bold: true
+                        }
+
+                        AppButton {
+                            objectName: "accountingCalendarModeButton"
+                            text: qsTr("日历")
+                            highlighted: root.transactionDisplayMode === "calendar"
+                            onClicked: root.transactionDisplayMode = "calendar"
+                        }
+
+                        AppButton {
+                            objectName: "accountingListModeButton"
+                            text: qsTr("列表")
+                            highlighted: root.transactionDisplayMode === "list"
+                            onClicked: {
+                                root.transactionDisplayMode = "list"
+                                root.viewModel.clearCalendarDate()
+                            }
+                        }
                     }
 
                     GridLayout {
@@ -629,13 +679,56 @@ Page {
                 }
             }
 
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.leftMargin: root.pagePadding
+                Layout.rightMargin: root.pagePadding
+                Layout.preferredHeight: calendarContent.implicitHeight
+                    + AppTheme.spacingMedium * 2
+                radius: AppTheme.radiusMedium
+                color: AppTheme.surfaceColor
+                border.color: AppTheme.borderColor
+                visible: root.activeError.length === 0
+                    && root.viewModel !== null
+                    && !root.viewModel.empty
+                    && root.transactionDisplayMode === "calendar"
+
+                ColumnLayout {
+                    id: calendarContent
+                    anchors.fill: parent
+                    anchors.margins: AppTheme.spacingMedium
+                    spacing: AppTheme.spacingSmall
+
+                    Label {
+                        Layout.fillWidth: true
+                        text: qsTr("点击日期查看当天账单；绿色为收入，红色为支出。")
+                        color: AppTheme.textSecondaryColor
+                        wrapMode: Text.WordWrap
+                    }
+
+                    AccountingCalendar {
+                        Layout.fillWidth: true
+                        days: root.viewModel ? root.viewModel.calendarDays : []
+                        selectedDate: root.viewModel
+                            ? root.viewModel.selectedCalendarDate : ""
+                        compactLayout: root.compactLayout
+                        onDateSelected: dateText => {
+                            if (root.viewModel.selectCalendarDate(dateText))
+                                dailyTransactionsDialog.open()
+                        }
+                    }
+                }
+            }
+
             ListView {
                 id: transactionList
+                objectName: "accountingTransactionList"
 
                 Layout.fillWidth: true
                 Layout.leftMargin: root.pagePadding
                 Layout.rightMargin: root.pagePadding
-                Layout.preferredHeight: contentHeight
+                Layout.preferredHeight: Math.min(
+                    Math.max(contentHeight, 68), 480)
                 Layout.maximumHeight: 480
                 spacing: AppTheme.spacingSmall
                 clip: true
@@ -644,8 +737,9 @@ Page {
                     && root.viewModel !== null
                     && !root.viewModel.empty
                     && !root.viewModel.noMatchingTransactions
+                    && root.transactionDisplayMode === "list"
 
-                delegate: Rectangle {
+                delegate: Item {
                     id: transactionDelegate
 
                     required property string transactionId
@@ -659,56 +753,23 @@ Page {
                     required property string note
 
                     width: transactionList.width
-                    height: transactionDelegate.note.length > 0 ? 88 : 68
-                    radius: AppTheme.radiusSmall
-                    color: AppTheme.surfaceColor
-                    border.color: AppTheme.borderColor
+                    height: transactionItem.implicitHeight
 
-                    RowLayout {
+                    TransactionListItem {
+                        id: transactionItem
+
                         anchors.fill: parent
-                        anchors.margins: AppTheme.spacingMedium
-
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: AppTheme.spacingExtraSmall
-
-                            Label {
-                                text: transactionDelegate.categoryName
-                                color: AppTheme.textPrimaryColor
-                                font.bold: true
-                                elide: Text.ElideRight
-                            }
-
-                            Label {
-                                text: qsTr("%1 · %2")
-                                    .arg(transactionDelegate.accountName)
-                                    .arg(transactionDelegate.occurredAtText)
-                                color: AppTheme.textSecondaryColor
-                            }
-
-                            Label {
-                                Layout.fillWidth: true
-                                text: transactionDelegate.note
-                                color: AppTheme.textSecondaryColor
-                                elide: Text.ElideRight
-                                visible: transactionDelegate.note.length > 0
-                            }
-                        }
-
-                        Label {
-                            text: (transactionDelegate.isIncome ? "+" : "-")
-                                + transactionDelegate.amountText
-                            color: transactionDelegate.isIncome
-                                ? AppTheme.primaryColor
-                                : AppTheme.errorColor
-                            font.bold: true
-                        }
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: root.openTransactionDetails(
+                        transactionId: transactionDelegate.transactionId
+                        isIncome: transactionDelegate.isIncome
+                        amountText: transactionDelegate.amountText
+                        accountName: transactionDelegate.accountName
+                        categoryName: transactionDelegate.categoryName
+                        typeText: transactionDelegate.typeText
+                        occurredAtText: transactionDelegate.occurredAtText
+                        fullOccurredAtText:
+                            transactionDelegate.fullOccurredAtText
+                        note: transactionDelegate.note
+                        onActivated: root.openTransactionDetails(
                             transactionDelegate.transactionId,
                             transactionDelegate.typeText,
                             transactionDelegate.isIncome,
@@ -724,6 +785,100 @@ Page {
             Item {
                 Layout.fillHeight: true
                 Layout.minimumHeight: AppTheme.spacingLarge
+            }
+        }
+    }
+
+    AppDialog {
+        id: dailyTransactionsDialog
+        objectName: "accountingDailyTransactionsDialog"
+
+        anchors.centerIn: parent
+        width: Math.min(root.availableDialogWidth, 620)
+        modal: true
+        title: qsTr("%1 的流水记录").arg(
+            root.viewModel ? root.viewModel.selectedCalendarDate : "")
+        standardButtons: Dialog.Close
+
+        onClosed: {
+            if (root.viewModel)
+                root.viewModel.clearCalendarDate()
+        }
+
+        ColumnLayout {
+            width: parent.width
+            spacing: AppTheme.spacingSmall
+
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("共 %1 笔，点击任意流水可以查看详情。")
+                    .arg(dailyTransactionList.count)
+                color: AppTheme.textSecondaryColor
+                wrapMode: Text.WordWrap
+            }
+
+            ListView {
+                id: dailyTransactionList
+                objectName: "accountingDailyTransactionList"
+
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.min(
+                    Math.max(contentHeight, 96), 420)
+                spacing: AppTheme.spacingSmall
+                clip: true
+                model: root.viewModel
+                    ? root.viewModel.dailyTransactions : null
+
+                delegate: Item {
+                    id: dailyTransactionDelegate
+
+                    required property string transactionId
+                    required property bool isIncome
+                    required property string amountText
+                    required property string accountName
+                    required property string categoryName
+                    required property string typeText
+                    required property string occurredAtText
+                    required property string fullOccurredAtText
+                    required property string note
+
+                    width: dailyTransactionList.width
+                    height: dailyTransactionItem.implicitHeight
+
+                    TransactionListItem {
+                        id: dailyTransactionItem
+
+                        anchors.fill: parent
+                        transactionId:
+                            dailyTransactionDelegate.transactionId
+                        isIncome: dailyTransactionDelegate.isIncome
+                        amountText: dailyTransactionDelegate.amountText
+                        accountName: dailyTransactionDelegate.accountName
+                        categoryName: dailyTransactionDelegate.categoryName
+                        typeText: dailyTransactionDelegate.typeText
+                        occurredAtText:
+                            dailyTransactionDelegate.occurredAtText
+                        fullOccurredAtText:
+                            dailyTransactionDelegate.fullOccurredAtText
+                        note: dailyTransactionDelegate.note
+                        onActivated: root.openTransactionDetails(
+                            dailyTransactionDelegate.transactionId,
+                            dailyTransactionDelegate.typeText,
+                            dailyTransactionDelegate.isIncome,
+                            dailyTransactionDelegate.amountText,
+                            dailyTransactionDelegate.accountName,
+                            dailyTransactionDelegate.categoryName,
+                            dailyTransactionDelegate.fullOccurredAtText,
+                            dailyTransactionDelegate.note)
+                    }
+                }
+
+                Label {
+                    anchors.centerIn: parent
+                    visible: dailyTransactionList.count === 0
+                    text: qsTr("当天没有流水记录")
+                    color: AppTheme.textSecondaryColor
+                }
             }
         }
     }
@@ -1063,6 +1218,18 @@ Page {
         title: itemKind === "account"
             ? qsTr("重命名账户")
             : qsTr("重命名分类")
+        enterActionEnabled: true
+        onEnterActionRequested: submitRename()
+
+        function submitRename() {
+            const succeeded = itemKind === "account"
+                ? root.setupViewModel.renameAccount(
+                    itemId, renameSetupItemField.text)
+                : root.setupViewModel.renameCategory(
+                    itemId, renameSetupItemField.text)
+            if (succeeded)
+                close()
+        }
 
         ColumnLayout {
             width: parent.width
@@ -1085,18 +1252,7 @@ Page {
 
                 AppButton {
                     text: qsTr("保存")
-                    onClicked: {
-                        const succeeded = renameSetupItemDialog.itemKind
-                            === "account"
-                            ? root.setupViewModel.renameAccount(
-                                renameSetupItemDialog.itemId,
-                                renameSetupItemField.text)
-                            : root.setupViewModel.renameCategory(
-                                renameSetupItemDialog.itemId,
-                                renameSetupItemField.text)
-                        if (succeeded)
-                            renameSetupItemDialog.close()
-                    }
+                    onClicked: renameSetupItemDialog.submitRename()
                 }
             }
         }
@@ -1179,6 +1335,15 @@ Page {
         width: Math.min(root.availableDialogWidth, 400)
         modal: true
         title: qsTr("创建资金账户")
+        enterActionEnabled: true
+        onEnterActionRequested: submitAccount()
+
+        function submitAccount() {
+            if (root.setupViewModel.createAccount(
+                    accountNameField.text, openingBalanceField.text)) {
+                close()
+            }
+        }
 
         ColumnLayout {
             width: parent.width
@@ -1216,13 +1381,7 @@ Page {
 
                 AppButton {
                     text: qsTr("保存")
-                    onClicked: {
-                        if (root.setupViewModel.createAccount(
-                                accountNameField.text,
-                                openingBalanceField.text)) {
-                            accountDialog.close()
-                        }
-                    }
+                    onClicked: accountDialog.submitAccount()
                 }
             }
         }
@@ -1237,6 +1396,15 @@ Page {
         width: Math.min(root.availableDialogWidth, 400)
         modal: true
         title: income ? qsTr("创建收入分类") : qsTr("创建支出分类")
+        enterActionEnabled: true
+        onEnterActionRequested: submitCategory()
+
+        function submitCategory() {
+            if (root.setupViewModel.createCategory(
+                    categoryNameField.text, income)) {
+                close()
+            }
+        }
 
         ColumnLayout {
             width: parent.width
@@ -1267,13 +1435,7 @@ Page {
 
                 AppButton {
                     text: qsTr("保存")
-                    onClicked: {
-                        if (root.setupViewModel.createCategory(
-                                categoryNameField.text,
-                                categoryDialog.income)) {
-                            categoryDialog.close()
-                        }
-                    }
+                    onClicked: categoryDialog.submitCategory()
                 }
             }
         }
@@ -1289,6 +1451,15 @@ Page {
         title: root.transactionViewModel && root.transactionViewModel.editing
             ? qsTr("编辑账单")
             : qsTr("新增账单")
+        enterActionEnabled: !transactionDateTimePicker.opened
+            && !accountBox.activeFocus && !categoryBox.activeFocus
+            && !noteField.activeFocus
+        onEnterActionRequested: submitTransaction()
+
+        function submitTransaction() {
+            if (root.transactionViewModel.submit())
+                close()
+        }
 
         footer: Item {
             implicitHeight: transactionDialogFooter.implicitHeight
@@ -1314,10 +1485,7 @@ Page {
                     enabled: root.transactionViewModel
                         && root.transactionViewModel.canSubmit
                     highlighted: true
-                    onClicked: {
-                        if (root.transactionViewModel.submit())
-                            transactionDialog.close()
-                    }
+                    onClicked: transactionDialog.submitTransaction()
                 }
             }
         }
@@ -1403,18 +1571,28 @@ Page {
 
                 AppTextField {
                     id: dateField
+                    objectName: "accountingTransactionDateField"
                     Layout.fillWidth: true
                     placeholderText: qsTr("日期 YYYY-MM-DD")
                     inputMethodHints: Qt.ImhDate
-                    onTextEdited: root.transactionViewModel.occurredDateText = text
+                    onTextEdited: root.transactionViewModel.occurredDateText
+                        = text
                 }
 
                 AppTextField {
                     id: timeField
+                    objectName: "accountingTransactionTimeField"
                     Layout.preferredWidth: 120
                     placeholderText: qsTr("时间 HH:mm")
                     inputMethodHints: Qt.ImhTime
-                    onTextEdited: root.transactionViewModel.occurredTimeText = text
+                    onTextEdited: root.transactionViewModel.occurredTimeText
+                        = text
+                }
+
+                AppButton {
+                    objectName: "accountingTransactionDatePickerButton"
+                    text: qsTr("选择")
+                    onClicked: transactionDateTimePicker.openFor(dateField.text)
                 }
             }
 
@@ -1442,6 +1620,231 @@ Page {
             }
 
         }
+    }
+
+    DateTimePickerDialog {
+        id: transactionDateTimePicker
+        objectName: "accountingTransactionDateTimePicker"
+        allowEmpty: false
+        includeTime: false
+        onDateTimeSelected: value => {
+            dateField.text = value
+            root.transactionViewModel.occurredDateText = value
+        }
+    }
+
+    AppDialog {
+        id: transferDialog
+        objectName: "accountingTransferDialog"
+
+        anchors.centerIn: parent
+        width: Math.min(root.availableDialogWidth, 560)
+        modal: true
+        title: qsTr("账户转账")
+        enterActionEnabled: !transferDateTimePicker.opened
+            && !transferSourceAccountBox.activeFocus
+            && !transferDestinationAccountBox.activeFocus
+            && !transferOutgoingCategoryBox.activeFocus
+            && !transferIncomingCategoryBox.activeFocus
+            && !transferFeeCategoryBox.activeFocus
+            && !transferNoteField.activeFocus
+        onEnterActionRequested: submitTransfer()
+
+        function submitTransfer() {
+            if (root.transferViewModel.submit(
+                    transferAmountField.text,
+                    transferFeeField.text,
+                    transferSourceAccountBox.currentValue,
+                    transferDestinationAccountBox.currentValue,
+                    transferOutgoingCategoryBox.currentValue,
+                    transferIncomingCategoryBox.currentValue,
+                    transferFeeCategoryBox.currentValue,
+                    transferDateField.text,
+                    transferTimeField.text,
+                    transferNoteField.text)) {
+                close()
+            }
+        }
+
+        footer: Item {
+            implicitHeight: transferDialogFooter.implicitHeight
+                + AppTheme.spacingMedium * 2
+
+            RowLayout {
+                id: transferDialogFooter
+                anchors.right: parent.right
+                anchors.rightMargin: AppTheme.spacingLarge
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: AppTheme.spacingSmall
+
+                AppButton {
+                    text: qsTr("取消")
+                    onClicked: transferDialog.close()
+                }
+                AppButton {
+                    objectName: "accountingSubmitTransferButton"
+                    text: qsTr("保存转账")
+                    enabled: root.transferViewModel
+                        && root.transferViewModel.ready
+                    highlighted: true
+                    onClicked: transferDialog.submitTransfer()
+                }
+            }
+        }
+
+        ColumnLayout {
+            width: parent.width
+            spacing: AppTheme.spacingMedium
+
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("将生成一条转出和一条转入流水；手续费大于 0 时，再生成一条手续费支出。三条流水会一次性保存。")
+                color: AppTheme.textSecondaryColor
+                wrapMode: Text.WordWrap
+            }
+
+            GridLayout {
+                Layout.fillWidth: true
+                columns: root.compactLayout ? 1 : 2
+                columnSpacing: AppTheme.spacingMedium
+                rowSpacing: AppTheme.spacingSmall
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Label { text: qsTr("转出账户"); color: AppTheme.textSecondaryColor }
+                    AppComboBox {
+                        id: transferSourceAccountBox
+                        Layout.fillWidth: true
+                        model: root.transferViewModel
+                            ? root.transferViewModel.availableAccounts : null
+                        textRole: "name"
+                        valueRole: "accountId"
+                    }
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Label { text: qsTr("转入账户"); color: AppTheme.textSecondaryColor }
+                    AppComboBox {
+                        id: transferDestinationAccountBox
+                        Layout.fillWidth: true
+                        model: root.transferViewModel
+                            ? root.transferViewModel.availableAccounts : null
+                        textRole: "name"
+                        valueRole: "accountId"
+                    }
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Label { text: qsTr("转账金额"); color: AppTheme.textSecondaryColor }
+                    AppTextField {
+                        id: transferAmountField
+                        Layout.fillWidth: true
+                        placeholderText: qsTr("例如 1000.00")
+                        inputMethodHints: Qt.ImhFormattedNumbersOnly
+                    }
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Label { text: qsTr("手续费（可为 0）"); color: AppTheme.textSecondaryColor }
+                    AppTextField {
+                        id: transferFeeField
+                        Layout.fillWidth: true
+                        placeholderText: qsTr("例如 2.00")
+                        inputMethodHints: Qt.ImhFormattedNumbersOnly
+                    }
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Label { text: qsTr("转出分类"); color: AppTheme.textSecondaryColor }
+                    AppComboBox {
+                        id: transferOutgoingCategoryBox
+                        Layout.fillWidth: true
+                        model: root.transferViewModel
+                            ? root.transferViewModel.expenseCategories : null
+                        textRole: "name"
+                        valueRole: "categoryId"
+                    }
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Label { text: qsTr("转入分类"); color: AppTheme.textSecondaryColor }
+                    AppComboBox {
+                        id: transferIncomingCategoryBox
+                        Layout.fillWidth: true
+                        model: root.transferViewModel
+                            ? root.transferViewModel.incomeCategories : null
+                        textRole: "name"
+                        valueRole: "categoryId"
+                    }
+                }
+            }
+
+            Label {
+                text: qsTr("手续费分类")
+                color: AppTheme.textSecondaryColor
+            }
+            AppComboBox {
+                id: transferFeeCategoryBox
+                Layout.fillWidth: true
+                model: root.transferViewModel
+                    ? root.transferViewModel.expenseCategories : null
+                textRole: "name"
+                valueRole: "categoryId"
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                AppTextField {
+                    id: transferDateField
+                    Layout.fillWidth: true
+                    placeholderText: qsTr("日期 YYYY-MM-DD")
+                    inputMethodHints: Qt.ImhDate
+                }
+                AppTextField {
+                    id: transferTimeField
+                    Layout.preferredWidth: 120
+                    placeholderText: qsTr("时间 HH:mm")
+                    inputMethodHints: Qt.ImhTime
+                }
+                AppButton {
+                    objectName: "accountingTransferDatePickerButton"
+                    text: qsTr("选择")
+                    onClicked: transferDateTimePicker.openFor(
+                        transferDateField.text)
+                }
+            }
+
+            AppTextArea {
+                id: transferNoteField
+                Layout.fillWidth: true
+                Layout.preferredHeight: 72
+                placeholderText: qsTr("备注（可选）")
+                wrapMode: TextEdit.Wrap
+            }
+
+            Label {
+                Layout.fillWidth: true
+                visible: root.transferViewModel
+                    && root.transferViewModel.hasError
+                text: root.transferViewModel
+                    ? root.transferViewModel.errorMessage : ""
+                color: AppTheme.errorColor
+                wrapMode: Text.WordWrap
+            }
+        }
+    }
+
+    DateTimePickerDialog {
+        id: transferDateTimePicker
+        objectName: "accountingTransferDateTimePicker"
+        allowEmpty: false
+        includeTime: false
+        onDateTimeSelected: value => transferDateField.text = value
     }
 
     AppDialog {

@@ -4,13 +4,33 @@ add_executable(StuKitShellQmlIntegrationTest
 
 set(STUKIT_SHELL_TEST_QML_FILES
     ${CMAKE_SOURCE_DIR}/src/shell/qml/HomePage.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/AppearancePage.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/ThemePreviewPanel.qml
     ${CMAKE_SOURCE_DIR}/src/shared/qml/theme/AppTheme.qml
+    ${CMAKE_SOURCE_DIR}/src/shared/qml/components/AppButton.qml
+    ${CMAKE_SOURCE_DIR}/src/shared/qml/components/AppDialog.qml
     ${CMAKE_SOURCE_DIR}/src/shared/qml/components/FeatureCard.qml
 )
 
 set_source_files_properties(
     ${CMAKE_SOURCE_DIR}/src/shell/qml/HomePage.qml
     PROPERTIES QT_RESOURCE_ALIAS HomePage.qml
+)
+set_source_files_properties(
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/AppearancePage.qml
+    PROPERTIES QT_RESOURCE_ALIAS AppearancePage.qml
+)
+set_source_files_properties(
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/ThemePreviewPanel.qml
+    PROPERTIES QT_RESOURCE_ALIAS ThemePreviewPanel.qml
+)
+set_source_files_properties(
+    ${CMAKE_SOURCE_DIR}/src/shared/qml/components/AppButton.qml
+    PROPERTIES QT_RESOURCE_ALIAS AppButton.qml
+)
+set_source_files_properties(
+    ${CMAKE_SOURCE_DIR}/src/shared/qml/components/AppDialog.qml
+    PROPERTIES QT_RESOURCE_ALIAS AppDialog.qml
 )
 set_source_files_properties(
     ${CMAKE_SOURCE_DIR}/src/shared/qml/components/FeatureCard.qml

@@ -9,6 +9,8 @@ Dialog {
     property real viewportWidth: parent ? parent.width : 0
     property real viewportHeight: parent ? parent.height : 0
     property real preferredWidth: 520
+    property bool enterActionEnabled: false
+    signal enterActionRequested()
     readonly property real maximumDialogHeight: Math.max(
         0, viewportHeight - AppTheme.spacingMedium * 2)
     readonly property bool contentScrollable:
@@ -114,6 +116,22 @@ Dialog {
         function onKeyboardRectangleChanged() {
             Qt.callLater(control.ensureActiveFocusVisible)
         }
+    }
+
+    Shortcut {
+        sequence: "Return"
+        context: Qt.WindowShortcut
+        enabled: Qt.platform.os !== "android"
+            && control.opened && control.enterActionEnabled
+        onActivated: control.enterActionRequested()
+    }
+
+    Shortcut {
+        sequence: "Enter"
+        context: Qt.WindowShortcut
+        enabled: Qt.platform.os !== "android"
+            && control.opened && control.enterActionEnabled
+        onActivated: control.enterActionRequested()
     }
 
     background: Rectangle {

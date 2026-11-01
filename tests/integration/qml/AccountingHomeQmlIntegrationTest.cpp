@@ -1,8 +1,12 @@
 #include <QCoreApplication>
+#include <QAbstractListModel>
 #include <QColor>
 #include <QDebug>
 #include <QQmlComponent>
 #include <QQmlEngine>
+#include <QQmlError>
+#include <QQuickItem>
+#include <QQuickWindow>
 #include <QTest>
 #include <QVariantList>
 #include <QVariantMap>
@@ -10,6 +14,72 @@
 #include <memory>
 
 namespace {
+
+class FakeTransactionModel final : public QAbstractListModel
+{
+public:
+    enum Role
+    {
+        TransactionIdRole = Qt::UserRole + 1,
+        IsIncomeRole,
+        AmountTextRole,
+        AccountNameRole,
+        CategoryNameRole,
+        TypeTextRole,
+        OccurredAtTextRole,
+        FullOccurredAtTextRole,
+        NoteRole,
+    };
+
+    int rowCount(const QModelIndex &parent = {}) const override
+    {
+        return parent.isValid() ? 0 : 1;
+    }
+
+    QVariant data(const QModelIndex &index, int role) const override
+    {
+        if (!index.isValid() || index.row() != 0) {
+            return {};
+        }
+        switch (role) {
+        case TransactionIdRole:
+            return QStringLiteral("transaction-1");
+        case IsIncomeRole:
+            return false;
+        case AmountTextRole:
+            return QStringLiteral("12.50");
+        case AccountNameRole:
+            return QStringLiteral("现金");
+        case CategoryNameRole:
+            return QStringLiteral("餐饮");
+        case TypeTextRole:
+            return QStringLiteral("支出");
+        case OccurredAtTextRole:
+            return QStringLiteral("11-01 12:30");
+        case FullOccurredAtTextRole:
+            return QStringLiteral("2026-11-01 12:30");
+        case NoteRole:
+            return QStringLiteral("午餐");
+        default:
+            return {};
+        }
+    }
+
+    QHash<int, QByteArray> roleNames() const override
+    {
+        return {
+            {TransactionIdRole, QByteArrayLiteral("transactionId")},
+            {IsIncomeRole, QByteArrayLiteral("isIncome")},
+            {AmountTextRole, QByteArrayLiteral("amountText")},
+            {AccountNameRole, QByteArrayLiteral("accountName")},
+            {CategoryNameRole, QByteArrayLiteral("categoryName")},
+            {TypeTextRole, QByteArrayLiteral("typeText")},
+            {OccurredAtTextRole, QByteArrayLiteral("occurredAtText")},
+            {FullOccurredAtTextRole, QByteArrayLiteral("fullOccurredAtText")},
+            {NoteRole, QByteArrayLiteral("note")},
+        };
+    }
+};
 
 QVariantMap overviewModel()
 {
@@ -31,6 +101,9 @@ QVariantMap overviewModel()
         {QStringLiteral("hasActiveTransactionFilters"), false},
         {QStringLiteral("accountFilterOptions"), QVariantList{}},
         {QStringLiteral("categoryFilterOptions"), QVariantList{}},
+        {QStringLiteral("calendarDays"), QVariantList{}},
+        {QStringLiteral("selectedCalendarDate"), QString{}},
+        {QStringLiteral("dailyTransactions"), QVariantList{}},
         {QStringLiteral("transactions"), QVariantList{}},
         {QStringLiteral("availableTimeZoneIds"),
          QVariantList{QStringLiteral("Asia/Shanghai")}},
@@ -40,7 +113,8 @@ QVariantMap overviewModel()
 std::unique_ptr<QObject> createPage(
     QQmlEngine &engine,
     qreal width,
-    qreal height = 720)
+    qreal height = 720,
+    QVariantMap overview = {})
 {
     QQmlComponent component(&engine);
     component.loadFromModule(
@@ -82,12 +156,26 @@ std::unique_ptr<QObject> createPage(
         {QStringLiteral("errorMessage"), QString{}},
         {QStringLiteral("statusMessage"), QString{}},
     };
+    const QVariantMap transferEditor{
+        {QStringLiteral("ready"), true},
+        {QStringLiteral("availableAccounts"), QVariantList{}},
+        {QStringLiteral("incomeCategories"), QVariantList{}},
+        {QStringLiteral("expenseCategories"), QVariantList{}},
+        {QStringLiteral("occurredDateText"), QStringLiteral("2026-11-01")},
+        {QStringLiteral("occurredTimeText"), QStringLiteral("12:00")},
+        {QStringLiteral("hasError"), false},
+        {QStringLiteral("errorMessage"), QString{}},
+    };
 
+    if (overview.isEmpty()) {
+        overview = overviewModel();
+    }
     QVariantMap properties{
-        {QStringLiteral("viewModel"), overviewModel()},
+        {QStringLiteral("viewModel"), overview},
         {QStringLiteral("balancesViewModel"), balances},
         {QStringLiteral("setupViewModel"), setup},
         {QStringLiteral("transactionViewModel"), transactionEditor},
+        {QStringLiteral("transferViewModel"), transferEditor},
         {QStringLiteral("maintenanceViewModel"), maintenance},
         {QStringLiteral("startupError"), QString{}},
     };
@@ -115,6 +203,8 @@ private slots:
     void keepsDataToolsCollapsedUntilRequested();
     void constrainsLongDialogsToTheViewport();
     void usesDarkSelectedStateForManagementTabs();
+    void exposesTransferAndRollingDateControls();
+    void rendersRealTransactionDelegates();
 };
 
 void AccountingHomeQmlIntegrationTest::
@@ -222,6 +312,106 @@ void AccountingHomeQmlIntegrationTest::
     QTRY_COMPARE(categoriesBackground->property("color").value<QColor>(),
                  QColor(QStringLiteral("#171717")));
     QCOMPARE(accounts->property("checked").toBool(), false);
+}
+
+void AccountingHomeQmlIntegrationTest::exposesTransferAndRollingDateControls()
+{
+    QQmlEngine engine;
+    auto page = createPage(engine, 640, 720);
+    QVERIFY(page);
+
+    QObject *transferButton = page->findChild<QObject *>(
+        QStringLiteral("accountingTransferButton"));
+    QObject *transactionDialog = page->findChild<QObject *>(
+        QStringLiteral("accountingTransactionDialog"));
+    QObject *transferDialog = page->findChild<QObject *>(
+        QStringLiteral("accountingTransferDialog"));
+    QObject *dailyTransactionsDialog = page->findChild<QObject *>(
+        QStringLiteral("accountingDailyTransactionsDialog"));
+    QObject *dailyTransactionList = page->findChild<QObject *>(
+        QStringLiteral("accountingDailyTransactionList"));
+    QObject *dateField = page->findChild<QObject *>(
+        QStringLiteral("accountingTransactionDateField"));
+    QObject *pickerButton = page->findChild<QObject *>(
+        QStringLiteral("accountingTransactionDatePickerButton"));
+    QObject *datePicker = page->findChild<QObject *>(
+        QStringLiteral("accountingTransactionDateTimePicker"));
+    QObject *yearTumbler = page->findChild<QObject *>(
+        QStringLiteral("datePickerYearTumbler"));
+    QObject *monthTumbler = page->findChild<QObject *>(
+        QStringLiteral("datePickerMonthTumbler"));
+    QObject *dayTumbler = page->findChild<QObject *>(
+        QStringLiteral("datePickerDayTumbler"));
+    QVERIFY(transferButton);
+    QVERIFY(transactionDialog);
+    QVERIFY(transferDialog);
+    QVERIFY(dailyTransactionsDialog);
+    QVERIFY(dailyTransactionList);
+    QVERIFY(dateField);
+    QVERIFY(pickerButton);
+    QVERIFY(datePicker);
+    QVERIFY(yearTumbler);
+    QVERIFY(monthTumbler);
+    QVERIFY(dayTumbler);
+    QCOMPARE(dateField->property("readOnly").toBool(), false);
+    QCOMPARE(datePicker->property("includeTime").toBool(), false);
+    QCOMPARE(transactionDialog->property("enterActionEnabled").toBool(), true);
+    QCOMPARE(transferDialog->property("enterActionEnabled").toBool(), true);
+}
+
+void AccountingHomeQmlIntegrationTest::rendersRealTransactionDelegates()
+{
+    QQmlEngine engine;
+    QQuickWindow window;
+    QStringList qmlWarnings;
+    connect(
+        &engine,
+        &QQmlEngine::warnings,
+        this,
+        [&qmlWarnings](const QList<QQmlError> &warnings) {
+            for (const QQmlError &warning : warnings) {
+                qmlWarnings.push_back(warning.toString());
+            }
+        });
+    FakeTransactionModel transactions;
+    QVariantMap overview = overviewModel();
+    overview.insert(QStringLiteral("empty"), false);
+    overview.insert(QStringLiteral("filteredTransactionCount"), 1);
+    overview.insert(
+        QStringLiteral("transactions"),
+        QVariant::fromValue(static_cast<QObject *>(&transactions)));
+    overview.insert(
+        QStringLiteral("dailyTransactions"),
+        QVariant::fromValue(static_cast<QObject *>(&transactions)));
+
+    auto page = createPage(engine, 640, 720, overview);
+    QVERIFY(page);
+    auto *pageItem = qobject_cast<QQuickItem *>(page.get());
+    QVERIFY(pageItem);
+    pageItem->setParentItem(window.contentItem());
+    window.resize(640, 720);
+    window.show();
+    page->setProperty("transactionDisplayMode", QStringLiteral("list"));
+    QCoreApplication::processEvents();
+
+    QObject *monthlyList = page->findChild<QObject *>(
+        QStringLiteral("accountingTransactionList"));
+    QObject *dailyList = page->findChild<QObject *>(
+        QStringLiteral("accountingDailyTransactionList"));
+    QObject *dailyDialog = page->findChild<QObject *>(
+        QStringLiteral("accountingDailyTransactionsDialog"));
+    QVERIFY(monthlyList);
+    QVERIFY(dailyList);
+    QVERIFY(dailyDialog);
+    QTRY_COMPARE(monthlyList->property("count").toInt(), 1);
+    QTRY_COMPARE(dailyList->property("count").toInt(), 1);
+    QTRY_VERIFY(monthlyList->property("contentHeight").toReal() >= 68.0);
+
+    QVERIFY(QMetaObject::invokeMethod(dailyDialog, "open"));
+    QCoreApplication::processEvents();
+    QTRY_VERIFY(dailyList->property("contentHeight").toReal() >= 68.0);
+    QVERIFY2(qmlWarnings.isEmpty(),
+             qPrintable(qmlWarnings.join(QLatin1Char('\n'))));
 }
 
 QTEST_MAIN(AccountingHomeQmlIntegrationTest)

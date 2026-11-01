@@ -3,8 +3,10 @@
 #include "AccountingAnalyticsViewModel.h"
 #include "AccountingOverviewViewModel.h"
 #include "AccountingSetupViewModel.h"
+#include "AppearanceSettingsViewModel.h"
 #include "ApplicationStorage.h"
 #include "CreateTransactionViewModel.h"
+#include "TransferFundsViewModel.h"
 #include "DataMaintenanceViewModel.h"
 #include "ScheduleManagementViewModel.h"
 #include "ScheduleModule.h"
@@ -18,13 +20,18 @@
 #include <QCoreApplication>
 #include <QDebug>
 #include <QApplication>
+#include <QDir>
 #include <QIcon>
 #include <QMessageBox>
 #include <QQmlApplicationEngine>
+#include <QQmlError>
 #include <QSettings>
 #include <QStandardPaths>
+#include <QStringList>
+#include <QTimer>
 #include <QVariant>
 #include <QVariantMap>
+#include <QWindow>
 
 int main(int argc, char *argv[])
 {
@@ -54,7 +61,6 @@ int main(int argc, char *argv[])
             storageError);
         return 1;
     }
-
     const QString appDataDirectory = storageLocation.dataDirectory;
     QSettings settings(
         stukit::app::ApplicationStorage::settingsPath(appDataDirectory),
@@ -71,6 +77,9 @@ int main(int argc, char *argv[])
         }
     }
 
+    stukit::app::AppearanceSettingsViewModel appearanceSettings(
+        settings,
+        QDir(appDataDirectory).filePath(QStringLiteral("themes")));
     stukit::app::AccountingModule accountingModule(appDataDirectory, settings);
     stukit::app::WeatherModule weatherModule(appDataDirectory, settings);
     stukit::app::UpdateModule updateModule(
@@ -91,9 +100,21 @@ int main(int argc, char *argv[])
             << "Weather module initialization failed:"
             << weatherModule.lastError();
     }
-
     QQmlApplicationEngine engine;
+    QStringList qmlLoadErrors;
+    QObject::connect(
+        &engine,
+        &QQmlEngine::warnings,
+        &app,
+        [&qmlLoadErrors](const QList<QQmlError> &warnings) {
+            for (const QQmlError &warning : warnings) {
+                qmlLoadErrors.push_back(warning.toString());
+            }
+        });
     QVariantMap initialProperties;
+    initialProperties.insert(
+        QStringLiteral("appearanceSettings"),
+        QVariant::fromValue(static_cast<QObject *>(&appearanceSettings)));
     initialProperties.insert(
         QStringLiteral("accountingOverview"),
         QVariant::fromValue(static_cast<QObject *>(
@@ -114,6 +135,10 @@ int main(int argc, char *argv[])
         QStringLiteral("accountingTransactionEditor"),
         QVariant::fromValue(static_cast<QObject *>(
             accountingModule.transactionEditorViewModel())));
+    initialProperties.insert(
+        QStringLiteral("accountingTransferEditor"),
+        QVariant::fromValue(static_cast<QObject *>(
+            accountingModule.transferEditorViewModel())));
     initialProperties.insert(
         QStringLiteral("accountingStartupError"), accountingStartupError);
     initialProperties.insert(
@@ -162,17 +187,27 @@ int main(int argc, char *argv[])
             });
     }
 
-    QObject::connect(
-        &engine,
-        &QQmlApplicationEngine::objectCreationFailed,
-        &app,
-        []() { QCoreApplication::exit(-1); },
-        Qt::QueuedConnection);
-
     engine.loadFromModule("StuKit", "Main");
 
-    if (!engine.rootObjects().isEmpty()) {
+    if (engine.rootObjects().isEmpty()) {
+        QMessageBox::critical(
+            nullptr,
+            QStringLiteral("StuKit 界面加载失败"),
+            qmlLoadErrors.isEmpty()
+                ? QStringLiteral("主界面无法创建，请重新构建后再试。")
+                : qmlLoadErrors.join(QStringLiteral("\n")));
+        return -1;
+    }
+
+    {
         QObject *rootObject = engine.rootObjects().constFirst();
+        if (auto *rootWindow = qobject_cast<QWindow *>(rootObject)) {
+            rootWindow->show();
+            QTimer::singleShot(0, rootWindow, [rootWindow]() {
+                rootWindow->raise();
+                rootWindow->requestActivate();
+            });
+        }
         QObject::connect(
             &dataMaintenance,
             &stukit::app::DataMaintenanceViewModel::accountingObjectsChanged,
@@ -198,6 +233,10 @@ int main(int argc, char *argv[])
                     "accountingTransactionEditor",
                     QVariant::fromValue(static_cast<QObject *>(
                         accountingModule.transactionEditorViewModel())));
+                rootObject->setProperty(
+                    "accountingTransferEditor",
+                    QVariant::fromValue(static_cast<QObject *>(
+                        accountingModule.transferEditorViewModel())));
                 rootObject->setProperty(
                     "scheduleOverview",
                     QVariant::fromValue(static_cast<QObject *>(

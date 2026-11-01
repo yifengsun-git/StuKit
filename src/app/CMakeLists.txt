@@ -1,4 +1,10 @@
 add_library(StuKitAppCore STATIC
+    AppearanceSettingsViewModel.cpp
+    AppearanceSettingsViewModel.h
+    ThemePackageReader.cpp
+    ThemePackageReader.h
+    ThemePackageWriter.cpp
+    ThemePackageWriter.h
     ApplicationStorage.cpp
     ApplicationStorage.h
     AccountingUpdatePreparation.cpp
@@ -27,6 +33,8 @@ target_include_directories(StuKitAppCore
 target_link_libraries(StuKitAppCore
     PUBLIC
         Qt6::Core
+        Qt6::Gui
+        StuKitMiniz
         StuKitAccountingInfrastructure
         StuKitAccountingPresentation
         StuKitScheduleInfrastructure

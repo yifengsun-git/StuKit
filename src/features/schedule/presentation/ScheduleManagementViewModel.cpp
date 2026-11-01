@@ -262,10 +262,20 @@ bool ScheduleManagementViewModel::saveTerm(
         setError(QStringLiteral("学期标识无效"));
         return false;
     }
+    const QString normalizedStartDate = startDateText.trimmed();
+    const QDate startDate = QDate::fromString(
+        normalizedStartDate, QStringLiteral("yyyy-MM-dd"));
+    if (!startDate.isValid()
+        || startDate.toString(QStringLiteral("yyyy-MM-dd"))
+            != normalizedStartDate) {
+        setError(QStringLiteral(
+            "学期开始日期格式无效，请使用 yyyy-MM-dd，例如 2026-09-07"));
+        return false;
+    }
     const auto result = m_saveAcademicTerm.execute(SaveAcademicTermRequest{
         .id = id,
         .name = name,
-        .startDate = QDate::fromString(startDateText.trimmed(), Qt::ISODate),
+        .startDate = startDate,
         .totalWeeks = totalWeeks,
         .archived = archived,
     });
@@ -724,6 +734,54 @@ bool ScheduleManagementViewModel::savePeriodDefinition(
     }
     m_periodDefinitions =
         std::get<std::vector<PeriodDefinition>>(definitions);
+    emit periodDefinitionsChanged();
+    return true;
+}
+
+bool ScheduleManagementViewModel::savePeriodDefinitions(
+    const QVariantList &definitions)
+{
+    clearMessages();
+    if (m_periodDefinitionService == nullptr) {
+        setError(QStringLiteral("当前构建未启用节次时间设置"));
+        return false;
+    }
+
+    std::vector<PeriodDefinition> items;
+    items.reserve(static_cast<std::size_t>(definitions.size()));
+    for (const QVariant &value : definitions) {
+        const QVariantMap definition = value.toMap();
+        items.push_back(PeriodDefinition{
+            .periodNumber = definition.value(
+                QStringLiteral("periodNumber")).toInt(),
+            .name = definition.value(QStringLiteral("name")).toString(),
+            .startTime = definition.value(
+                QStringLiteral("startTime")).toString(),
+            .endTime = definition.value(
+                QStringLiteral("endTime")).toString(),
+        });
+    }
+    if (items.empty()) {
+        setError(QStringLiteral("没有可保存的节次时间"));
+        return false;
+    }
+
+    const PeriodDefinitionError result =
+        m_periodDefinitionService->saveAll(std::move(items));
+    if (result != PeriodDefinitionError::None) {
+        setError(result == PeriodDefinitionError::InvalidInput
+            ? QStringLiteral("请检查节次名称和 HH:mm 格式的起止时间")
+            : QStringLiteral("无法保存节次时间设置"));
+        return false;
+    }
+
+    const LoadPeriodDefinitionsResult stored =
+        m_periodDefinitionService->load();
+    if (std::holds_alternative<PeriodDefinitionError>(stored)) {
+        setError(QStringLiteral("节次已保存，但无法重新读取设置"));
+        return false;
+    }
+    m_periodDefinitions = std::get<std::vector<PeriodDefinition>>(stored);
     emit periodDefinitionsChanged();
     return true;
 }

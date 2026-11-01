@@ -11,6 +11,8 @@
 #include "CreateCategory.h"
 #include "CreateTransaction.h"
 #include "CreateTransactionViewModel.h"
+#include "TransferFunds.h"
+#include "TransferFundsViewModel.h"
 #include "DeleteTransaction.h"
 #include "DeleteAccountingSetupItem.h"
 #include "GetAccountingSetup.h"
@@ -128,6 +130,10 @@ bool AccountingModule::initialize(
         *m_transactionRepository,
         *m_accountRepository,
         *m_categoryRepository);
+    m_transferFunds = std::make_unique<accounting::TransferFunds>(
+        *m_transactionRepository,
+        *m_accountRepository,
+        *m_categoryRepository);
     m_updateTransaction = std::make_unique<accounting::UpdateTransaction>(
         *m_transactionRepository,
         *m_accountRepository,
@@ -171,6 +177,11 @@ bool AccountingModule::initialize(
         *m_getTransaction,
         *m_getAccountingSetup,
         m_overviewViewModel->timeZone());
+    m_transferEditorViewModel = std::make_unique<
+        accounting::presentation::TransferFundsViewModel>(
+        *m_transferFunds,
+        *m_getAccountingSetup,
+        m_overviewViewModel->timeZone());
     m_scheduleModule = std::make_unique<ScheduleModule>(connection);
     if (!m_scheduleModule->initialize(scheduleToday)) {
         m_lastError = m_scheduleModule->lastError();
@@ -210,6 +221,14 @@ bool AccountingModule::initialize(
                 m_overviewViewModel->timeZone());
         });
     QObject::connect(
+        m_overviewViewModel.get(),
+        &accounting::presentation::AccountingOverviewViewModel::timeZoneChanged,
+        m_transferEditorViewModel.get(),
+        [this]() {
+            m_transferEditorViewModel->setTimeZone(
+                m_overviewViewModel->timeZone());
+        });
+    QObject::connect(
         m_setupViewModel.get(),
         &accounting::presentation::AccountingSetupViewModel::setupChanged,
         m_transactionEditorViewModel.get(),
@@ -217,6 +236,11 @@ bool AccountingModule::initialize(
     QObject::connect(
         m_setupViewModel.get(),
         &accounting::presentation::AccountingSetupViewModel::setupChanged,
+        m_transferEditorViewModel.get(),
+        &accounting::presentation::TransferFundsViewModel::prepare);
+    QObject::connect(
+        m_setupViewModel.get(),
+        &accounting::presentation::AccountingSetupViewModel::setupChanged,
         m_overviewViewModel.get(),
         &accounting::presentation::AccountingOverviewViewModel::load);
     QObject::connect(
@@ -272,6 +296,21 @@ bool AccountingModule::initialize(
     QObject::connect(
         m_transactionEditorViewModel.get(),
         &accounting::presentation::CreateTransactionViewModel::transactionDeleted,
+        m_analyticsViewModel.get(),
+        &accounting::presentation::AccountingAnalyticsViewModel::load);
+    QObject::connect(
+        m_transferEditorViewModel.get(),
+        &accounting::presentation::TransferFundsViewModel::transferCreated,
+        m_overviewViewModel.get(),
+        &accounting::presentation::AccountingOverviewViewModel::load);
+    QObject::connect(
+        m_transferEditorViewModel.get(),
+        &accounting::presentation::TransferFundsViewModel::transferCreated,
+        m_balancesViewModel.get(),
+        &accounting::presentation::AccountBalancesViewModel::load);
+    QObject::connect(
+        m_transferEditorViewModel.get(),
+        &accounting::presentation::TransferFundsViewModel::transferCreated,
         m_analyticsViewModel.get(),
         &accounting::presentation::AccountingAnalyticsViewModel::load);
 
@@ -425,6 +464,12 @@ AccountingModule::transactionEditorViewModel() const noexcept
     return m_transactionEditorViewModel.get();
 }
 
+accounting::presentation::TransferFundsViewModel *
+AccountingModule::transferEditorViewModel() const noexcept
+{
+    return m_transferEditorViewModel.get();
+}
+
 ScheduleModule *AccountingModule::scheduleModule() const noexcept
 {
     return m_scheduleModule.get();
@@ -478,6 +523,7 @@ void AccountingModule::reset()
 {
     m_taskModule.reset();
     m_scheduleModule.reset();
+    m_transferEditorViewModel.reset();
     m_transactionEditorViewModel.reset();
     m_analyticsViewModel.reset();
     m_setupViewModel.reset();
@@ -487,6 +533,7 @@ void AccountingModule::reset()
     m_getTransaction.reset();
     m_deleteTransaction.reset();
     m_updateTransaction.reset();
+    m_transferFunds.reset();
     m_createTransaction.reset();
     m_getAccountingSetup.reset();
     m_getAccountingAnalytics.reset();

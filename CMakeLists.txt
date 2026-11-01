@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(StuKit VERSION 0.2.3 LANGUAGES CXX)
+project(StuKit VERSION 0.2.4 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -11,6 +11,7 @@ qt_standard_project_setup(REQUIRES 6.10)
 
 include(CTest)
 
+add_subdirectory(src/third_party/miniz)
 add_subdirectory(src/features/update/domain)
 add_subdirectory(src/features/update/application)
 add_subdirectory(src/features/update/infrastructure)
@@ -71,6 +72,8 @@ qt_add_resources(StuKit "stukit_app_assets"
 set(STUKIT_QML_FILES
     src/shell/qml/Main.qml
     src/shell/qml/HomePage.qml
+    src/shell/qml/AppearancePage.qml
+    src/shell/qml/ThemePreviewPanel.qml
     src/features/analytics/qml/AnalyticsHomePage.qml
     src/features/analytics/qml/components/AnalyticsCard.qml
     src/features/analytics/qml/components/AnalyticsFilterPanel.qml
@@ -79,6 +82,8 @@ set(STUKIT_QML_FILES
     src/features/analytics/qml/components/LineSeriesChart.qml
     src/features/analytics/qml/components/RankingBars.qml
     src/features/accounting/qml/AccountingHomePage.qml
+    src/features/accounting/qml/components/AccountingCalendar.qml
+    src/features/accounting/qml/components/TransactionListItem.qml
     src/features/schedule/qml/ScheduleHomePage.qml
     src/features/schedule/qml/components/CourseMeetingCard.qml
     src/features/schedule/qml/components/DayScheduleList.qml
@@ -111,6 +116,16 @@ set_source_files_properties(
 set_source_files_properties(
     src/shell/qml/HomePage.qml
     PROPERTIES QT_RESOURCE_ALIAS HomePage.qml
+)
+
+set_source_files_properties(
+    src/shell/qml/AppearancePage.qml
+    PROPERTIES QT_RESOURCE_ALIAS AppearancePage.qml
+)
+
+set_source_files_properties(
+    src/shell/qml/ThemePreviewPanel.qml
+    PROPERTIES QT_RESOURCE_ALIAS ThemePreviewPanel.qml
 )
 
 set_source_files_properties(
@@ -151,6 +166,16 @@ set_source_files_properties(
 set_source_files_properties(
     src/features/accounting/qml/AccountingHomePage.qml
     PROPERTIES QT_RESOURCE_ALIAS AccountingHomePage.qml
+)
+
+set_source_files_properties(
+    src/features/accounting/qml/components/AccountingCalendar.qml
+    PROPERTIES QT_RESOURCE_ALIAS AccountingCalendar.qml
+)
+
+set_source_files_properties(
+    src/features/accounting/qml/components/TransactionListItem.qml
+    PROPERTIES QT_RESOURCE_ALIAS TransactionListItem.qml
 )
 
 set_source_files_properties(

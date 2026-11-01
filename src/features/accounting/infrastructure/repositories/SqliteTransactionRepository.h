@@ -15,6 +15,8 @@ public:
     explicit SqliteTransactionRepository(QSqlDatabase database);
 
     [[nodiscard]] bool save(const Transaction &transaction) override;
+    [[nodiscard]] bool saveAll(
+        const std::vector<Transaction> &transactions) override;
     [[nodiscard]] std::optional<Transaction> findById(
         const QUuid &id) const override;
     [[nodiscard]] RemoveTransactionResult removeById(

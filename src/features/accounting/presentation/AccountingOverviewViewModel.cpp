@@ -3,6 +3,7 @@
 #include "MoneyFormatter.h"
 
 #include <QByteArray>
+#include <QHash>
 #include <QSet>
 #include <QVariantMap>
 
@@ -10,6 +11,15 @@
 #include <utility>
 
 namespace stukit::accounting::presentation {
+namespace {
+
+const QString &noCalendarDateFilter()
+{
+    static const QString value = QStringLiteral("__no_calendar_date__");
+    return value;
+}
+
+} // namespace
 
 AccountingOverviewViewModel::AccountingOverviewViewModel(
     GetMonthlyOverview &getMonthlyOverview,
@@ -22,9 +32,12 @@ AccountingOverviewViewModel::AccountingOverviewViewModel(
     , m_selectedMonth(selectedMonth.year(), selectedMonth.month(), 1)
     , m_transactions()
     , m_filteredTransactions()
+    , m_dailyTransactions()
 {
     m_transactions.setTimeZone(m_timeZone);
     m_filteredTransactions.setSourceModel(&m_transactions);
+    m_dailyTransactions.setSourceModel(&m_transactions);
+    m_dailyTransactions.setLocalDateFilter(noCalendarDateFilter());
 }
 
 int AccountingOverviewViewModel::selectedYear() const noexcept
@@ -100,6 +113,11 @@ QAbstractItemModel *AccountingOverviewViewModel::transactions() noexcept
     return &m_filteredTransactions;
 }
 
+QAbstractItemModel *AccountingOverviewViewModel::dailyTransactions() noexcept
+{
+    return &m_dailyTransactions;
+}
+
 int AccountingOverviewViewModel::typeFilter() const noexcept
 {
     return static_cast<int>(m_filteredTransactions.typeFilter());
@@ -166,6 +184,16 @@ QVariantList AccountingOverviewViewModel::categoryFilterOptions() const
         });
     }
     return options;
+}
+
+const QVariantList &AccountingOverviewViewModel::calendarDays() const noexcept
+{
+    return m_calendarDays;
+}
+
+const QString &AccountingOverviewViewModel::selectedCalendarDate() const noexcept
+{
+    return m_selectedCalendarDate;
 }
 
 int AccountingOverviewViewModel::filteredTransactionCount() const noexcept
@@ -248,6 +276,7 @@ void AccountingOverviewViewModel::load()
     if (std::holds_alternative<GetMonthlyOverviewError>(result)) {
         m_transactions.clear();
         rebuildFilterOptions({});
+        rebuildCalendarDays({});
         m_totalIncomeText = QStringLiteral("0.00");
         m_totalExpenseText = QStringLiteral("0.00");
         m_balanceText = QStringLiteral("0.00");
@@ -266,6 +295,7 @@ void AccountingOverviewViewModel::load()
     m_totalExpenseText = formatMoney(overview.totalExpense);
     m_balanceText = formatMoney(overview.balance);
     rebuildFilterOptions(overview.transactions);
+    rebuildCalendarDays(overview.transactions);
     m_transactions.replaceTransactions(std::move(overview.transactions));
     clearError();
     emit overviewChanged();
@@ -308,6 +338,34 @@ void AccountingOverviewViewModel::clearTransactionFilters()
     emit transactionFiltersChanged();
 }
 
+bool AccountingOverviewViewModel::selectCalendarDate(const QString &dateText)
+{
+    const QString normalized = dateText.trimmed();
+    const QDate date = QDate::fromString(normalized, Qt::ISODate);
+    if (!date.isValid()
+        || date.year() != selectedYear()
+        || date.month() != selectedMonth()) {
+        setError(QStringLiteral("所选日期不在当前月份"));
+        return false;
+    }
+
+    m_selectedCalendarDate = normalized;
+    m_dailyTransactions.setLocalDateFilter(normalized);
+    clearError();
+    emit transactionFiltersChanged();
+    return true;
+}
+
+void AccountingOverviewViewModel::clearCalendarDate()
+{
+    if (m_selectedCalendarDate.isEmpty()) {
+        return;
+    }
+    m_selectedCalendarDate.clear();
+    m_dailyTransactions.setLocalDateFilter(noCalendarDateFilter());
+    emit transactionFiltersChanged();
+}
+
 void AccountingOverviewViewModel::changeMonth(const QDate &month)
 {
     if (!month.isValid()) {
@@ -316,6 +374,8 @@ void AccountingOverviewViewModel::changeMonth(const QDate &month)
     }
 
     m_selectedMonth = QDate(month.year(), month.month(), 1);
+    m_selectedCalendarDate.clear();
+    m_dailyTransactions.setLocalDateFilter(noCalendarDateFilter());
     emit selectedMonthChanged();
     load();
 }
@@ -334,6 +394,8 @@ bool AccountingOverviewViewModel::applyTimeZone(const QTimeZone &timeZone)
 
     m_timeZone = timeZone;
     m_transactions.setTimeZone(m_timeZone);
+    m_selectedCalendarDate.clear();
+    m_dailyTransactions.setLocalDateFilter(noCalendarDateFilter());
     emit timeZoneChanged();
     load();
     return true;
@@ -394,6 +456,53 @@ void AccountingOverviewViewModel::rebuildFilterOptions(
             m_filteredTransactions.categoryIdFilter(),
             m_filteredTransactions.typeFilter())) {
         m_filteredTransactions.setCategoryIdFilter({});
+    }
+}
+
+void AccountingOverviewViewModel::rebuildCalendarDays(
+    const std::vector<MonthlyTransactionItem> &transactions)
+{
+    struct DaySummary
+    {
+        qint64 incomeCents{0};
+        qint64 expenseCents{0};
+        int transactionCount{0};
+    };
+
+    QHash<QDate, DaySummary> summaries;
+    for (const MonthlyTransactionItem &item : transactions) {
+        const QDate localDate = item.transaction.occurredAt()
+                                    .toTimeZone(m_timeZone)
+                                    .date();
+        DaySummary &summary = summaries[localDate];
+        if (item.transaction.type() == TransactionType::Income) {
+            summary.incomeCents += item.transaction.amount().cents();
+        } else {
+            summary.expenseCents += item.transaction.amount().cents();
+        }
+        ++summary.transactionCount;
+    }
+
+    m_calendarDays.clear();
+    m_calendarDays.reserve(42);
+    const QDate firstDay(selectedYear(), selectedMonth(), 1);
+    const QDate gridStart = firstDay.addDays(-(firstDay.dayOfWeek() - 1));
+    const QDate today = QDate::currentDate();
+    for (int index = 0; index < 42; ++index) {
+        const QDate date = gridStart.addDays(index);
+        const DaySummary summary = summaries.value(date);
+        m_calendarDays.push_back(QVariantMap{
+            {QStringLiteral("dateText"), date.toString(Qt::ISODate)},
+            {QStringLiteral("day"), date.day()},
+            {QStringLiteral("inCurrentMonth"),
+             date.year() == selectedYear() && date.month() == selectedMonth()},
+            {QStringLiteral("isToday"), date == today},
+            {QStringLiteral("incomeText"),
+             formatMoney(Money::fromCents(summary.incomeCents))},
+            {QStringLiteral("expenseText"),
+             formatMoney(Money::fromCents(summary.expenseCents))},
+            {QStringLiteral("transactionCount"), summary.transactionCount},
+        });
     }
 }
 

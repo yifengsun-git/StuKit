@@ -156,6 +156,24 @@ add_test(
     COMMAND StuKitCreateTransactionTest
 )
 
+add_executable(StuKitTransferFundsTest
+    TransferFundsTest.cpp
+    support/InMemoryAccountRepository.h
+    support/InMemoryCategoryRepository.h
+    support/InMemoryTransactionRepository.h
+)
+
+target_link_libraries(StuKitTransferFundsTest
+    PRIVATE
+        Qt6::Test
+        StuKitAccountingApplication
+)
+
+add_test(
+    NAME accounting.transfer_funds
+    COMMAND StuKitTransferFundsTest
+)
+
 add_executable(StuKitManageTransactionTest
     ManageTransactionTest.cpp
     support/InMemoryAccountRepository.h
@@ -363,4 +381,22 @@ target_link_libraries(StuKitCreateTransactionPresentationTest
 add_test(
     NAME accounting.create_transaction_presentation
     COMMAND StuKitCreateTransactionPresentationTest
+)
+
+add_executable(StuKitTransferFundsPresentationTest
+    TransferFundsPresentationTest.cpp
+    support/InMemoryAccountRepository.h
+    support/InMemoryCategoryRepository.h
+    support/InMemoryTransactionRepository.h
+)
+
+target_link_libraries(StuKitTransferFundsPresentationTest
+    PRIVATE
+        Qt6::Test
+        StuKitAccountingPresentation
+)
+
+add_test(
+    NAME accounting.transfer_funds_presentation
+    COMMAND StuKitTransferFundsPresentationTest
 )

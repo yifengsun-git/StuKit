@@ -23,6 +23,16 @@ public:
     virtual ~ITransactionRepository() = default;
 
     [[nodiscard]] virtual bool save(const Transaction &transaction) = 0;
+    [[nodiscard]] virtual bool saveAll(
+        const std::vector<Transaction> &transactions)
+    {
+        for (const Transaction &transaction : transactions) {
+            if (!save(transaction)) {
+                return false;
+            }
+        }
+        return true;
+    }
     [[nodiscard]] virtual std::optional<Transaction> findById(
         const QUuid &id) const = 0;
     [[nodiscard]] virtual RemoveTransactionResult removeById(

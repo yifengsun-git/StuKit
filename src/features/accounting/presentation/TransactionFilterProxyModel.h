@@ -24,12 +24,14 @@ public:
     [[nodiscard]] const QString &accountIdFilter() const noexcept;
     [[nodiscard]] const QString &categoryIdFilter() const noexcept;
     [[nodiscard]] const QString &searchText() const noexcept;
+    [[nodiscard]] const QString &localDateFilter() const noexcept;
     [[nodiscard]] bool hasActiveFilters() const noexcept;
 
     void setTypeFilter(TypeFilter filter);
     void setAccountIdFilter(QString accountId);
     void setCategoryIdFilter(QString categoryId);
     void setSearchText(QString searchText);
+    void setLocalDateFilter(QString localDate);
     void clearFilters();
 
 protected:
@@ -42,6 +44,7 @@ private:
     QString m_accountIdFilter;
     QString m_categoryIdFilter;
     QString m_searchText;
+    QString m_localDateFilter;
 };
 
 } // namespace stukit::accounting::presentation

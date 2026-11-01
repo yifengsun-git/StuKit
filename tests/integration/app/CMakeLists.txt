@@ -44,3 +44,18 @@ add_test(
     NAME app.application_storage
     COMMAND StuKitApplicationStorageIntegrationTest
 )
+
+add_executable(StuKitAppearanceSettingsViewModelTest
+    AppearanceSettingsViewModelTest.cpp
+)
+
+target_link_libraries(StuKitAppearanceSettingsViewModelTest
+    PRIVATE
+        Qt6::Test
+        StuKitAppCore
+)
+
+add_test(
+    NAME app.appearance_settings
+    COMMAND StuKitAppearanceSettingsViewModelTest
+)

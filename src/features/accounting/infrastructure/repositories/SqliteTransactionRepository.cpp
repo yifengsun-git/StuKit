@@ -89,6 +89,39 @@ bool SqliteTransactionRepository::save(const Transaction &transaction)
     return true;
 }
 
+bool SqliteTransactionRepository::saveAll(
+    const std::vector<Transaction> &transactions)
+{
+    m_lastError.clear();
+    if (transactions.empty()) {
+        return true;
+    }
+    if (!m_database.isOpen()) {
+        m_lastError = QStringLiteral("Database is not open");
+        return false;
+    }
+    if (!m_database.transaction()) {
+        m_lastError = m_database.lastError().text();
+        return false;
+    }
+
+    for (const Transaction &transaction : transactions) {
+        if (!save(transaction)) {
+            const QString saveError = m_lastError;
+            m_database.rollback();
+            m_lastError = saveError;
+            return false;
+        }
+    }
+
+    if (!m_database.commit()) {
+        m_lastError = m_database.lastError().text();
+        m_database.rollback();
+        return false;
+    }
+    return true;
+}
+
 std::optional<Transaction> SqliteTransactionRepository::findById(
     const QUuid &id) const
 {

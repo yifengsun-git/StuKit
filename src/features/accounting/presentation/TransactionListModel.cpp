@@ -58,6 +58,11 @@ QVariant TransactionListModel::data(const QModelIndex &index, int role) const
         return transaction.occurredAt()
             .toTimeZone(m_timeZone)
             .toString(QStringLiteral("yyyy-MM-dd HH:mm"));
+    case LocalDateTextRole:
+        return transaction.occurredAt()
+            .toTimeZone(m_timeZone)
+            .date()
+            .toString(Qt::ISODate);
     default:
         return {};
     }
@@ -78,6 +83,7 @@ QHash<int, QByteArray> TransactionListModel::roleNames() const
         {CategoryNameRole, QByteArrayLiteral("categoryName")},
         {TypeTextRole, QByteArrayLiteral("typeText")},
         {FullOccurredAtTextRole, QByteArrayLiteral("fullOccurredAtText")},
+        {LocalDateTextRole, QByteArrayLiteral("localDateText")},
     };
 }
 
@@ -107,7 +113,7 @@ void TransactionListModel::setTimeZone(QTimeZone timeZone)
 
     emit dataChanged(
         index(0), index(rowCount() - 1),
-        {OccurredAtTextRole, FullOccurredAtTextRole});
+        {OccurredAtTextRole, FullOccurredAtTextRole, LocalDateTextRole});
 }
 
 } // namespace stukit::accounting::presentation

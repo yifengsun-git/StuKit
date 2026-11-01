@@ -8,6 +8,7 @@
 #include <QSignalSpy>
 #include <QTest>
 
+#include <algorithm>
 #include <limits>
 
 using namespace stukit::accounting;
@@ -123,6 +124,7 @@ private slots:
     void exposesReadableTransactionRoles();
     void loadsMonthlyOverview();
     void filtersWithoutChangingMonthlyTotals();
+    void buildsCalendarAndFiltersOneLocalDay();
     void navigatesAndReloadsMonths();
     void appliesCustomFixedOffset();
     void rejectsInvalidTimeZone();
@@ -179,6 +181,9 @@ void AccountingPresentationTest::exposesReadableTransactionRoles()
     QCOMPARE(model.data(
                  index, TransactionListModel::FullOccurredAtTextRole).toString(),
              QStringLiteral("2026-10-10 10:30"));
+    QCOMPARE(model.data(
+                 index, TransactionListModel::LocalDateTextRole).toString(),
+             QStringLiteral("2026-10-10"));
     QCOMPARE(model.data(index, TransactionListModel::NoteRole).toString(),
              QStringLiteral("十月工资"));
     QCOMPARE(model.roleNames().value(TransactionListModel::CategoryNameRole),
@@ -312,6 +317,51 @@ void AccountingPresentationTest::navigatesAndReloadsMonths()
     viewModel.showPreviousMonth();
     QCOMPARE(viewModel.monthLabel(), QStringLiteral("2026-10"));
     QCOMPARE(viewModel.totalIncomeText(), QStringLiteral("1.00"));
+}
+
+void AccountingPresentationTest::buildsCalendarAndFiltersOneLocalDay()
+{
+    Fixture fixture;
+    QVERIFY(fixture.transactions.save(fixture.transaction(
+        TransactionType::Income, 7500,
+        QStringLiteral("2026-10-10T02:00:00.000Z"))));
+    QVERIFY(fixture.transactions.save(fixture.transaction(
+        TransactionType::Expense, 1250,
+        QStringLiteral("2026-10-10T12:00:00.000Z"))));
+    QVERIFY(fixture.transactions.save(fixture.transaction(
+        TransactionType::Expense, 300,
+        QStringLiteral("2026-10-11T02:00:00.000Z"))));
+
+    AccountingOverviewViewModel viewModel(
+        fixture.useCase, utcPlusEight(), QDate(2026, 10, 1));
+    viewModel.load();
+
+    QCOMPARE(viewModel.calendarDays().size(), 42);
+    const auto day = std::ranges::find_if(
+        viewModel.calendarDays(),
+        [](const QVariant &value) {
+            return value.toMap().value(QStringLiteral("dateText")).toString()
+                == QStringLiteral("2026-10-10");
+        });
+    QVERIFY(day != viewModel.calendarDays().cend());
+    const QVariantMap summary = day->toMap();
+    QCOMPARE(summary.value(QStringLiteral("incomeText")).toString(),
+             QStringLiteral("75.00"));
+    QCOMPARE(summary.value(QStringLiteral("expenseText")).toString(),
+             QStringLiteral("12.50"));
+    QCOMPARE(summary.value(QStringLiteral("transactionCount")).toInt(), 2);
+
+    QVERIFY(viewModel.selectCalendarDate(QStringLiteral("2026-10-10")));
+    QCOMPARE(viewModel.selectedCalendarDate(), QStringLiteral("2026-10-10"));
+    QCOMPARE(viewModel.dailyTransactions()->rowCount(), 2);
+    QCOMPARE(viewModel.filteredTransactionCount(), 3);
+    QVERIFY(!viewModel.hasActiveTransactionFilters());
+
+    viewModel.clearCalendarDate();
+    QVERIFY(viewModel.selectedCalendarDate().isEmpty());
+    QCOMPARE(viewModel.dailyTransactions()->rowCount(), 0);
+    QCOMPARE(viewModel.filteredTransactionCount(), 3);
+    QVERIFY(!viewModel.selectCalendarDate(QStringLiteral("2026-11-01")));
 }
 
 void AccountingPresentationTest::appliesCustomFixedOffset()

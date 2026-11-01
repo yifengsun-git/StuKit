@@ -31,12 +31,15 @@ class AccountingOverviewViewModel final : public QObject
     Q_PROPERTY(bool hasError READ hasError NOTIFY errorChanged)
     Q_PROPERTY(QString errorMessage READ errorMessage NOTIFY errorChanged)
     Q_PROPERTY(QAbstractItemModel *transactions READ transactions CONSTANT)
+    Q_PROPERTY(QAbstractItemModel *dailyTransactions READ dailyTransactions CONSTANT)
     Q_PROPERTY(int typeFilter READ typeFilter WRITE setTypeFilter NOTIFY transactionFiltersChanged)
     Q_PROPERTY(QString accountIdFilter READ accountIdFilter WRITE setAccountIdFilter NOTIFY transactionFiltersChanged)
     Q_PROPERTY(QString categoryIdFilter READ categoryIdFilter WRITE setCategoryIdFilter NOTIFY transactionFiltersChanged)
     Q_PROPERTY(QString searchText READ searchText WRITE setSearchText NOTIFY transactionFiltersChanged)
     Q_PROPERTY(QVariantList accountFilterOptions READ accountFilterOptions NOTIFY transactionFiltersChanged)
     Q_PROPERTY(QVariantList categoryFilterOptions READ categoryFilterOptions NOTIFY transactionFiltersChanged)
+    Q_PROPERTY(QVariantList calendarDays READ calendarDays NOTIFY overviewChanged)
+    Q_PROPERTY(QString selectedCalendarDate READ selectedCalendarDate NOTIFY transactionFiltersChanged)
     Q_PROPERTY(int filteredTransactionCount READ filteredTransactionCount NOTIFY transactionFiltersChanged)
     Q_PROPERTY(bool hasActiveTransactionFilters READ hasActiveTransactionFilters NOTIFY transactionFiltersChanged)
     Q_PROPERTY(bool noMatchingTransactions READ noMatchingTransactions NOTIFY transactionFiltersChanged)
@@ -61,12 +64,15 @@ public:
     [[nodiscard]] bool hasError() const noexcept;
     [[nodiscard]] const QString &errorMessage() const noexcept;
     [[nodiscard]] QAbstractItemModel *transactions() noexcept;
+    [[nodiscard]] QAbstractItemModel *dailyTransactions() noexcept;
     [[nodiscard]] int typeFilter() const noexcept;
     [[nodiscard]] const QString &accountIdFilter() const noexcept;
     [[nodiscard]] const QString &categoryIdFilter() const noexcept;
     [[nodiscard]] const QString &searchText() const noexcept;
     [[nodiscard]] QVariantList accountFilterOptions() const;
     [[nodiscard]] QVariantList categoryFilterOptions() const;
+    [[nodiscard]] const QVariantList &calendarDays() const noexcept;
+    [[nodiscard]] const QString &selectedCalendarDate() const noexcept;
     [[nodiscard]] int filteredTransactionCount() const noexcept;
     [[nodiscard]] bool hasActiveTransactionFilters() const noexcept;
     [[nodiscard]] bool noMatchingTransactions() const noexcept;
@@ -82,6 +88,8 @@ public:
     Q_INVOKABLE bool selectTimeZone(const QString &timeZoneId);
     Q_INVOKABLE bool selectFixedOffsetMinutes(int offsetMinutes);
     Q_INVOKABLE void clearTransactionFilters();
+    Q_INVOKABLE bool selectCalendarDate(const QString &dateText);
+    Q_INVOKABLE void clearCalendarDate();
 
 signals:
     void selectedMonthChanged();
@@ -108,6 +116,8 @@ private:
     bool applyTimeZone(const QTimeZone &timeZone);
     void rebuildFilterOptions(
         const std::vector<MonthlyTransactionItem> &transactions);
+    void rebuildCalendarDays(
+        const std::vector<MonthlyTransactionItem> &transactions);
     [[nodiscard]] bool categoryMatchesType(
         const QString &categoryId,
         TransactionFilterProxyModel::TypeFilter filter) const;
@@ -119,8 +129,11 @@ private:
     QDate m_selectedMonth;
     TransactionListModel m_transactions;
     TransactionFilterProxyModel m_filteredTransactions;
+    TransactionFilterProxyModel m_dailyTransactions;
     std::vector<NamedFilterOption> m_accountFilterOptions;
     std::vector<CategoryFilterOption> m_categoryFilterOptions;
+    QVariantList m_calendarDays;
+    QString m_selectedCalendarDate;
     QString m_totalIncomeText{QStringLiteral("0.00")};
     QString m_totalExpenseText{QStringLiteral("0.00")};
     QString m_balanceText{QStringLiteral("0.00")};

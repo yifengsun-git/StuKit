@@ -61,13 +61,21 @@ LoadPeriodDefinitionsResult SqlitePeriodDefinitionService::load() const
 PeriodDefinitionError SqlitePeriodDefinitionService::save(
     PeriodDefinition definition)
 {
-    definition.name = definition.name.trimmed();
-    definition.startTime = definition.startTime.trimmed();
-    definition.endTime = definition.endTime.trimmed();
-    if (!isValid(definition)) {
-        return PeriodDefinitionError::InvalidInput;
+    return saveAll({std::move(definition)});
+}
+
+PeriodDefinitionError SqlitePeriodDefinitionService::saveAll(
+    std::vector<PeriodDefinition> definitions)
+{
+    for (PeriodDefinition &definition : definitions) {
+        definition.name = definition.name.trimmed();
+        definition.startTime = definition.startTime.trimmed();
+        definition.endTime = definition.endTime.trimmed();
+        if (!isValid(definition)) {
+            return PeriodDefinitionError::InvalidInput;
+        }
     }
-    if (!m_database.isOpen()) {
+    if (!m_database.isOpen() || !m_database.transaction()) {
         return PeriodDefinitionError::StorageFailure;
     }
 
@@ -79,14 +87,22 @@ PeriodDefinitionError SqlitePeriodDefinitionService::save(
         "ON CONFLICT(period_number) DO UPDATE SET "
         "name = excluded.name, start_time = excluded.start_time, "
         "end_time = excluded.end_time"));
-    query.bindValue(QStringLiteral(":periodNumber"),
-                    definition.periodNumber);
-    query.bindValue(QStringLiteral(":name"), definition.name);
-    query.bindValue(QStringLiteral(":startTime"), definition.startTime);
-    query.bindValue(QStringLiteral(":endTime"), definition.endTime);
-    return query.exec()
-        ? PeriodDefinitionError::None
-        : PeriodDefinitionError::StorageFailure;
+    for (const PeriodDefinition &definition : definitions) {
+        query.bindValue(QStringLiteral(":periodNumber"),
+                        definition.periodNumber);
+        query.bindValue(QStringLiteral(":name"), definition.name);
+        query.bindValue(QStringLiteral(":startTime"), definition.startTime);
+        query.bindValue(QStringLiteral(":endTime"), definition.endTime);
+        if (!query.exec()) {
+            m_database.rollback();
+            return PeriodDefinitionError::StorageFailure;
+        }
+    }
+    if (!m_database.commit()) {
+        m_database.rollback();
+        return PeriodDefinitionError::StorageFailure;
+    }
+    return PeriodDefinitionError::None;
 }
 
 } // namespace stukit::schedule

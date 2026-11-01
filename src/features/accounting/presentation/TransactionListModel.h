@@ -27,7 +27,8 @@ public:
         AccountNameRole,
         CategoryNameRole,
         TypeTextRole,
-        FullOccurredAtTextRole
+        FullOccurredAtTextRole,
+        LocalDateTextRole
     };
     Q_ENUM(Role)
 

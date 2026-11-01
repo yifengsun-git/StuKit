@@ -16,10 +16,12 @@ Item {
     property var periodDefinitions: []
     property real viewportWidth: width
     property real viewportHeight: height
+    property bool periodSettingsExpanded: false
 
     signal requestManageCourses()
 
     property string localMessage: ""
+    property bool localMessageIsError: true
 
     objectName: "scheduleGridEditor"
     implicitHeight: editorColumn.implicitHeight
@@ -36,6 +38,7 @@ Item {
 
     function openNewMeeting(weekday, startPeriod) {
         root.localMessage = ""
+        root.localMessageIsError = true
         root.viewModel.clearMessages()
         if (!root.viewModel.hasCourses
                 || root.viewModel.selectedCourseId.length === 0) {
@@ -63,6 +66,7 @@ Item {
 
     function openExistingMeeting(details) {
         root.localMessage = ""
+        root.localMessageIsError = true
         root.viewModel.clearMessages()
         if (!root.viewModel.selectCourse(details.courseId))
             return
@@ -74,6 +78,19 @@ Item {
         endPeriodField.value = details.endPeriod
         meetingDialog.setSelectedWeeks(details.activeWeeks)
         meetingDialog.open()
+    }
+
+    function savePeriodSettings() {
+        const definitions = []
+        for (let index = 0; index < periodDefinitionRepeater.count; ++index) {
+            const editor = periodDefinitionRepeater.itemAt(index)
+            if (editor)
+                definitions.push(editor.definition())
+        }
+        if (root.viewModel.savePeriodDefinitions(definitions)) {
+            root.localMessage = qsTr("节次时间已保存")
+            root.localMessageIsError = false
+        }
     }
 
     ColumnLayout {
@@ -188,10 +205,148 @@ Item {
                         : root.viewModel && root.viewModel.hasError
                             ? root.viewModel.errorMessage
                             : root.viewModel ? root.viewModel.importMessage : ""
-                    color: root.localMessage.length > 0
+                    color: (root.localMessage.length > 0
+                                && root.localMessageIsError)
                             || (root.viewModel && root.viewModel.hasError)
                         ? AppTheme.errorColor : AppTheme.primaryColor
                     wrapMode: Text.WordWrap
+                }
+            }
+        }
+
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: periodSettingsContent.implicitHeight
+                + AppTheme.spacingMedium * 2
+            radius: AppTheme.radiusMedium
+            color: AppTheme.surfaceColor
+            border.color: root.periodSettingsExpanded
+                ? AppTheme.primaryColor : AppTheme.borderColor
+
+            ColumnLayout {
+                id: periodSettingsContent
+                anchors.fill: parent
+                anchors.margins: AppTheme.spacingMedium
+                spacing: AppTheme.spacingSmall
+
+                RowLayout {
+                    Layout.fillWidth: true
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 2
+
+                        Label {
+                            text: qsTr("节次时间")
+                            color: AppTheme.textPrimaryColor
+                            font.bold: true
+                            font.pixelSize: AppTheme.fontSizeSubtitle
+                        }
+                        Label {
+                            Layout.fillWidth: true
+                            text: qsTr("在这里统一修改当前课表显示的节次名称和时间。")
+                            color: AppTheme.textSecondaryColor
+                            wrapMode: Text.WordWrap
+                        }
+                    }
+
+                    AppButton {
+                        objectName: "scheduleTogglePeriodSettingsButton"
+                        text: root.periodSettingsExpanded
+                            ? qsTr("收起") : qsTr("修改节次时间")
+                        highlighted: root.periodSettingsExpanded
+                        onClicked: root.periodSettingsExpanded
+                            = !root.periodSettingsExpanded
+                    }
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    visible: root.periodSettingsExpanded
+                    spacing: AppTheme.spacingSmall
+
+                    Repeater {
+                        id: periodDefinitionRepeater
+                        model: Math.min(
+                            root.periodCount,
+                            root.periodDefinitions
+                                ? root.periodDefinitions.length : 0)
+
+                        Rectangle {
+                            id: periodEditor
+                            required property int index
+                            readonly property var periodData:
+                                root.periodDefinitions[index]
+
+                            function definition() {
+                                return {
+                                    "periodNumber": periodData.periodNumber,
+                                    "name": periodNameField.text,
+                                    "startTime": periodStartField.text,
+                                    "endTime": periodEndField.text
+                                }
+                            }
+
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: periodEditorLayout.implicitHeight
+                                + AppTheme.spacingSmall * 2
+                            radius: AppTheme.radiusSmall
+                            color: AppTheme.surfaceVariantColor
+
+                            GridLayout {
+                                id: periodEditorLayout
+                                anchors.fill: parent
+                                anchors.margins: AppTheme.spacingSmall
+                                columns: root.compactLayout ? 1 : 4
+                                columnSpacing: AppTheme.spacingSmall
+                                rowSpacing: AppTheme.spacingExtraSmall
+
+                                Label {
+                                    text: qsTr("第 %1 节").arg(
+                                        periodEditor.periodData.periodNumber)
+                                    color: AppTheme.textSecondaryColor
+                                }
+                                AppTextField {
+                                    id: periodNameField
+                                    Layout.fillWidth: true
+                                    text: periodEditor.periodData.name
+                                    placeholderText: qsTr("节次名称")
+                                }
+                                AppTextField {
+                                    id: periodStartField
+                                    Layout.fillWidth: true
+                                    text: periodEditor.periodData.startTime
+                                    placeholderText: qsTr("08:00")
+                                    inputMethodHints: Qt.ImhTime
+                                }
+                                AppTextField {
+                                    id: periodEndField
+                                    Layout.fillWidth: true
+                                    text: periodEditor.periodData.endTime
+                                    placeholderText: qsTr("08:45")
+                                    inputMethodHints: Qt.ImhTime
+                                }
+                            }
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+
+                        Label {
+                            Layout.fillWidth: true
+                            text: qsTr("时间格式为 HH:mm，结束时间必须晚于开始时间。")
+                            color: AppTheme.textSecondaryColor
+                            wrapMode: Text.WordWrap
+                        }
+
+                        AppButton {
+                            objectName: "scheduleSaveAllPeriodsButton"
+                            text: qsTr("保存全部节次时间")
+                            highlighted: true
+                            onClicked: root.savePeriodSettings()
+                        }
+                    }
                 }
             }
         }

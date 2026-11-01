@@ -353,6 +353,18 @@ void SchedulePresentationTest::managesTermsCoursesAndMeetings()
     viewModel.load();
     QVERIFY(!viewModel.hasTerms());
 
+    QVERIFY(!viewModel.saveTerm(
+        {},
+        QStringLiteral("日期错误"),
+        QStringLiteral("2026/09/07"),
+        18,
+        false));
+    QCOMPARE(
+        viewModel.errorMessage(),
+        QStringLiteral(
+            "学期开始日期格式无效，请使用 yyyy-MM-dd，例如 2026-09-07"));
+    QCOMPARE(viewModel.terms()->rowCount(), 0);
+
     QVERIFY(viewModel.saveTerm(
         {},
         QStringLiteral("2026 秋季学期"),

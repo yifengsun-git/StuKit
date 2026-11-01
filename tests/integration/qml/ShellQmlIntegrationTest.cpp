@@ -2,8 +2,12 @@
 #include <QDebug>
 #include <QQmlComponent>
 #include <QQmlEngine>
+#include <QQuickItem>
+#include <QQuickWindow>
 #include <QSignalSpy>
 #include <QTest>
+#include <QVariantList>
+#include <QVariantMap>
 
 #include <memory>
 
@@ -34,6 +38,65 @@ std::unique_ptr<QObject> createHomePage(
     return page;
 }
 
+std::unique_ptr<QObject> createAppearancePage(QQmlEngine &engine, qreal width)
+{
+    QQmlComponent component(&engine);
+    component.loadFromModule(
+        QStringLiteral("StuKitShellTest"),
+        QStringLiteral("AppearancePage"));
+    if (!component.isReady()) {
+        qWarning().noquote() << component.errorString();
+    }
+
+    const QVariantList themes{
+        QVariantMap{
+            {QStringLiteral("themeId"), QStringLiteral("default")},
+            {QStringLiteral("name"), QStringLiteral("默认")},
+            {QStringLiteral("description"), QStringLiteral("默认主题")},
+            {QStringLiteral("author"), QStringLiteral("StuKit")},
+            {QStringLiteral("version"), QStringLiteral("1.0.0")},
+            {QStringLiteral("builtIn"), true},
+            {QStringLiteral("primaryColor"), QStringLiteral("#2563EB")},
+            {QStringLiteral("backgroundColor"), QStringLiteral("#F3F4F6")},
+            {QStringLiteral("surfaceColor"), QStringLiteral("#FFFFFF")},
+        },
+        QVariantMap{
+            {QStringLiteral("themeId"), QStringLiteral("dark")},
+            {QStringLiteral("name"), QStringLiteral("深色")},
+            {QStringLiteral("description"), QStringLiteral("深色主题")},
+            {QStringLiteral("author"), QStringLiteral("StuKit")},
+            {QStringLiteral("version"), QStringLiteral("1.0.0")},
+            {QStringLiteral("builtIn"), true},
+            {QStringLiteral("primaryColor"), QStringLiteral("#60A5FA")},
+            {QStringLiteral("backgroundColor"), QStringLiteral("#111827")},
+            {QStringLiteral("surfaceColor"), QStringLiteral("#1F2937")},
+        },
+    };
+    const QVariantMap viewModel{
+        {QStringLiteral("themeId"), QStringLiteral("default")},
+        {QStringLiteral("themes"), themes},
+        {QStringLiteral("currentTheme"), themes.constFirst()},
+        {QStringLiteral("hasError"), false},
+        {QStringLiteral("errorMessage"), QString{}},
+        {QStringLiteral("statusMessage"), QString{}},
+        {QStringLiteral("hasPendingTheme"), false},
+        {QStringLiteral("pendingTheme"), QVariantMap{}},
+        {QStringLiteral("pendingThemeReplacesExisting"), false},
+    };
+    std::unique_ptr<QObject> page(component.createWithInitialProperties({
+        {QStringLiteral("viewModel"), viewModel},
+    }));
+    if (!page) {
+        qWarning().noquote() << component.errorString();
+        return {};
+    }
+
+    page->setProperty("width", width);
+    page->setProperty("height", 720);
+    QCoreApplication::processEvents();
+    return page;
+}
+
 } // namespace
 
 class ShellQmlIntegrationTest final : public QObject
@@ -43,6 +106,7 @@ class ShellQmlIntegrationTest final : public QObject
 private slots:
     void homePageAdaptsToCompactAndDesktopWidths();
     void featureCardsForwardNavigationRequests();
+    void appearancePageShowsAvailableThemes();
 };
 
 void ShellQmlIntegrationTest::homePageAdaptsToCompactAndDesktopWidths()
@@ -105,6 +169,33 @@ void ShellQmlIntegrationTest::featureCardsForwardNavigationRequests()
         QStringLiteral("weatherFeatureCard"));
     QVERIFY(weatherCard);
     QVERIFY(!weatherCard->property("visible").toBool());
+}
+
+void ShellQmlIntegrationTest::appearancePageShowsAvailableThemes()
+{
+    QQmlEngine engine;
+    QQuickWindow window;
+    auto page = createAppearancePage(engine, 960);
+    QVERIFY(page);
+    auto *pageItem = qobject_cast<QQuickItem *>(page.get());
+    QVERIFY(pageItem);
+    pageItem->setParentItem(window.contentItem());
+    window.resize(960, 720);
+    window.show();
+    QCoreApplication::processEvents();
+
+    QObject *themeRepeater = page->findChild<QObject *>(
+        QStringLiteral("appearanceThemeRepeater"));
+    QObject *importButton = page->findChild<QObject *>(
+        QStringLiteral("appearanceImportThemeButton"));
+    QVERIFY(themeRepeater);
+    QVERIFY(importButton);
+    QVERIFY(page->findChild<QObject *>(QStringLiteral("themePreviewPanel")));
+    QTRY_COMPARE(themeRepeater->property("count").toInt(), 2);
+    QCOMPARE(page->property("compactLayout").toBool(), false);
+
+    page->setProperty("width", 360);
+    QTRY_COMPARE(page->property("compactLayout").toBool(), true);
 }
 
 QTEST_MAIN(ShellQmlIntegrationTest)

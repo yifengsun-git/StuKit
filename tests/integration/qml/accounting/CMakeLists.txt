@@ -4,6 +4,8 @@ add_executable(StuKitAccountingHomeQmlIntegrationTest
 
 set(STUKIT_ACCOUNTING_HOME_TEST_QML_FILES
     ${CMAKE_SOURCE_DIR}/src/features/accounting/qml/AccountingHomePage.qml
+    ${CMAKE_SOURCE_DIR}/src/features/accounting/qml/components/AccountingCalendar.qml
+    ${CMAKE_SOURCE_DIR}/src/features/accounting/qml/components/TransactionListItem.qml
     ${CMAKE_SOURCE_DIR}/src/shared/qml/theme/AppTheme.qml
     ${CMAKE_SOURCE_DIR}/src/shared/qml/components/AppButton.qml
     ${CMAKE_SOURCE_DIR}/src/shared/qml/components/AppComboBox.qml
@@ -11,6 +13,7 @@ set(STUKIT_ACCOUNTING_HOME_TEST_QML_FILES
     ${CMAKE_SOURCE_DIR}/src/shared/qml/components/AppSectionCard.qml
     ${CMAKE_SOURCE_DIR}/src/shared/qml/components/AppTextArea.qml
     ${CMAKE_SOURCE_DIR}/src/shared/qml/components/AppTextField.qml
+    ${CMAKE_SOURCE_DIR}/src/shared/qml/components/DateTimePickerDialog.qml
 )
 
 foreach(QML_FILE IN LISTS STUKIT_ACCOUNTING_HOME_TEST_QML_FILES)

@@ -20,6 +20,7 @@ private slots:
     void init();
     void cleanup();
     void loadsDefaultsAndSavesCustomization();
+    void savesAllCustomizationsAtomically();
     void rejectsInvalidTimes();
 
 private:
@@ -89,6 +90,51 @@ void SqlitePeriodDefinitionServiceTest::rejectsInvalidTimes()
     QCOMPARE(
         std::get<std::vector<PeriodDefinition>>(m_service->load()).at(1).name,
         QStringLiteral("第 2 节"));
+}
+
+void SqlitePeriodDefinitionServiceTest::savesAllCustomizationsAtomically()
+{
+    QCOMPARE(
+        m_service->saveAll({
+            PeriodDefinition{
+                .periodNumber = 1,
+                .name = QStringLiteral("晨读"),
+                .startTime = QStringLiteral("07:20"),
+                .endTime = QStringLiteral("07:50"),
+            },
+            PeriodDefinition{
+                .periodNumber = 2,
+                .name = QStringLiteral("第一大节"),
+                .startTime = QStringLiteral("08:00"),
+                .endTime = QStringLiteral("08:45"),
+            },
+        }),
+        PeriodDefinitionError::None);
+
+    auto stored = std::get<std::vector<PeriodDefinition>>(m_service->load());
+    QCOMPARE(stored.at(0).name, QStringLiteral("晨读"));
+    QCOMPARE(stored.at(1).name, QStringLiteral("第一大节"));
+
+    QCOMPARE(
+        m_service->saveAll({
+            PeriodDefinition{
+                .periodNumber = 1,
+                .name = QStringLiteral("不应写入"),
+                .startTime = QStringLiteral("06:00"),
+                .endTime = QStringLiteral("06:30"),
+            },
+            PeriodDefinition{
+                .periodNumber = 2,
+                .name = QStringLiteral("错误时间"),
+                .startTime = QStringLiteral("09:00"),
+                .endTime = QStringLiteral("08:00"),
+            },
+        }),
+        PeriodDefinitionError::InvalidInput);
+
+    stored = std::get<std::vector<PeriodDefinition>>(m_service->load());
+    QCOMPARE(stored.at(0).name, QStringLiteral("晨读"));
+    QCOMPARE(stored.at(1).name, QStringLiteral("第一大节"));
 }
 
 QTEST_GUILESS_MAIN(SqlitePeriodDefinitionServiceTest)

@@ -82,6 +82,7 @@ void AccountingModuleTest::initializesDatabaseAndViewModel()
     QVERIFY(module.analyticsViewModel() != nullptr);
     QVERIFY(module.setupViewModel() != nullptr);
     QVERIFY(module.transactionEditorViewModel() != nullptr);
+    QVERIFY(module.transferEditorViewModel() != nullptr);
     QVERIFY(QFileInfo::exists(module.databasePath()));
     QVERIFY(module.databasePath().startsWith(directory.path()));
     QCOMPARE(module.overviewViewModel()->monthLabel(),
@@ -592,6 +593,7 @@ void AccountingModuleTest::rejectsEmptyApplicationDataDirectory()
     QVERIFY(module.analyticsViewModel() == nullptr);
     QVERIFY(module.setupViewModel() == nullptr);
     QVERIFY(module.transactionEditorViewModel() == nullptr);
+    QVERIFY(module.transferEditorViewModel() == nullptr);
     QVERIFY(!module.lastError().isEmpty());
 }
 

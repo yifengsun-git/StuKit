@@ -122,6 +122,8 @@ public:
         const QString &name,
         const QString &startTime,
         const QString &endTime);
+    Q_INVOKABLE bool savePeriodDefinitions(
+        const QVariantList &definitions);
     Q_INVOKABLE void clearMessages();
 
 signals:

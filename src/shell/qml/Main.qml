@@ -10,6 +10,8 @@ ApplicationWindow {
     required property var accountingAnalytics
     required property var accountingSetup
     required property var accountingTransactionEditor
+    required property var accountingTransferEditor
+    required property var appearanceSettings
     required property var dataMaintenance
     required property var scheduleOverview
     required property var scheduleManagement
@@ -20,6 +22,7 @@ ApplicationWindow {
     required property string scheduleStartupError
 
     property int currentPage: 0
+    property bool themeReady: false
     readonly property bool weatherFeatureEnabled: false
     readonly property bool shortLayout: height < 520
     readonly property bool compactLayout:
@@ -37,6 +40,8 @@ ApplicationWindow {
             return qsTr("待办")
         case 5:
             return qsTr("更新")
+        case 6:
+            return qsTr("外观与主题")
         default:
             return qsTr("首页")
         }
@@ -46,7 +51,7 @@ ApplicationWindow {
     height: 760
     minimumWidth: Qt.platform.os === "android" ? 0 : 360
     minimumHeight: Qt.platform.os === "android" ? 0 : 520
-    visible: true
+    visible: themeReady
     title: qsTr("StuKit")
     color: AppTheme.backgroundColor
 
@@ -81,6 +86,20 @@ ApplicationWindow {
         return false
     }
 
+    Component.onCompleted: {
+        AppTheme.applyTheme(
+            appearanceSettings ? appearanceSettings.currentTheme : null)
+        themeReady = true
+    }
+
+    Connections {
+        target: window.appearanceSettings
+
+        function onThemeIdChanged() {
+            AppTheme.applyTheme(window.appearanceSettings.currentTheme)
+        }
+    }
+
     header: ToolBar {
         topPadding: Math.max(
             AppTheme.spacingSmall,
@@ -101,6 +120,16 @@ ApplicationWindow {
 
         contentItem: RowLayout {
             spacing: AppTheme.spacingSmall
+
+            Image {
+                visible: window.compactLayout
+                    && source.toString().length > 0
+                Layout.preferredWidth: 24
+                Layout.preferredHeight: 24
+                source: AppTheme.navigationLogoUrl
+                fillMode: Image.PreserveAspectFit
+                asynchronous: true
+            }
 
             Label {
                 visible: window.compactLayout
@@ -131,6 +160,14 @@ ApplicationWindow {
                 text: qsTr("个人工具箱")
                 color: AppTheme.textSecondaryColor
                 font.pixelSize: AppTheme.fontSizeBody
+            }
+
+            AppButton {
+                objectName: "appearanceHeaderButton"
+                text: qsTr("外观")
+                flat: true
+                highlighted: window.currentPage === 6
+                onClicked: window.navigateTo(6)
             }
         }
     }
@@ -163,6 +200,7 @@ ApplicationWindow {
                 compact: true
                 selected: window.currentPage === 0
                 text: qsTr("首页")
+                iconSource: AppTheme.navigationIcon("home")
                 onClicked: window.navigateTo(0)
             }
 
@@ -172,6 +210,7 @@ ApplicationWindow {
                 compact: true
                 selected: window.currentPage === 1
                 text: qsTr("记账")
+                iconSource: AppTheme.navigationIcon("accounting")
                 onClicked: window.navigateTo(1)
             }
 
@@ -181,6 +220,7 @@ ApplicationWindow {
                 compact: true
                 selected: window.currentPage === 2
                 text: qsTr("课表")
+                iconSource: AppTheme.navigationIcon("schedule")
                 onClicked: window.navigateTo(2)
             }
 
@@ -190,6 +230,7 @@ ApplicationWindow {
                 compact: true
                 selected: window.currentPage === 4
                 text: qsTr("待办")
+                iconSource: AppTheme.navigationIcon("tasks")
                 onClicked: window.navigateTo(4)
             }
 
@@ -200,6 +241,7 @@ ApplicationWindow {
                 compact: true
                 selected: window.currentPage === 3
                 text: qsTr("天气")
+                iconSource: AppTheme.navigationIcon("weather")
                 onClicked: window.navigateTo(3)
             }
 
@@ -211,6 +253,7 @@ ApplicationWindow {
                 compact: true
                 selected: window.currentPage === 5
                 text: qsTr("更新")
+                iconSource: AppTheme.navigationIcon("update")
                 onClicked: window.navigateTo(5)
             }
         }
@@ -242,6 +285,16 @@ ApplicationWindow {
             contentItem: ColumnLayout {
                 spacing: AppTheme.spacingSmall
 
+                Image {
+                    visible: source.toString().length > 0
+                    Layout.preferredWidth: 56
+                    Layout.preferredHeight: 56
+                    Layout.alignment: Qt.AlignHCenter
+                    source: AppTheme.navigationLogoUrl
+                    fillMode: Image.PreserveAspectFit
+                    asynchronous: true
+                }
+
                 Label {
                     Layout.fillWidth: true
                     text: qsTr("StuKit")
@@ -263,6 +316,7 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     selected: window.currentPage === 0
                     text: qsTr("首页")
+                    iconSource: AppTheme.navigationIcon("home")
                     onClicked: window.navigateTo(0)
                 }
 
@@ -270,6 +324,7 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     selected: window.currentPage === 1
                     text: qsTr("记账本")
+                    iconSource: AppTheme.navigationIcon("accounting")
                     onClicked: window.navigateTo(1)
                 }
 
@@ -277,6 +332,7 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     selected: window.currentPage === 2
                     text: qsTr("课表")
+                    iconSource: AppTheme.navigationIcon("schedule")
                     onClicked: window.navigateTo(2)
                 }
 
@@ -284,6 +340,7 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     selected: window.currentPage === 4
                     text: qsTr("待办")
+                    iconSource: AppTheme.navigationIcon("tasks")
                     onClicked: window.navigateTo(4)
                 }
 
@@ -292,6 +349,7 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     selected: window.currentPage === 3
                     text: qsTr("天气")
+                    iconSource: AppTheme.navigationIcon("weather")
                     onClicked: window.navigateTo(3)
                 }
 
@@ -300,11 +358,21 @@ ApplicationWindow {
                 }
 
                 AppNavigationButton {
+                    objectName: "appearanceSideNavigation"
+                    Layout.fillWidth: true
+                    selected: window.currentPage === 6
+                    text: qsTr("外观与主题")
+                    iconSource: AppTheme.navigationIcon("appearance")
+                    onClicked: window.navigateTo(6)
+                }
+
+                AppNavigationButton {
                     visible: window.updateViewModel !== null
                         && window.updateViewModel.supported
                     Layout.fillWidth: true
                     selected: window.currentPage === 5
                     text: qsTr("检查更新")
+                    iconSource: AppTheme.navigationIcon("update")
                     onClicked: window.navigateTo(5)
                 }
 
@@ -318,70 +386,95 @@ ApplicationWindow {
             }
         }
 
-        StackLayout {
-            id: pageStack
-
+        Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.leftMargin: window.compactLayout
                 ? window.SafeArea.margins.left : 0
             Layout.rightMargin: window.SafeArea.margins.right
-            currentIndex: window.currentPage
-            focus: true
-
-            Keys.onBackPressed: event => {
-                event.accepted = window.handleBackRequest()
-            }
-
-            HomePage {
-                weatherFeatureVisible: window.weatherFeatureEnabled
-                onAccountingRequested: window.navigateTo(1)
-                onScheduleRequested: window.navigateTo(2)
-                onWeatherRequested: window.navigateTo(3)
-                onTasksRequested: window.navigateTo(4)
-            }
 
             StackLayout {
-                id: accountingContainer
+                id: pageStack
 
-                property bool analyticsVisible: false
-                currentIndex: analyticsVisible ? 1 : 0
+                anchors.fill: parent
+                currentIndex: window.currentPage
+                focus: true
 
-                AccountingHomePage {
-                    viewModel: window.accountingOverview
-                    balancesViewModel: window.accountingBalances
-                    setupViewModel: window.accountingSetup
-                    transactionViewModel: window.accountingTransactionEditor
-                    maintenanceViewModel: window.dataMaintenance
-                    startupError: window.accountingStartupError
-                    onAnalyticsRequested:
-                        accountingContainer.analyticsVisible = true
+                Keys.onBackPressed: event => {
+                    event.accepted = window.handleBackRequest()
                 }
 
-                AnalyticsHomePage {
-                    viewModel: window.accountingAnalytics
-                    startupError: window.accountingStartupError
-                    onBackRequested:
-                        accountingContainer.analyticsVisible = false
+                HomePage {
+                    weatherFeatureVisible: window.weatherFeatureEnabled
+                    onAccountingRequested: window.navigateTo(1)
+                    onScheduleRequested: window.navigateTo(2)
+                    onWeatherRequested: window.navigateTo(3)
+                    onTasksRequested: window.navigateTo(4)
+                }
+
+                StackLayout {
+                    id: accountingContainer
+
+                    property bool analyticsVisible: false
+                    currentIndex: analyticsVisible ? 1 : 0
+
+                    AccountingHomePage {
+                        viewModel: window.accountingOverview
+                        balancesViewModel: window.accountingBalances
+                        setupViewModel: window.accountingSetup
+                        transactionViewModel: window.accountingTransactionEditor
+                        transferViewModel: window.accountingTransferEditor
+                        maintenanceViewModel: window.dataMaintenance
+                        startupError: window.accountingStartupError
+                        onAnalyticsRequested:
+                            accountingContainer.analyticsVisible = true
+                    }
+
+                    AnalyticsHomePage {
+                        viewModel: window.accountingAnalytics
+                        startupError: window.accountingStartupError
+                        onBackRequested:
+                            accountingContainer.analyticsVisible = false
+                    }
+                }
+
+                ScheduleHomePage {
+                    viewModel: window.scheduleOverview
+                    managementViewModel: window.scheduleManagement
+                    startupError: window.scheduleStartupError
+                }
+
+                WeatherHomePage {
+                    viewModel: window.weatherViewModel
+                }
+
+                TasksHomePage {
+                    viewModel: window.tasksViewModel
+                }
+
+                UpdatePage {
+                    viewModel: window.updateViewModel
+                }
+
+                AppearancePage {
+                    viewModel: window.appearanceSettings
                 }
             }
 
-            ScheduleHomePage {
-                viewModel: window.scheduleOverview
-                managementViewModel: window.scheduleManagement
-                startupError: window.scheduleStartupError
-            }
-
-            WeatherHomePage {
-                viewModel: window.weatherViewModel
-            }
-
-            TasksHomePage {
-                viewModel: window.tasksViewModel
-            }
-
-            UpdatePage {
-                viewModel: window.updateViewModel
+            Image {
+                anchors.fill: parent
+                z: 1000
+                visible: source.toString().length > 0 && opacity > 0
+                enabled: false
+                source: AppTheme.backgroundImageUrl
+                opacity: AppTheme.backgroundImageOpacity
+                fillMode: AppTheme.backgroundImageFillMode === "contain"
+                    ? Image.PreserveAspectFit
+                    : (AppTheme.backgroundImageFillMode === "tile"
+                        ? Image.Tile : Image.PreserveAspectCrop)
+                asynchronous: true
+                cache: true
+                mipmap: true
             }
         }
     }

@@ -15,6 +15,8 @@ public:
     [[nodiscard]] LoadPeriodDefinitionsResult load() const override;
     [[nodiscard]] PeriodDefinitionError save(
         PeriodDefinition definition) override;
+    [[nodiscard]] PeriodDefinitionError saveAll(
+        std::vector<PeriodDefinition> definitions) override;
 
 private:
     QSqlDatabase m_database;

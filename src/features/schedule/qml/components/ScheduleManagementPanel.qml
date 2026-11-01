@@ -286,108 +286,6 @@ Item {
                 }
             }
 
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: periodSection.implicitHeight
-                    + AppTheme.spacingMedium * 2
-                radius: AppTheme.radiusMedium
-                color: AppTheme.surfaceColor
-                border.color: AppTheme.borderColor
-
-                ColumnLayout {
-                    id: periodSection
-                    anchors.fill: parent
-                    anchors.margins: AppTheme.spacingMedium
-                    spacing: AppTheme.spacingSmall
-
-                    Label {
-                        Layout.fillWidth: true
-                        text: qsTr("节次时间")
-                        color: AppTheme.textPrimaryColor
-                        font.bold: true
-                        font.pixelSize: AppTheme.fontSizeSubtitle
-                    }
-
-                    Label {
-                        Layout.fillWidth: true
-                        text: qsTr("自定义名称和起止时间只影响显示；课程冲突仍按节次编号判断。")
-                        color: AppTheme.textSecondaryColor
-                        wrapMode: Text.WordWrap
-                    }
-
-                    Repeater {
-                        model: root.viewModel
-                            ? root.viewModel.periodDefinitions : []
-
-                        Rectangle {
-                            id: periodDelegate
-                            required property var modelData
-
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: periodEditor.implicitHeight
-                                + AppTheme.spacingSmall * 2
-                            radius: AppTheme.radiusSmall
-                            color: AppTheme.surfaceVariantColor
-
-                            GridLayout {
-                                id: periodEditor
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.verticalCenter: parent.verticalCenter
-                                anchors.margins: AppTheme.spacingSmall
-                                columns: root.compactLayout ? 1 : 2
-                                rowSpacing: AppTheme.spacingExtraSmall
-                                columnSpacing: AppTheme.spacingSmall
-
-                                Label {
-                                    text: qsTr("第 %1 节名称").arg(
-                                        periodDelegate.modelData.periodNumber)
-                                    color: AppTheme.textSecondaryColor
-                                }
-                                AppTextField {
-                                    id: periodNameField
-                                    Layout.fillWidth: true
-                                    text: periodDelegate.modelData.name
-                                    placeholderText: qsTr("例如 第 1 节")
-                                }
-
-                                Label {
-                                    text: qsTr("起止时间")
-                                    color: AppTheme.textSecondaryColor
-                                }
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    AppTextField {
-                                        id: periodStartField
-                                        Layout.fillWidth: true
-                                        text: periodDelegate.modelData.startTime
-                                        placeholderText: qsTr("08:00")
-                                        inputMethodHints: Qt.ImhTime
-                                    }
-                                    Label { text: "—" }
-                                    AppTextField {
-                                        id: periodEndField
-                                        Layout.fillWidth: true
-                                        text: periodDelegate.modelData.endTime
-                                        placeholderText: qsTr("08:45")
-                                        inputMethodHints: Qt.ImhTime
-                                    }
-                                    AppButton {
-                                        objectName: "scheduleSavePeriodButton"
-                                        text: qsTr("保存")
-                                        onClicked: root.viewModel.savePeriodDefinition(
-                                            periodDelegate.modelData.periodNumber,
-                                            periodNameField.text,
-                                            periodStartField.text,
-                                            periodEndField.text)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
             Label {
                 Layout.fillWidth: true
                 visible: root.viewModel && root.viewModel.hasError
@@ -500,9 +398,28 @@ Item {
                                 termWeeksField.value,
                                 termDialog.archived))
                             termDialog.close()
+                        else
+                            termSaveErrorDialog.open()
                     }
                 }
             }
+        }
+    }
+
+    AppDialog {
+        id: termSaveErrorDialog
+        objectName: "scheduleTermSaveErrorDialog"
+        parent: Overlay.overlay
+        preferredWidth: 420
+        title: qsTr("无法保存学期")
+        standardButtons: Dialog.Ok
+
+        Label {
+            width: parent.width
+            text: root.viewModel ? root.viewModel.errorMessage
+                                 : qsTr("学期信息无效")
+            color: AppTheme.errorColor
+            wrapMode: Text.WordWrap
         }
     }
 

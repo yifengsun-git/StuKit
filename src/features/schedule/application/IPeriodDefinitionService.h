@@ -33,6 +33,8 @@ public:
     [[nodiscard]] virtual LoadPeriodDefinitionsResult load() const = 0;
     [[nodiscard]] virtual PeriodDefinitionError save(
         PeriodDefinition definition) = 0;
+    [[nodiscard]] virtual PeriodDefinitionError saveAll(
+        std::vector<PeriodDefinition> definitions) = 0;
 };
 
 } // namespace stukit::schedule

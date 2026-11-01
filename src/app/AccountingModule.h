@@ -20,6 +20,7 @@ class UpdateAccount;
 class UpdateCategory;
 class DeleteAccountingSetupItem;
 class CreateTransaction;
+class TransferFunds;
 class DeleteTransaction;
 class GetTransaction;
 class GetTransactionExportData;
@@ -36,6 +37,7 @@ class AccountingAnalyticsViewModel;
 class AccountingOverviewViewModel;
 class AccountingSetupViewModel;
 class CreateTransactionViewModel;
+class TransferFundsViewModel;
 }
 } // namespace stukit::accounting
 
@@ -76,6 +78,8 @@ public:
     setupViewModel() const noexcept;
     [[nodiscard]] accounting::presentation::CreateTransactionViewModel *
     transactionEditorViewModel() const noexcept;
+    [[nodiscard]] accounting::presentation::TransferFundsViewModel *
+    transferEditorViewModel() const noexcept;
     [[nodiscard]] ScheduleModule *scheduleModule() const noexcept;
     [[nodiscard]] TaskModule *taskModule() const noexcept;
     [[nodiscard]] const QString &databasePath() const noexcept;
@@ -112,6 +116,7 @@ private:
     std::unique_ptr<accounting::DeleteAccountingSetupItem>
         m_deleteAccountingSetupItem;
     std::unique_ptr<accounting::CreateTransaction> m_createTransaction;
+    std::unique_ptr<accounting::TransferFunds> m_transferFunds;
     std::unique_ptr<accounting::UpdateTransaction> m_updateTransaction;
     std::unique_ptr<accounting::DeleteTransaction> m_deleteTransaction;
     std::unique_ptr<accounting::GetTransaction> m_getTransaction;
@@ -127,6 +132,8 @@ private:
         m_setupViewModel;
     std::unique_ptr<accounting::presentation::CreateTransactionViewModel>
         m_transactionEditorViewModel;
+    std::unique_ptr<accounting::presentation::TransferFundsViewModel>
+        m_transferEditorViewModel;
 };
 
 } // namespace stukit::app
