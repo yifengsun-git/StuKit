@@ -95,9 +95,9 @@ void SqliteDatabaseTest::migrationIsIdempotent() {
                  "FROM schema_migrations")),
              qPrintable(query.lastError().text()));
     QVERIFY(query.next());
-    QCOMPARE(query.value(0).toInt(), 10);
-    QCOMPARE(query.value(1).toInt(), 10);
-    QCOMPARE(query.value(2).toInt(), 10);
+    QCOMPARE(query.value(0).toInt(), 11);
+    QCOMPARE(query.value(1).toInt(), 11);
+    QCOMPARE(query.value(2).toInt(), 11);
   }
 }
 
@@ -500,6 +500,7 @@ void SqliteDatabaseTest::upgradesVersion3Database() {
 
   QSqlQuery query(database.connection());
   const QStringList prepareVersion3{
+      QStringLiteral("DROP TABLE monthly_category_budgets"),
       QStringLiteral("DROP TABLE task_reminder_deliveries"),
       QStringLiteral("DROP TABLE task_categories"),
       QStringLiteral("DROP TABLE tasks"),
@@ -515,6 +516,7 @@ void SqliteDatabaseTest::upgradesVersion3Database() {
       QStringLiteral("DELETE FROM schema_migrations WHERE version = 8"),
       QStringLiteral("DELETE FROM schema_migrations WHERE version = 9"),
       QStringLiteral("DELETE FROM schema_migrations WHERE version = 10"),
+      QStringLiteral("DELETE FROM schema_migrations WHERE version = 11"),
       QStringLiteral("INSERT INTO accounts("
                      "id, name, opening_balance_cents, archived) "
                      "VALUES('v3-account', '版本三账户', 456, 0)"),
@@ -622,6 +624,7 @@ void SqliteDatabaseTest::rollsBackFailedScheduleMigration() {
 
   QSqlQuery query(database.connection());
   const QStringList prepareBrokenVersion3{
+      QStringLiteral("DROP TABLE monthly_category_budgets"),
       QStringLiteral("DROP TABLE task_reminder_deliveries"),
       QStringLiteral("DROP TABLE task_categories"),
       QStringLiteral("DROP TABLE tasks"),
@@ -637,6 +640,7 @@ void SqliteDatabaseTest::rollsBackFailedScheduleMigration() {
       QStringLiteral("DELETE FROM schema_migrations WHERE version = 8"),
       QStringLiteral("DELETE FROM schema_migrations WHERE version = 9"),
       QStringLiteral("DELETE FROM schema_migrations WHERE version = 10"),
+      QStringLiteral("DELETE FROM schema_migrations WHERE version = 11"),
       QStringLiteral("CREATE TABLE courses(dummy TEXT)"),
   };
   for (const QString &statement : prepareBrokenVersion3) {
@@ -712,7 +716,7 @@ void SqliteDatabaseTest::rejectsFutureSchemaVersion() {
   QSqlQuery query(database.connection());
   QVERIFY2(query.exec(QStringLiteral(
                "INSERT INTO schema_migrations(version, applied_at) "
-               "VALUES(11, 'future-test')")),
+               "VALUES(12, 'future-test')")),
            qPrintable(query.lastError().text()));
 
   QVERIFY(!database.migrate());

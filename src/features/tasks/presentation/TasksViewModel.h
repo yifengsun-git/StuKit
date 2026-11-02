@@ -24,6 +24,7 @@ class TasksViewModel final : public QObject, public ITaskReminderNotifier
     Q_PROPERTY(int completedCount READ completedCount NOTIFY dataChanged)
     Q_PROPERTY(int overdueCount READ overdueCount NOTIFY dataChanged)
     Q_PROPERTY(QString completionRateText READ completionRateText NOTIFY dataChanged)
+    Q_PROPERTY(int timeView READ timeView NOTIFY filterChanged)
     Q_PROPERTY(bool includeArchived READ includeArchived NOTIFY filterChanged)
     Q_PROPERTY(int categoryFilter READ categoryFilter NOTIFY filterChanged)
     Q_PROPERTY(QString keyword READ keyword NOTIFY filterChanged)
@@ -49,6 +50,7 @@ public:
     [[nodiscard]] int completedCount() const noexcept;
     [[nodiscard]] int overdueCount() const noexcept;
     [[nodiscard]] QString completionRateText() const;
+    [[nodiscard]] int timeView() const noexcept;
     [[nodiscard]] bool includeArchived() const noexcept;
     [[nodiscard]] int categoryFilter() const noexcept;
     [[nodiscard]] const QString &keyword() const noexcept;
@@ -63,6 +65,7 @@ public:
     Q_INVOKABLE void setIncludeArchived(bool include);
     Q_INVOKABLE void setCategoryFilter(int category);
     Q_INVOKABLE void setKeyword(const QString &keyword);
+    Q_INVOKABLE void setTimeView(int timeView);
     Q_INVOKABLE bool addCategory(const QString &name);
     Q_INVOKABLE bool save(
         const QString &id,
@@ -108,6 +111,7 @@ private:
     bool m_includeArchived{false};
     int m_categoryFilter{-1};
     QString m_keyword;
+    int m_timeView{0};
     QString m_errorMessage;
     ScanTaskReminders *m_reminderScanner{nullptr};
     QVariantList m_reminders;

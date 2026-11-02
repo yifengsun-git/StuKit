@@ -400,3 +400,21 @@ add_test(
     NAME accounting.transfer_funds_presentation
     COMMAND StuKitTransferFundsPresentationTest
 )
+
+add_executable(StuKitMonthlyBudgetTest
+    MonthlyBudgetTest.cpp
+    support/InMemoryCategoryRepository.h
+    support/InMemoryMonthlyBudgetRepository.h
+    support/InMemoryTransactionRepository.h
+)
+
+target_link_libraries(StuKitMonthlyBudgetTest
+    PRIVATE
+        Qt6::Test
+        StuKitAccountingPresentation
+)
+
+add_test(
+    NAME accounting.monthly_budget
+    COMMAND StuKitMonthlyBudgetTest
+)

@@ -119,20 +119,25 @@ void ShellQmlIntegrationTest::homePageAdaptsToCompactAndDesktopWidths()
         QStringLiteral("homeFeatureGrid"));
     QObject *accountingCard = page->findChild<QObject *>(
         QStringLiteral("accountingFeatureCard"));
+    QObject *todaySnapshot = page->findChild<QObject *>(
+        QStringLiteral("homeTodaySnapshot"));
     QVERIFY(grid);
     QVERIFY(accountingCard);
+    QVERIFY(todaySnapshot);
 
     QCOMPARE(page->property("compactLayout").toBool(), true);
     QCOMPARE(page->property("featureColumns").toInt(), 1);
     QTRY_VERIFY(accountingCard->property("width").toReal() > 0.0);
     QVERIFY(accountingCard->property("width").toReal() <= 360.0);
     QVERIFY(grid->property("width").toReal() <= 360.0);
+    QCOMPARE(todaySnapshot->property("visible").toBool(), false);
 
     page->setProperty("width", 960.0);
     QCoreApplication::processEvents();
 
     QTRY_COMPARE(page->property("compactLayout").toBool(), false);
     QTRY_COMPARE(page->property("featureColumns").toInt(), 2);
+    QTRY_COMPARE(todaySnapshot->property("visible").toBool(), true);
     QVERIFY(grid->property("width").toReal() <= 960.0);
 }
 
@@ -162,6 +167,27 @@ void ShellQmlIntegrationTest::featureCardsForwardNavigationRequests()
         QSignalSpy requestSpy(page.get(), requestCase.signalSignature);
         QVERIFY(requestSpy.isValid());
         QVERIFY(QMetaObject::invokeMethod(card, "click"));
+        QCOMPARE(requestSpy.count(), 1);
+    }
+
+    page->setProperty("width", 960.0);
+    QCoreApplication::processEvents();
+    struct SnapshotRequestCase
+    {
+        const char *action;
+        const char *signalSignature;
+    };
+    const SnapshotRequestCase snapshotCases[] = {
+        {"schedule", SIGNAL(scheduleRequested())},
+        {"tasks", SIGNAL(tasksRequested())},
+        {"accounting", SIGNAL(accountingRequested())},
+    };
+    for (const SnapshotRequestCase &requestCase : snapshotCases) {
+        QSignalSpy requestSpy(page.get(), requestCase.signalSignature);
+        QVERIFY(requestSpy.isValid());
+        QVERIFY(QMetaObject::invokeMethod(
+            page.get(), "activateSnapshot",
+            Q_ARG(QString, QString::fromLatin1(requestCase.action))));
         QCOMPARE(requestSpy.count(), 1);
     }
 

@@ -7,6 +7,7 @@
 #include "ApplicationStorage.h"
 #include "CreateTransactionViewModel.h"
 #include "TransferFundsViewModel.h"
+#include "MonthlyBudgetViewModel.h"
 #include "DataMaintenanceViewModel.h"
 #include "ScheduleManagementViewModel.h"
 #include "ScheduleModule.h"
@@ -140,6 +141,10 @@ int main(int argc, char *argv[])
         QVariant::fromValue(static_cast<QObject *>(
             accountingModule.transferEditorViewModel())));
     initialProperties.insert(
+        QStringLiteral("accountingBudget"),
+        QVariant::fromValue(static_cast<QObject *>(
+            accountingModule.budgetViewModel())));
+    initialProperties.insert(
         QStringLiteral("accountingStartupError"), accountingStartupError);
     initialProperties.insert(
         QStringLiteral("dataMaintenance"),
@@ -237,6 +242,10 @@ int main(int argc, char *argv[])
                     "accountingTransferEditor",
                     QVariant::fromValue(static_cast<QObject *>(
                         accountingModule.transferEditorViewModel())));
+                rootObject->setProperty(
+                    "accountingBudget",
+                    QVariant::fromValue(static_cast<QObject *>(
+                        accountingModule.budgetViewModel())));
                 rootObject->setProperty(
                     "scheduleOverview",
                     QVariant::fromValue(static_cast<QObject *>(

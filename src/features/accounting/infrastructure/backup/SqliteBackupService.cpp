@@ -205,7 +205,11 @@ SqliteBackupResult SqliteBackupService::validateBackup(
             && (version < 7
                 || tableExists(
                     database,
-                    QStringLiteral("schedule_period_definitions")));
+                    QStringLiteral("schedule_period_definitions")))
+            && (version < 11
+                || tableExists(
+                    database,
+                    QStringLiteral("monthly_category_budgets")));
         if (!hasRequiredTables) {
             return failure(
                 SqliteBackupError::InvalidDatabase,

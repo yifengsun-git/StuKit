@@ -13,6 +13,7 @@
 #include "CreateTransactionViewModel.h"
 #include "TransferFunds.h"
 #include "TransferFundsViewModel.h"
+#include "MonthlyBudgetViewModel.h"
 #include "DeleteTransaction.h"
 #include "DeleteAccountingSetupItem.h"
 #include "GetAccountingSetup.h"
@@ -24,16 +25,19 @@
 #include "UpdateTransaction.h"
 #include "UpdateAccount.h"
 #include "UpdateCategory.h"
+#include "ManageMonthlyBudgets.h"
 #include "backup/SqliteBackupService.h"
 #include "database/SqliteDatabase.h"
 #include "export/CsvTransactionWriter.h"
 #include "repositories/SqliteAccountRepository.h"
 #include "repositories/SqliteCategoryRepository.h"
 #include "repositories/SqliteTransactionRepository.h"
+#include "repositories/SqliteMonthlyBudgetRepository.h"
 
 #include <QDateTime>
 #include <QDir>
 #include <QObject>
+#include <QSettings>
 #include <QUuid>
 
 #include <utility>
@@ -43,6 +47,7 @@ namespace stukit::app {
 AccountingModule::AccountingModule(
     QString appDataDirectory, QSettings &settings)
     : m_appDataDirectory(std::move(appDataDirectory))
+    , m_settings(settings)
     , m_userSettings(settings)
 {
 }
@@ -100,6 +105,8 @@ bool AccountingModule::initialize(
         std::make_unique<accounting::SqliteCategoryRepository>(connection);
     m_transactionRepository =
         std::make_unique<accounting::SqliteTransactionRepository>(connection);
+    m_budgetRepository =
+        std::make_unique<accounting::SqliteMonthlyBudgetRepository>(connection);
     m_getMonthlyOverview = std::make_unique<accounting::GetMonthlyOverview>(
         *m_transactionRepository,
         *m_accountRepository,
@@ -147,6 +154,10 @@ bool AccountingModule::initialize(
             *m_transactionRepository,
             *m_accountRepository,
             *m_categoryRepository);
+    m_manageMonthlyBudgets = std::make_unique<accounting::ManageMonthlyBudgets>(
+        *m_budgetRepository,
+        *m_categoryRepository,
+        *m_transactionRepository);
     m_overviewViewModel = std::make_unique<
         accounting::presentation::AccountingOverviewViewModel>(
         *m_getMonthlyOverview,
@@ -176,12 +187,18 @@ bool AccountingModule::initialize(
         *m_deleteTransaction,
         *m_getTransaction,
         *m_getAccountingSetup,
-        m_overviewViewModel->timeZone());
+        m_overviewViewModel->timeZone(),
+        &m_settings);
     m_transferEditorViewModel = std::make_unique<
         accounting::presentation::TransferFundsViewModel>(
         *m_transferFunds,
         *m_getAccountingSetup,
         m_overviewViewModel->timeZone());
+    m_budgetViewModel = std::make_unique<
+        accounting::presentation::MonthlyBudgetViewModel>(
+        *m_manageMonthlyBudgets,
+        m_overviewViewModel->timeZone(),
+        selectedMonth);
     m_scheduleModule = std::make_unique<ScheduleModule>(connection);
     if (!m_scheduleModule->initialize(scheduleToday)) {
         m_lastError = m_scheduleModule->lastError();
@@ -229,6 +246,22 @@ bool AccountingModule::initialize(
                 m_overviewViewModel->timeZone());
         });
     QObject::connect(
+        m_overviewViewModel.get(),
+        &accounting::presentation::AccountingOverviewViewModel::timeZoneChanged,
+        m_budgetViewModel.get(),
+        [this]() {
+            m_budgetViewModel->setTimeZone(m_overviewViewModel->timeZone());
+        });
+    QObject::connect(
+        m_overviewViewModel.get(),
+        &accounting::presentation::AccountingOverviewViewModel::selectedMonthChanged,
+        m_budgetViewModel.get(),
+        [this]() {
+            m_budgetViewModel->setSelectedMonth(
+                m_overviewViewModel->selectedYear(),
+                m_overviewViewModel->selectedMonth());
+        });
+    QObject::connect(
         m_setupViewModel.get(),
         &accounting::presentation::AccountingSetupViewModel::setupChanged,
         m_transactionEditorViewModel.get(),
@@ -254,6 +287,11 @@ bool AccountingModule::initialize(
         m_analyticsViewModel.get(),
         &accounting::presentation::AccountingAnalyticsViewModel::load);
     QObject::connect(
+        m_setupViewModel.get(),
+        &accounting::presentation::AccountingSetupViewModel::setupChanged,
+        m_budgetViewModel.get(),
+        &accounting::presentation::MonthlyBudgetViewModel::load);
+    QObject::connect(
         m_transactionEditorViewModel.get(),
         &accounting::presentation::CreateTransactionViewModel::transactionCreated,
         m_overviewViewModel.get(),
@@ -268,6 +306,11 @@ bool AccountingModule::initialize(
         &accounting::presentation::CreateTransactionViewModel::transactionCreated,
         m_analyticsViewModel.get(),
         &accounting::presentation::AccountingAnalyticsViewModel::load);
+    QObject::connect(
+        m_transactionEditorViewModel.get(),
+        &accounting::presentation::CreateTransactionViewModel::transactionCreated,
+        m_budgetViewModel.get(),
+        &accounting::presentation::MonthlyBudgetViewModel::load);
     QObject::connect(
         m_transactionEditorViewModel.get(),
         &accounting::presentation::CreateTransactionViewModel::transactionUpdated,
@@ -285,6 +328,11 @@ bool AccountingModule::initialize(
         &accounting::presentation::AccountingAnalyticsViewModel::load);
     QObject::connect(
         m_transactionEditorViewModel.get(),
+        &accounting::presentation::CreateTransactionViewModel::transactionUpdated,
+        m_budgetViewModel.get(),
+        &accounting::presentation::MonthlyBudgetViewModel::load);
+    QObject::connect(
+        m_transactionEditorViewModel.get(),
         &accounting::presentation::CreateTransactionViewModel::transactionDeleted,
         m_overviewViewModel.get(),
         &accounting::presentation::AccountingOverviewViewModel::load);
@@ -299,6 +347,11 @@ bool AccountingModule::initialize(
         m_analyticsViewModel.get(),
         &accounting::presentation::AccountingAnalyticsViewModel::load);
     QObject::connect(
+        m_transactionEditorViewModel.get(),
+        &accounting::presentation::CreateTransactionViewModel::transactionDeleted,
+        m_budgetViewModel.get(),
+        &accounting::presentation::MonthlyBudgetViewModel::load);
+    QObject::connect(
         m_transferEditorViewModel.get(),
         &accounting::presentation::TransferFundsViewModel::transferCreated,
         m_overviewViewModel.get(),
@@ -313,8 +366,14 @@ bool AccountingModule::initialize(
         &accounting::presentation::TransferFundsViewModel::transferCreated,
         m_analyticsViewModel.get(),
         &accounting::presentation::AccountingAnalyticsViewModel::load);
+    QObject::connect(
+        m_transferEditorViewModel.get(),
+        &accounting::presentation::TransferFundsViewModel::transferCreated,
+        m_budgetViewModel.get(),
+        &accounting::presentation::MonthlyBudgetViewModel::load);
 
     m_setupViewModel->load();
+    m_budgetViewModel->load();
     return true;
 }
 
@@ -470,6 +529,12 @@ AccountingModule::transferEditorViewModel() const noexcept
     return m_transferEditorViewModel.get();
 }
 
+accounting::presentation::MonthlyBudgetViewModel *
+AccountingModule::budgetViewModel() const noexcept
+{
+    return m_budgetViewModel.get();
+}
+
 ScheduleModule *AccountingModule::scheduleModule() const noexcept
 {
     return m_scheduleModule.get();
@@ -524,12 +589,14 @@ void AccountingModule::reset()
     m_taskModule.reset();
     m_scheduleModule.reset();
     m_transferEditorViewModel.reset();
+    m_budgetViewModel.reset();
     m_transactionEditorViewModel.reset();
     m_analyticsViewModel.reset();
     m_setupViewModel.reset();
     m_balancesViewModel.reset();
     m_overviewViewModel.reset();
     m_getTransactionExportData.reset();
+    m_manageMonthlyBudgets.reset();
     m_getTransaction.reset();
     m_deleteTransaction.reset();
     m_updateTransaction.reset();
@@ -545,6 +612,7 @@ void AccountingModule::reset()
     m_createAccount.reset();
     m_getMonthlyOverview.reset();
     m_transactionRepository.reset();
+    m_budgetRepository.reset();
     m_categoryRepository.reset();
     m_accountRepository.reset();
     m_backupService.reset();

@@ -5,6 +5,8 @@
 #include "support/InMemoryTransactionRepository.h"
 
 #include <QSignalSpy>
+#include <QSettings>
+#include <QTemporaryDir>
 #include <QTest>
 #include <QTimeZone>
 #include <QUuid>
@@ -42,6 +44,18 @@ Category makeCategory(
 
 struct Fixture
 {
+    explicit Fixture(QSettings *settings = nullptr)
+        : viewModel(
+              createTransaction,
+              updateTransaction,
+              deleteTransaction,
+              getTransaction,
+              getSetup,
+              QTimeZone::fromSecondsAheadOfUtc(8 * 60 * 60),
+              settings)
+    {
+    }
+
     InMemoryAccountRepository accounts;
     InMemoryCategoryRepository categories;
     InMemoryTransactionRepository transactions;
@@ -50,13 +64,7 @@ struct Fixture
     DeleteTransaction deleteTransaction{transactions};
     GetTransaction getTransaction{transactions};
     GetAccountingSetup getSetup{accounts, categories};
-    CreateTransactionViewModel viewModel{
-        createTransaction,
-        updateTransaction,
-        deleteTransaction,
-        getTransaction,
-        getSetup,
-        QTimeZone::fromSecondsAheadOfUtc(8 * 60 * 60)};
+    CreateTransactionViewModel viewModel;
 };
 
 void addCompleteSetup(Fixture &fixture)
@@ -91,6 +99,8 @@ private slots:
     void reportsSetupQueryFailure();
     void editsExistingTransactionInCustomTimeZone();
     void deletesTransactionAndReportsFailure();
+    void managesQuickTransactionTemplates();
+    void persistsQuickTransactionTemplates();
 };
 
 void CreateTransactionPresentationTest::filtersArchivedAndMismatchedOptions()
@@ -266,6 +276,72 @@ void CreateTransactionPresentationTest::deletesTransactionAndReportsFailure()
         id.toString(QUuid::WithoutBraces)));
     QCOMPARE(deletedSpy.count(), 1);
     QVERIFY(!fixture.transactions.findById(id).has_value());
+}
+
+void CreateTransactionPresentationTest::managesQuickTransactionTemplates()
+{
+    Fixture fixture;
+    addCompleteSetup(fixture);
+    fillValidExpenseForm(fixture);
+
+    QSignalSpy templatesSpy(
+        &fixture.viewModel,
+        &CreateTransactionViewModel::templatesChanged);
+    QVERIFY(fixture.viewModel.saveTemplate(QStringLiteral("午餐")));
+    QCOMPARE(templatesSpy.count(), 1);
+    QCOMPARE(fixture.viewModel.templates().size(), 1);
+    const QVariantMap saved = fixture.viewModel.templates().front().toMap();
+    QCOMPARE(saved.value(QStringLiteral("name")).toString(),
+             QStringLiteral("午餐"));
+    QCOMPARE(saved.value(QStringLiteral("amountText")).toString(),
+             QStringLiteral("25.50"));
+    QCOMPARE(saved.value(QStringLiteral("accountName")).toString(),
+             QStringLiteral("银行卡"));
+    QCOMPARE(saved.value(QStringLiteral("categoryName")).toString(),
+             QStringLiteral("餐饮"));
+
+    fixture.viewModel.resetForNewTransaction();
+    QVERIFY(fixture.viewModel.applyTemplate(0));
+    QCOMPARE(fixture.viewModel.amountText(), QStringLiteral("25.50"));
+    QCOMPARE(fixture.viewModel.note(), QStringLiteral("午饭"));
+    QVERIFY(!fixture.viewModel.isIncome());
+
+    fixture.viewModel.setAmountText(QStringLiteral("30.00"));
+    QVERIFY(fixture.viewModel.saveTemplate(QStringLiteral("午餐")));
+    QCOMPARE(fixture.viewModel.templates().size(), 1);
+    QCOMPARE(fixture.viewModel.templates().front().toMap()
+                 .value(QStringLiteral("amountText")).toString(),
+             QStringLiteral("30.00"));
+
+    QVERIFY(fixture.viewModel.removeTemplate(0));
+    QVERIFY(fixture.viewModel.templates().isEmpty());
+    QVERIFY(!fixture.viewModel.removeTemplate(0));
+    QCOMPARE(fixture.viewModel.errorMessage(),
+             QStringLiteral("快速记账模板不存在"));
+}
+
+void CreateTransactionPresentationTest::persistsQuickTransactionTemplates()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    QSettings settings(
+        directory.filePath(QStringLiteral("settings.ini")),
+        QSettings::IniFormat);
+
+    {
+        Fixture fixture(&settings);
+        addCompleteSetup(fixture);
+        fillValidExpenseForm(fixture);
+        QVERIFY(fixture.viewModel.saveTemplate(QStringLiteral("常用午餐")));
+        settings.sync();
+        QCOMPARE(settings.status(), QSettings::NoError);
+    }
+
+    Fixture restored(&settings);
+    QCOMPARE(restored.viewModel.templates().size(), 1);
+    QCOMPARE(restored.viewModel.templates().front().toMap()
+                 .value(QStringLiteral("name")).toString(),
+             QStringLiteral("常用午餐"));
 }
 
 QTEST_APPLESS_MAIN(CreateTransactionPresentationTest)

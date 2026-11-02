@@ -5,6 +5,10 @@
 
 #include <QDate>
 #include <QDateTime>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QSettings>
 #include <QTime>
 #include <QUuid>
 
@@ -30,6 +34,7 @@ CreateTransactionViewModel::CreateTransactionViewModel(
     GetTransaction &getTransaction,
     GetAccountingSetup &getAccountingSetup,
     QTimeZone timeZone,
+    QSettings *settings,
     QObject *parent)
     : QObject(parent)
     , m_createTransaction(createTransaction)
@@ -38,9 +43,11 @@ CreateTransactionViewModel::CreateTransactionViewModel(
     , m_getTransaction(getTransaction)
     , m_getAccountingSetup(getAccountingSetup)
     , m_timeZone(std::move(timeZone))
+    , m_settings(settings)
     , m_accounts(this)
     , m_categories(this)
 {
+    loadTemplates();
 }
 
 QAbstractItemModel *CreateTransactionViewModel::availableAccounts() noexcept
@@ -126,6 +133,11 @@ QString CreateTransactionViewModel::submitButtonText() const
 {
     return isEditing() ? QStringLiteral("保存修改")
                        : QStringLiteral("保存");
+}
+
+const QVariantList &CreateTransactionViewModel::templates() const noexcept
+{
+    return m_templates;
 }
 
 const QTimeZone &CreateTransactionViewModel::timeZone() const noexcept
@@ -498,6 +510,149 @@ bool CreateTransactionViewModel::submit()
     return true;
 }
 
+bool CreateTransactionViewModel::saveTemplate(const QString &name)
+{
+    if (isEditing()) {
+        setError(QStringLiteral("编辑账单时不能保存模板"));
+        return false;
+    }
+
+    const QString trimmedName = name.trimmed();
+    if (trimmedName.isEmpty() || trimmedName.size() > 30) {
+        setError(QStringLiteral("模板名称应为 1 到 30 个字符"));
+        return false;
+    }
+    if (!isReady()) {
+        setError(QStringLiteral("请先创建账户和分类"));
+        return false;
+    }
+
+    const QUuid accountId(m_selectedAccountId);
+    const QUuid categoryId(m_selectedCategoryId);
+    const auto accountIt = std::find_if(
+        m_activeAccounts.cbegin(), m_activeAccounts.cend(),
+        [&accountId](const Account &account) {
+            return account.id() == accountId;
+        });
+    const auto categoryIt = std::find_if(
+        m_filteredCategories.cbegin(), m_filteredCategories.cend(),
+        [&categoryId](const Category &category) {
+            return category.id() == categoryId;
+        });
+    if (accountIt == m_activeAccounts.cend()) {
+        setError(QStringLiteral("请选择有效账户"));
+        return false;
+    }
+    if (categoryIt == m_filteredCategories.cend()) {
+        setError(QStringLiteral("请选择匹配的分类"));
+        return false;
+    }
+
+    const QString amountText = m_amountText.trimmed();
+    if (!amountText.isEmpty()) {
+        const auto amount = parseMoneyInput(amountText);
+        if (!amount.has_value() || !amount->isPositive()) {
+            setError(QStringLiteral("模板金额必须是大于 0 的有效金额"));
+            return false;
+        }
+    }
+
+    QVariantMap transactionTemplate{
+        {QStringLiteral("name"), trimmedName},
+        {QStringLiteral("income"), m_income},
+        {QStringLiteral("amountText"), amountText},
+        {QStringLiteral("note"), m_note.trimmed()},
+        {QStringLiteral("accountId"), idText(accountIt->id())},
+        {QStringLiteral("accountName"), accountIt->name()},
+        {QStringLiteral("categoryId"), idText(categoryIt->id())},
+        {QStringLiteral("categoryName"), categoryIt->name()},
+    };
+
+    const auto existing = std::find_if(
+        m_templates.begin(), m_templates.end(),
+        [&trimmedName](const QVariant &value) {
+            return value.toMap().value(QStringLiteral("name")).toString()
+                       .compare(trimmedName, Qt::CaseInsensitive)
+                == 0;
+        });
+    if (existing != m_templates.end()) {
+        *existing = transactionTemplate;
+    } else {
+        constexpr qsizetype maximumTemplateCount = 12;
+        if (m_templates.size() >= maximumTemplateCount) {
+            setError(QStringLiteral("最多可以保存 12 个快速记账模板"));
+            return false;
+        }
+        m_templates.append(transactionTemplate);
+    }
+
+    persistTemplates();
+    clearError();
+    emit templatesChanged();
+    return true;
+}
+
+bool CreateTransactionViewModel::applyTemplate(int index)
+{
+    if (index < 0 || index >= m_templates.size()) {
+        setError(QStringLiteral("快速记账模板不存在"));
+        return false;
+    }
+    if (isEditing()) {
+        setError(QStringLiteral("编辑账单时不能套用模板"));
+        return false;
+    }
+
+    loadSetup();
+    if (hasError()) {
+        return false;
+    }
+
+    const QVariantMap transactionTemplate = m_templates.at(index).toMap();
+    const bool income = transactionTemplate.value(
+        QStringLiteral("income")).toBool();
+    if (m_income != income) {
+        m_income = income;
+        emit transactionTypeChanged();
+    }
+    filterCategories();
+
+    const QString accountIdText = transactionTemplate.value(
+        QStringLiteral("accountId")).toString();
+    const QString categoryIdText = transactionTemplate.value(
+        QStringLiteral("categoryId")).toString();
+    if (!containsAccountId(QUuid(accountIdText))) {
+        setError(QStringLiteral("模板关联的账户已不可用，请重新保存模板"));
+        return false;
+    }
+    if (!containsCategoryId(QUuid(categoryIdText))) {
+        setError(QStringLiteral("模板关联的分类已不可用，请重新保存模板"));
+        return false;
+    }
+
+    m_selectedAccountId = accountIdText;
+    m_selectedCategoryId = categoryIdText;
+    m_amountText = transactionTemplate.value(
+        QStringLiteral("amountText")).toString();
+    m_note = transactionTemplate.value(QStringLiteral("note")).toString();
+    clearError();
+    emit formChanged();
+    return true;
+}
+
+bool CreateTransactionViewModel::removeTemplate(int index)
+{
+    if (index < 0 || index >= m_templates.size()) {
+        setError(QStringLiteral("快速记账模板不存在"));
+        return false;
+    }
+    m_templates.removeAt(index);
+    persistTemplates();
+    clearError();
+    emit templatesChanged();
+    return true;
+}
+
 void CreateTransactionViewModel::filterCategories()
 {
     const TransactionType expected = m_income
@@ -554,6 +709,54 @@ bool CreateTransactionViewModel::containsCategoryId(const QUuid &id) const
         && std::any_of(
             m_filteredCategories.cbegin(), m_filteredCategories.cend(),
             [&id](const Category &category) { return category.id() == id; });
+}
+
+void CreateTransactionViewModel::loadTemplates()
+{
+    m_templates.clear();
+    if (m_settings == nullptr) {
+        return;
+    }
+
+    const QByteArray serialized = m_settings->value(
+        QStringLiteral("accounting/transactionTemplates")).toByteArray();
+    if (serialized.isEmpty()) {
+        return;
+    }
+
+    QJsonParseError error;
+    const QJsonDocument document = QJsonDocument::fromJson(serialized, &error);
+    if (error.error != QJsonParseError::NoError || !document.isArray()) {
+        return;
+    }
+
+    constexpr qsizetype maximumTemplateCount = 12;
+    const QVariantList storedTemplates = document.array().toVariantList();
+    for (const QVariant &value : storedTemplates) {
+        if (m_templates.size() >= maximumTemplateCount) {
+            break;
+        }
+        const QVariantMap item = value.toMap();
+        const QString name = item.value(QStringLiteral("name"))
+                                 .toString().trimmed();
+        if (name.isEmpty() || name.size() > 30
+            || QUuid(item.value(QStringLiteral("accountId")).toString()).isNull()
+            || QUuid(item.value(QStringLiteral("categoryId")).toString()).isNull()) {
+            continue;
+        }
+        m_templates.append(item);
+    }
+}
+
+void CreateTransactionViewModel::persistTemplates() const
+{
+    if (m_settings == nullptr) {
+        return;
+    }
+    const QJsonDocument document(QJsonArray::fromVariantList(m_templates));
+    m_settings->setValue(
+        QStringLiteral("accounting/transactionTemplates"),
+        document.toJson(QJsonDocument::Compact));
 }
 
 } // namespace stukit::accounting::presentation

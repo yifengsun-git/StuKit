@@ -4,6 +4,7 @@
 #include <QVariantMap>
 #include <QTimer>
 
+#include <algorithm>
 #include <cmath>
 #include <utility>
 
@@ -71,6 +72,58 @@ QString useCaseError(SaveTaskError error)
     return QStringLiteral("任务保存失败");
 }
 
+bool matchesTimeView(
+    const TaskItem &task,
+    int timeView,
+    const QDateTime &nowUtc,
+    const QTimeZone &displayTimeZone)
+{
+    if (timeView == 0) {
+        return true;
+    }
+    if (task.status() != TaskStatus::Pending) {
+        return false;
+    }
+    if (timeView == 3) {
+        return task.isOverdue(nowUtc);
+    }
+    if (timeView == 4) {
+        return !task.dueAtUtc().has_value();
+    }
+    if (!task.dueAtUtc()) {
+        return false;
+    }
+
+    const QDate today = nowUtc.toTimeZone(displayTimeZone).date();
+    const QDate dueDate = task.dueAtUtc()->toTimeZone(displayTimeZone).date();
+    if (timeView == 1) {
+        return dueDate == today;
+    }
+    if (timeView == 2) {
+        const qint64 daysUntilDue = today.daysTo(dueDate);
+        return daysUntilDue >= 0 && daysUntilDue <= 7;
+    }
+    return true;
+}
+
+int urgencyGroup(
+    const TaskItem &task,
+    const QDateTime &nowUtc,
+    const QTimeZone &displayTimeZone)
+{
+    if (task.status() == TaskStatus::Completed) return 5;
+    if (task.status() == TaskStatus::Archived) return 6;
+    if (task.isOverdue(nowUtc)) return 0;
+    if (!task.dueAtUtc()) return 4;
+
+    const QDate today = nowUtc.toTimeZone(displayTimeZone).date();
+    const QDate dueDate = task.dueAtUtc()->toTimeZone(displayTimeZone).date();
+    const qint64 daysUntilDue = today.daysTo(dueDate);
+    if (daysUntilDue == 0) return 1;
+    if (daysUntilDue <= 7) return 2;
+    return 3;
+}
+
 } // namespace
 
 TasksViewModel::TasksViewModel(
@@ -97,7 +150,35 @@ QVariantList TasksViewModel::tasks() const
 {
     QVariantList result;
     const QDateTime nowUtc = QDateTime::currentDateTimeUtc();
+    std::vector<const TaskItem *> visibleTasks;
     for (const TaskItem &task : m_overview.tasks) {
+        if (!matchesTimeView(
+                task, m_timeView, nowUtc, m_displayTimeZone)) {
+            continue;
+        }
+        visibleTasks.push_back(&task);
+    }
+    std::ranges::stable_sort(
+        visibleTasks,
+        [this, &nowUtc](const TaskItem *left, const TaskItem *right) {
+            const int leftGroup = urgencyGroup(
+                *left, nowUtc, m_displayTimeZone);
+            const int rightGroup = urgencyGroup(
+                *right, nowUtc, m_displayTimeZone);
+            if (leftGroup != rightGroup) return leftGroup < rightGroup;
+            if (left->priority() != right->priority()) {
+                return static_cast<int>(left->priority())
+                    > static_cast<int>(right->priority());
+            }
+            if (left->dueAtUtc() && right->dueAtUtc()
+                && *left->dueAtUtc() != *right->dueAtUtc()) {
+                return *left->dueAtUtc() < *right->dueAtUtc();
+            }
+            return left->createdAtUtc() < right->createdAtUtc();
+        });
+
+    for (const TaskItem *taskPointer : visibleTasks) {
+        const TaskItem &task = *taskPointer;
         const QString dueText = task.dueAtUtc()
             ? task.dueAtUtc()->toTimeZone(m_displayTimeZone).toString(
                 QStringLiteral("yyyy-MM-dd HH:mm")) : QString{};
@@ -153,6 +234,7 @@ QString TasksViewModel::completionRateText() const
     return QStringLiteral("%1%").arg(
         qRound(m_overview.completionRate * 100.0));
 }
+int TasksViewModel::timeView() const noexcept { return m_timeView; }
 bool TasksViewModel::includeArchived() const noexcept { return m_includeArchived; }
 int TasksViewModel::categoryFilter() const noexcept { return m_categoryFilter; }
 const QString &TasksViewModel::keyword() const noexcept { return m_keyword; }
@@ -247,6 +329,15 @@ void TasksViewModel::setKeyword(const QString &keyword)
     m_keyword = normalized;
     emit filterChanged();
     load();
+}
+
+void TasksViewModel::setTimeView(int timeView)
+{
+    const int normalized = timeView >= 0 && timeView <= 4 ? timeView : 0;
+    if (m_timeView == normalized) return;
+    m_timeView = normalized;
+    emit filterChanged();
+    emit dataChanged();
 }
 
 std::optional<QDateTime> TasksViewModel::parseLocalTime(

@@ -103,6 +103,10 @@ bool SqliteDatabase::migrate() {
     return false;
   }
 
+  if (version < 11 && !applyMigration11()) {
+    return false;
+  }
+
   return true;
 }
 
@@ -703,6 +707,48 @@ bool SqliteDatabase::applyMigration10() {
           "WHEN 1 THEN '考试' WHEN 2 THEN '竞赛' ELSE '作业' END"),
       QStringLiteral(
           "CREATE INDEX idx_tasks_category_name ON tasks(category_name)"),
+  };
+  for (const QString &statement : statements) {
+    if (!query.exec(statement)) {
+      m_lastError = query.lastError().text();
+      m_database.rollback();
+      return false;
+    }
+  }
+  query.prepare(QStringLiteral(
+      "INSERT INTO schema_migrations(version, applied_at) "
+      "VALUES(:version, :appliedAt)"));
+  query.bindValue(QStringLiteral(":version"), 10);
+  query.bindValue(QStringLiteral(":appliedAt"),
+                  QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs));
+  if (!query.exec() || !m_database.commit()) {
+    m_lastError = query.lastError().text().isEmpty()
+        ? m_database.lastError().text() : query.lastError().text();
+    m_database.rollback();
+    return false;
+  }
+  return true;
+}
+
+bool SqliteDatabase::applyMigration11() {
+  if (!m_database.transaction()) {
+    m_lastError = m_database.lastError().text();
+    return false;
+  }
+  QSqlQuery query(m_database);
+  const QStringList statements{
+      QStringLiteral(
+          "CREATE TABLE monthly_category_budgets ("
+          "category_id TEXT NOT NULL, "
+          "budget_year INTEGER NOT NULL CHECK (budget_year BETWEEN 1900 AND 9999), "
+          "budget_month INTEGER NOT NULL CHECK (budget_month BETWEEN 1 AND 12), "
+          "limit_cents INTEGER NOT NULL CHECK (limit_cents > 0), "
+          "PRIMARY KEY (category_id, budget_year, budget_month), "
+          "FOREIGN KEY (category_id) REFERENCES categories(id) "
+          "ON UPDATE CASCADE ON DELETE CASCADE)"),
+      QStringLiteral(
+          "CREATE INDEX idx_monthly_category_budgets_month "
+          "ON monthly_category_budgets(budget_year, budget_month)"),
   };
   for (const QString &statement : statements) {
     if (!query.exec(statement)) {

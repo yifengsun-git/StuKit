@@ -13,6 +13,7 @@ Page {
     required property var setupViewModel
     required property var transactionViewModel
     required property var transferViewModel
+    required property var budgetViewModel
     required property var maintenanceViewModel
     required property string startupError
 
@@ -21,6 +22,7 @@ Page {
     readonly property bool compactLayout:
         width < AppTheme.breakpointCompact
     readonly property int pagePadding: AppTheme.pagePadding(width)
+    property bool setupExpanded: false
     property bool dataToolsExpanded: false
     property string transactionDisplayMode: "calendar"
 
@@ -199,69 +201,76 @@ Page {
                 Layout.topMargin: root.pagePadding
                 accentColor: AppTheme.primaryColor
 
-                RowLayout {
+                GridLayout {
                     Layout.fillWidth: true
+                    columns: root.compactLayout ? 1 : 2
+                    columnSpacing: AppTheme.spacingMedium
+                    rowSpacing: AppTheme.spacingSmall
 
-                    AppButton {
-                        text: qsTr("上一月")
-                        enabled: root.viewModel !== null
-                        onClicked: root.viewModel.showPreviousMonth()
-                    }
-
-                    Label {
+                    RowLayout {
                         Layout.fillWidth: true
-                        horizontalAlignment: Text.AlignHCenter
-                        color: AppTheme.textPrimaryColor
-                        font.pixelSize: root.compactLayout
-                            ? AppTheme.fontSizeTitle
-                            : AppTheme.fontSizeHeading
-                        font.bold: true
-                        text: root.viewModel
-                            ? root.viewModel.monthLabel : qsTr("记账本")
+
+                        AppButton {
+                            text: qsTr("上一月")
+                            enabled: root.viewModel !== null
+                            onClicked: root.viewModel.showPreviousMonth()
+                        }
+
+                        Label {
+                            Layout.fillWidth: true
+                            horizontalAlignment: Text.AlignHCenter
+                            color: AppTheme.textPrimaryColor
+                            font.pixelSize: root.compactLayout
+                                ? AppTheme.fontSizeTitle
+                                : AppTheme.fontSizeHeading
+                            font.bold: true
+                            text: root.viewModel
+                                ? root.viewModel.monthLabel : qsTr("记账本")
+                        }
+
+                        AppButton {
+                            text: qsTr("下一月")
+                            enabled: root.viewModel !== null
+                            onClicked: root.viewModel.showNextMonth()
+                        }
                     }
 
-                    AppButton {
-                        text: qsTr("下一月")
-                        enabled: root.viewModel !== null
-                        onClicked: root.viewModel.showNextMonth()
-                    }
-                }
+                    Flow {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: implicitHeight
+                        spacing: AppTheme.spacingSmall
 
-                Flow {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: implicitHeight
-                    spacing: AppTheme.spacingSmall
+                        AppButton {
+                            objectName: "accountingNewTransactionButton"
+                            text: qsTr("记一笔")
+                            enabled: root.transactionViewModel !== null
+                                && root.transactionViewModel.ready
+                                && root.activeError.length === 0
+                            highlighted: true
+                            onClicked: root.openTransactionDialog()
+                        }
 
-                    AppButton {
-                        objectName: "accountingNewTransactionButton"
-                        text: qsTr("记一笔")
-                        enabled: root.transactionViewModel !== null
-                            && root.transactionViewModel.ready
-                            && root.activeError.length === 0
-                        highlighted: true
-                        onClicked: root.openTransactionDialog()
-                    }
+                        AppButton {
+                            objectName: "accountingTransferButton"
+                            text: qsTr("账户转账")
+                            enabled: root.transferViewModel !== null
+                                && root.activeError.length === 0
+                            onClicked: root.openTransferDialog()
+                        }
 
-                    AppButton {
-                        objectName: "accountingTransferButton"
-                        text: qsTr("账户转账")
-                        enabled: root.transferViewModel !== null
-                            && root.activeError.length === 0
-                        onClicked: root.openTransferDialog()
-                    }
+                        AppButton {
+                            text: qsTr("数据分析")
+                            onClicked: root.analyticsRequested()
+                        }
 
-                    AppButton {
-                        text: qsTr("数据分析")
-                        onClicked: root.analyticsRequested()
-                    }
-
-                    AppButton {
-                        flat: true
-                        text: root.viewModel
-                            ? qsTr("时区：%1").arg(root.viewModel.timeZoneId)
-                            : ""
-                        visible: text.length > 0
-                        onClicked: root.openTimeZoneDialog()
+                        AppButton {
+                            flat: true
+                            text: root.viewModel
+                                ? qsTr("时区：%1").arg(root.viewModel.timeZoneId)
+                                : ""
+                            visible: text.length > 0
+                            onClicked: root.openTimeZoneDialog()
+                        }
                     }
                 }
             }
@@ -320,13 +329,24 @@ Page {
                 Layout.leftMargin: root.pagePadding
                 Layout.rightMargin: root.pagePadding
                 title: qsTr("账户与分类")
-                description: qsTr("维护资金账户和收支分类。归档后的项目不会出现在新账单选项中。")
+                description: root.setupExpanded
+                    ? qsTr("维护资金账户和收支分类。归档后的项目不会出现在新账单选项中。")
+                    : qsTr("低频配置已收起，展开后可以新增或管理。")
                 visible: root.setupViewModel !== null
 
+                AppButton {
+                    flat: true
+                    text: root.setupExpanded
+                        ? qsTr("收起账户与分类") : qsTr("展开账户与分类")
+                    onClicked: root.setupExpanded = !root.setupExpanded
+                }
+
                 Flow {
+                    objectName: "accountingSetupActions"
                     Layout.fillWidth: true
                     Layout.preferredHeight: implicitHeight
                     spacing: AppTheme.spacingSmall
+                    visible: root.setupExpanded
 
                     AppButton {
                         text: qsTr("新增账户")
@@ -357,7 +377,9 @@ Page {
                 Layout.leftMargin: root.pagePadding
                 Layout.rightMargin: root.pagePadding
                 title: qsTr("数据工具")
-                description: qsTr("备份或恢复数据库，也可以导出 CSV 后使用表格软件分析。")
+                description: root.dataToolsExpanded
+                    ? qsTr("备份或恢复数据库，也可以导出 CSV 后使用表格软件分析。")
+                    : qsTr("备份、恢复与导出工具默认收起。")
                 visible: root.maintenanceViewModel !== null
 
                 AppButton {
@@ -485,6 +507,108 @@ Page {
                             }
                         }
                     }
+                }
+            }
+
+            AppSectionCard {
+                id: monthlyBudgetCard
+                objectName: "accountingMonthlyBudgetCard"
+                Layout.fillWidth: true
+                Layout.leftMargin: root.pagePadding
+                Layout.rightMargin: root.pagePadding
+                title: qsTr("本月分类预算")
+                description: root.budgetViewModel
+                    && root.budgetViewModel.hasBudgets
+                    ? qsTr("按支出分类跟踪本月消费进度。")
+                    : qsTr("为餐饮、交通等支出分类设置本月额度。")
+                visible: root.budgetViewModel !== null
+
+                AppButton {
+                    objectName: "accountingManageBudgetButton"
+                    text: qsTr("管理预算")
+                    enabled: root.budgetViewModel
+                        && root.budgetViewModel.hasCategories
+                    onClicked: budgetManagementDialog.open()
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: AppTheme.spacingMedium
+                    visible: root.budgetViewModel
+                        && root.budgetViewModel.hasBudgets
+
+                    Repeater {
+                        id: monthlyBudgetRepeater
+                        objectName: "accountingMonthlyBudgetRepeater"
+                        model: root.budgetViewModel
+                            ? root.budgetViewModel.categories : []
+
+                        ColumnLayout {
+                            required property var modelData
+
+                            Layout.fillWidth: true
+                            spacing: AppTheme.spacingSmall
+                            visible: modelData.hasBudget
+
+                            RowLayout {
+                                Layout.fillWidth: true
+
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: parent.parent.modelData.categoryName
+                                    color: AppTheme.textPrimaryColor
+                                    font.bold: true
+                                }
+
+                                Label {
+                                    text: qsTr("%1 / %2 元 · %3")
+                                        .arg(parent.parent.modelData.spentText)
+                                        .arg(parent.parent.modelData.limitText)
+                                        .arg(parent.parent.modelData.percentageText)
+                                    color: parent.parent.modelData.overBudget
+                                        ? AppTheme.errorColor
+                                        : AppTheme.textSecondaryColor
+                                }
+                            }
+
+                            ProgressBar {
+                                Layout.fillWidth: true
+                                from: 0
+                                to: 1
+                                value: parent.modelData.progress
+                            }
+
+                            Label {
+                                text: parent.modelData.overBudget
+                                    ? qsTr("已超支 %1 元").arg(
+                                          parent.modelData.remainingText)
+                                    : qsTr("剩余 %1 元").arg(
+                                          parent.modelData.remainingText)
+                                color: parent.modelData.overBudget
+                                    ? AppTheme.errorColor
+                                    : AppTheme.textSecondaryColor
+                            }
+                        }
+                    }
+                }
+
+                Label {
+                    Layout.fillWidth: true
+                    visible: root.budgetViewModel
+                        && !root.budgetViewModel.hasCategories
+                    text: qsTr("请先创建至少一个支出分类。")
+                    color: AppTheme.textSecondaryColor
+                    wrapMode: Text.WordWrap
+                }
+
+                Label {
+                    Layout.fillWidth: true
+                    visible: root.budgetViewModel
+                        && root.budgetViewModel.hasError
+                    text: root.budgetViewModel
+                        ? root.budgetViewModel.errorMessage : ""
+                    color: AppTheme.errorColor
+                    wrapMode: Text.WordWrap
                 }
             }
 
@@ -785,6 +909,107 @@ Page {
             Item {
                 Layout.fillHeight: true
                 Layout.minimumHeight: AppTheme.spacingLarge
+            }
+        }
+    }
+
+    AppDialog {
+        id: budgetManagementDialog
+        objectName: "accountingBudgetManagementDialog"
+
+        anchors.centerIn: parent
+        width: Math.min(root.availableDialogWidth, 620)
+        modal: true
+        title: qsTr("%1 分类预算").arg(
+            root.budgetViewModel ? root.budgetViewModel.monthLabel : "")
+        standardButtons: Dialog.Close
+
+        ColumnLayout {
+            width: parent.width
+            spacing: AppTheme.spacingMedium
+
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("预算按月独立保存。输入金额后点击保存；删除只会移除预算，不会删除分类或账单。")
+                color: AppTheme.textSecondaryColor
+                wrapMode: Text.WordWrap
+            }
+
+            Repeater {
+                id: budgetManagementRepeater
+                objectName: "accountingBudgetManagementRepeater"
+                model: root.budgetViewModel
+                    ? root.budgetViewModel.categories : []
+
+                Rectangle {
+                    required property var modelData
+
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: budgetEditorLayout.implicitHeight
+                        + AppTheme.spacingMedium * 2
+                    radius: AppTheme.radiusSmall
+                    color: AppTheme.surfaceVariantColor
+                    border.color: AppTheme.borderColor
+
+                    ColumnLayout {
+                        id: budgetEditorLayout
+                        anchors.fill: parent
+                        anchors.margins: AppTheme.spacingMedium
+                        spacing: AppTheme.spacingSmall
+
+                        Label {
+                            text: parent.parent.modelData.categoryName
+                            color: AppTheme.textPrimaryColor
+                            font.bold: true
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: AppTheme.spacingSmall
+
+                            AppTextField {
+                                id: budgetAmountField
+                                Layout.fillWidth: true
+                                text: parent.parent.parent.modelData.limitText
+                                placeholderText: qsTr("本月预算金额")
+                                inputMethodHints: Qt.ImhFormattedNumbersOnly
+                            }
+
+                            AppButton {
+                                text: qsTr("保存")
+                                highlighted: true
+                                onClicked: root.budgetViewModel.saveBudget(
+                                    parent.parent.parent.modelData.categoryId,
+                                    budgetAmountField.text)
+                            }
+
+                            AppButton {
+                                text: qsTr("删除")
+                                flat: true
+                                visible: parent.parent.parent.modelData.hasBudget
+                                onClicked: root.budgetViewModel.removeBudget(
+                                    parent.parent.parent.modelData.categoryId)
+                            }
+                        }
+
+                        Label {
+                            visible: parent.parent.modelData.hasBudget
+                            text: qsTr("本月已支出 %1 元")
+                                .arg(parent.parent.modelData.spentText)
+                            color: AppTheme.textSecondaryColor
+                        }
+                    }
+                }
+            }
+
+            Label {
+                Layout.fillWidth: true
+                visible: root.budgetViewModel
+                    && root.budgetViewModel.hasError
+                text: root.budgetViewModel
+                    ? root.budgetViewModel.errorMessage : ""
+                color: AppTheme.errorColor
+                wrapMode: Text.WordWrap
             }
         }
     }
@@ -1453,7 +1678,7 @@ Page {
             : qsTr("新增账单")
         enterActionEnabled: !transactionDateTimePicker.opened
             && !accountBox.activeFocus && !categoryBox.activeFocus
-            && !noteField.activeFocus
+            && !noteField.activeFocus && !templateNameField.activeFocus
         onEnterActionRequested: submitTransaction()
 
         function submitTransaction() {
@@ -1493,6 +1718,59 @@ Page {
         ColumnLayout {
             width: parent.width
             spacing: AppTheme.spacingMedium
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: AppTheme.spacingSmall
+                visible: root.transactionViewModel
+                    && !root.transactionViewModel.editing
+                    && root.transactionViewModel.templates.length > 0
+
+                Label {
+                    text: qsTr("快速记账")
+                    color: AppTheme.textSecondaryColor
+                }
+
+                Repeater {
+                    id: transactionTemplateRepeater
+                    objectName: "accountingTransactionTemplateRepeater"
+                    model: root.transactionViewModel
+                        ? root.transactionViewModel.templates : []
+
+                    RowLayout {
+                        required property int index
+                        required property var modelData
+
+                        Layout.fillWidth: true
+                        spacing: AppTheme.spacingSmall
+
+                        AppButton {
+                            Layout.fillWidth: true
+                            text: {
+                                const amount = modelData.amountText || ""
+                                return amount.length > 0
+                                    ? qsTr("%1 · %2 元").arg(modelData.name)
+                                          .arg(amount)
+                                    : modelData.name
+                            }
+                            onClicked: {
+                                if (root.transactionViewModel.applyTemplate(
+                                        index)) {
+                                    root.loadTransactionForm()
+                                    amountField.forceActiveFocus()
+                                }
+                            }
+                        }
+
+                        AppButton {
+                            text: qsTr("删除")
+                            flat: true
+                            onClicked: root.transactionViewModel
+                                .removeTemplate(index)
+                        }
+                    }
+                }
+            }
 
             RowLayout {
                 Layout.fillWidth: true
@@ -1605,6 +1883,33 @@ Page {
                 onTextChanged: {
                     if (activeFocus)
                         root.transactionViewModel.note = text
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: AppTheme.spacingSmall
+                visible: root.transactionViewModel
+                    && !root.transactionViewModel.editing
+
+                AppTextField {
+                    id: templateNameField
+                    objectName: "accountingTransactionTemplateNameField"
+                    Layout.fillWidth: true
+                    placeholderText: qsTr("模板名称，例如午餐")
+                    maximumLength: 30
+                }
+
+                AppButton {
+                    objectName: "accountingSaveTransactionTemplateButton"
+                    text: qsTr("存为模板")
+                    onClicked: {
+                        if (root.transactionViewModel.saveTemplate(
+                                templateNameField.text)) {
+                            templateNameField.clear()
+                            amountField.forceActiveFocus()
+                        }
+                    }
                 }
             }
 

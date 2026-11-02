@@ -15,6 +15,7 @@
 #include <QDebug>
 #include <QQmlComponent>
 #include <QQmlEngine>
+#include <QSignalSpy>
 #include <QTest>
 #include <QVariantMap>
 
@@ -192,14 +193,65 @@ void ScheduleQmlIntegrationTest::switchesResponsiveLayouts()
         page->property("layoutMode").toString(), QStringLiteral("grid"));
     QObject *grid = page->findChild<QObject *>(
         QStringLiteral("weeklyScheduleGrid"));
+    QObject *detailsPanel = page->findChild<QObject *>(
+        QStringLiteral("scheduleDetailsPanel"));
     QVERIFY(grid);
+    QVERIFY(detailsPanel);
+    QTRY_COMPARE(detailsPanel->property("visible").toBool(), true);
     QVERIFY(grid->property("width").toReal() >= 900.0);
     QCOMPARE(grid->property("periodCount").toInt(), 12);
+
+    const QString linkedCourseId = fixture.courseId.toString(
+        QUuid::WithoutBraces);
+    const QVariantList linkedTasks{
+        QVariantMap{
+            {QStringLiteral("courseId"), linkedCourseId},
+            {QStringLiteral("title"), QStringLiteral("完成课后习题")},
+            {QStringLiteral("dueText"), QStringLiteral("2026-11-05 20:00")},
+            {QStringLiteral("overdue"), false},
+            {QStringLiteral("completed"), false},
+            {QStringLiteral("archived"), false},
+        },
+        QVariantMap{
+            {QStringLiteral("courseId"), linkedCourseId},
+            {QStringLiteral("title"), QStringLiteral("已完成任务")},
+            {QStringLiteral("dueText"), QString{}},
+            {QStringLiteral("overdue"), false},
+            {QStringLiteral("completed"), true},
+            {QStringLiteral("archived"), false},
+        },
+    };
+    QVERIFY(page->setProperty(
+        "tasksViewModel",
+        QVariantMap{{QStringLiteral("tasks"), linkedTasks}}));
+    QVERIFY(page->setProperty("detailCourseId", linkedCourseId));
+    QObject *linkedTaskCount = page->findChild<QObject *>(
+        QStringLiteral("scheduleLinkedTaskCount"));
+    QObject *createLinkedTaskButton = page->findChild<QObject *>(
+        QStringLiteral("scheduleCreateLinkedTaskButton"));
+    QVERIFY(linkedTaskCount);
+    QVERIFY(createLinkedTaskButton);
+    QTRY_COMPARE(linkedTaskCount->property("text").toString(),
+                 QStringLiteral("1 项待完成"));
+    QTRY_COMPARE(createLinkedTaskButton->property("enabled").toBool(), true);
+
+    QSignalSpy createTaskSpy(
+        page.get(), SIGNAL(taskCreateRequested(QString)));
+    QVERIFY(createTaskSpy.isValid());
+    QVERIFY(QMetaObject::invokeMethod(createLinkedTaskButton, "click"));
+    QCOMPARE(createTaskSpy.count(), 1);
+    QCOMPARE(createTaskSpy.constFirst().constFirst().toString(),
+             linkedCourseId);
 
     QObject *loader = page->findChild<QObject *>(
         QStringLiteral("scheduleLayoutLoader"));
     QVERIFY(loader);
     QTRY_VERIFY(loader->property("height").toReal() > 0.0);
+    QTRY_VERIFY2(detailsPanel->property("width").toReal()
+                     >= loader->property("width").toReal() - 1.0,
+                 qPrintable(QStringLiteral("details=%1 loader=%2")
+                                .arg(detailsPanel->property("width").toReal())
+                                .arg(loader->property("width").toReal())));
 
 }
 

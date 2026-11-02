@@ -25,6 +25,8 @@ add_library(StuKitAccountingPresentation STATIC
     MoneyInputParser.h
     MonthlyAnalyticsListModel.cpp
     MonthlyAnalyticsListModel.h
+    MonthlyBudgetViewModel.cpp
+    MonthlyBudgetViewModel.h
     TransactionListModel.cpp
     TransactionListModel.h
     TransactionFilterProxyModel.cpp

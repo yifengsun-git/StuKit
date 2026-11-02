@@ -145,6 +145,7 @@ std::unique_ptr<QObject> createPage(
         {QStringLiteral("income"), false},
         {QStringLiteral("availableAccounts"), QVariantList{}},
         {QStringLiteral("availableCategories"), QVariantList{}},
+        {QStringLiteral("templates"), QVariantList{}},
         {QStringLiteral("hasError"), false},
         {QStringLiteral("errorMessage"), QString{}},
         {QStringLiteral("canSubmit"), false},
@@ -166,6 +167,24 @@ std::unique_ptr<QObject> createPage(
         {QStringLiteral("hasError"), false},
         {QStringLiteral("errorMessage"), QString{}},
     };
+    const QVariantMap budgets{
+        {QStringLiteral("monthLabel"), QStringLiteral("2026-11")},
+        {QStringLiteral("categories"), QVariantList{QVariantMap{
+             {QStringLiteral("categoryId"), QStringLiteral("food")},
+             {QStringLiteral("categoryName"), QStringLiteral("餐饮")},
+             {QStringLiteral("hasBudget"), true},
+             {QStringLiteral("limitText"), QStringLiteral("500.00")},
+             {QStringLiteral("spentText"), QStringLiteral("125.00")},
+             {QStringLiteral("remainingText"), QStringLiteral("375.00")},
+             {QStringLiteral("overBudget"), false},
+             {QStringLiteral("progress"), 0.25},
+             {QStringLiteral("percentageText"), QStringLiteral("25%")},
+         }}},
+        {QStringLiteral("hasCategories"), true},
+        {QStringLiteral("hasBudgets"), true},
+        {QStringLiteral("hasError"), false},
+        {QStringLiteral("errorMessage"), QString{}},
+    };
 
     if (overview.isEmpty()) {
         overview = overviewModel();
@@ -176,6 +195,7 @@ std::unique_ptr<QObject> createPage(
         {QStringLiteral("setupViewModel"), setup},
         {QStringLiteral("transactionViewModel"), transactionEditor},
         {QStringLiteral("transferViewModel"), transferEditor},
+        {QStringLiteral("budgetViewModel"), budgets},
         {QStringLiteral("maintenanceViewModel"), maintenance},
         {QStringLiteral("startupError"), QString{}},
     };
@@ -204,6 +224,8 @@ private slots:
     void constrainsLongDialogsToTheViewport();
     void usesDarkSelectedStateForManagementTabs();
     void exposesTransferAndRollingDateControls();
+    void exposesQuickTransactionTemplates();
+    void exposesMonthlyBudgetManagement();
     void rendersRealTransactionDelegates();
 };
 
@@ -244,8 +266,13 @@ void AccountingHomeQmlIntegrationTest::keepsDataToolsCollapsedUntilRequested()
         QStringLiteral("accountingDataToolsCard"));
     QObject *dataToolsFlow = page->findChild<QObject *>(
         QStringLiteral("accountingDataToolsFlow"));
+    QObject *setupActions = page->findChild<QObject *>(
+        QStringLiteral("accountingSetupActions"));
     QVERIFY(dataToolsCard);
     QVERIFY(dataToolsFlow);
+    QVERIFY(setupActions);
+    QCOMPARE(page->property("setupExpanded").toBool(), false);
+    QCOMPARE(setupActions->property("visible").toBool(), false);
     QCOMPARE(page->property("dataToolsExpanded").toBool(), false);
     QCOMPARE(dataToolsFlow->property("visible").toBool(), false);
 
@@ -357,6 +384,47 @@ void AccountingHomeQmlIntegrationTest::exposesTransferAndRollingDateControls()
     QCOMPARE(datePicker->property("includeTime").toBool(), false);
     QCOMPARE(transactionDialog->property("enterActionEnabled").toBool(), true);
     QCOMPARE(transferDialog->property("enterActionEnabled").toBool(), true);
+}
+
+void AccountingHomeQmlIntegrationTest::exposesQuickTransactionTemplates()
+{
+    QQmlEngine engine;
+    auto page = createPage(engine, 640, 720);
+    QVERIFY(page);
+
+    QObject *templateRepeater = page->findChild<QObject *>(
+        QStringLiteral("accountingTransactionTemplateRepeater"));
+    QObject *templateNameField = page->findChild<QObject *>(
+        QStringLiteral("accountingTransactionTemplateNameField"));
+    QObject *saveTemplateButton = page->findChild<QObject *>(
+        QStringLiteral("accountingSaveTransactionTemplateButton"));
+    QVERIFY(templateRepeater);
+    QVERIFY(templateNameField);
+    QVERIFY(saveTemplateButton);
+    QCOMPARE(templateRepeater->property("count").toInt(), 0);
+    QCOMPARE(templateNameField->property("maximumLength").toInt(), 30);
+}
+
+void AccountingHomeQmlIntegrationTest::exposesMonthlyBudgetManagement()
+{
+    QQmlEngine engine;
+    auto page = createPage(engine, 640, 720);
+    QVERIFY(page);
+
+    QObject *budgetCard = page->findChild<QObject *>(
+        QStringLiteral("accountingMonthlyBudgetCard"));
+    QObject *manageButton = page->findChild<QObject *>(
+        QStringLiteral("accountingManageBudgetButton"));
+    QObject *budgetDialog = page->findChild<QObject *>(
+        QStringLiteral("accountingBudgetManagementDialog"));
+    QObject *budgetRepeater = page->findChild<QObject *>(
+        QStringLiteral("accountingBudgetManagementRepeater"));
+    QVERIFY(budgetCard);
+    QVERIFY(manageButton);
+    QVERIFY(budgetDialog);
+    QVERIFY(budgetRepeater);
+    QCOMPARE(manageButton->property("enabled").toBool(), true);
+    QCOMPARE(budgetRepeater->property("count").toInt(), 1);
 }
 
 void AccountingHomeQmlIntegrationTest::rendersRealTransactionDelegates()

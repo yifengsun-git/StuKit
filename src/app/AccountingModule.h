@@ -25,11 +25,13 @@ class DeleteTransaction;
 class GetTransaction;
 class GetTransactionExportData;
 class UpdateTransaction;
+class ManageMonthlyBudgets;
 class SqliteAccountRepository;
 class SqliteCategoryRepository;
 class SqliteDatabase;
 class SqliteBackupService;
 class SqliteTransactionRepository;
+class SqliteMonthlyBudgetRepository;
 
 namespace presentation {
 class AccountBalancesViewModel;
@@ -38,6 +40,7 @@ class AccountingOverviewViewModel;
 class AccountingSetupViewModel;
 class CreateTransactionViewModel;
 class TransferFundsViewModel;
+class MonthlyBudgetViewModel;
 }
 } // namespace stukit::accounting
 
@@ -80,6 +83,8 @@ public:
     transactionEditorViewModel() const noexcept;
     [[nodiscard]] accounting::presentation::TransferFundsViewModel *
     transferEditorViewModel() const noexcept;
+    [[nodiscard]] accounting::presentation::MonthlyBudgetViewModel *
+    budgetViewModel() const noexcept;
     [[nodiscard]] ScheduleModule *scheduleModule() const noexcept;
     [[nodiscard]] TaskModule *taskModule() const noexcept;
     [[nodiscard]] const QString &databasePath() const noexcept;
@@ -90,6 +95,7 @@ private:
     void reset();
 
     QString m_appDataDirectory;
+    QSettings &m_settings;
     UserSettings m_userSettings;
     QString m_databasePath;
     QString m_lastSafetyBackupPath;
@@ -104,6 +110,8 @@ private:
     std::unique_ptr<accounting::SqliteCategoryRepository> m_categoryRepository;
     std::unique_ptr<accounting::SqliteTransactionRepository>
         m_transactionRepository;
+    std::unique_ptr<accounting::SqliteMonthlyBudgetRepository>
+        m_budgetRepository;
     std::unique_ptr<accounting::GetMonthlyOverview> m_getMonthlyOverview;
     std::unique_ptr<accounting::GetAccountBalances> m_getAccountBalances;
     std::unique_ptr<accounting::GetAccountingAnalytics>
@@ -122,6 +130,7 @@ private:
     std::unique_ptr<accounting::GetTransaction> m_getTransaction;
     std::unique_ptr<accounting::GetTransactionExportData>
         m_getTransactionExportData;
+    std::unique_ptr<accounting::ManageMonthlyBudgets> m_manageMonthlyBudgets;
     std::unique_ptr<accounting::presentation::AccountingOverviewViewModel>
         m_overviewViewModel;
     std::unique_ptr<accounting::presentation::AccountBalancesViewModel>
@@ -134,6 +143,8 @@ private:
         m_transactionEditorViewModel;
     std::unique_ptr<accounting::presentation::TransferFundsViewModel>
         m_transferEditorViewModel;
+    std::unique_ptr<accounting::presentation::MonthlyBudgetViewModel>
+        m_budgetViewModel;
 };
 
 } // namespace stukit::app

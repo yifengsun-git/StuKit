@@ -51,9 +51,11 @@ QtObject {
     readonly property int controlHeight: 44
     readonly property int touchTargetHeight: 48
     property int navigationRailWidth: 224
-    readonly property int contentMaxWidth: 1180
+    readonly property int navigationRailCollapsedWidth: 72
+    readonly property int contentMaxWidth: 1440
 
     readonly property int breakpointCompact: 720
+    readonly property int breakpointDesktop: 1024
     readonly property int breakpointWide: 1100
 
     readonly property int animationFast: 100

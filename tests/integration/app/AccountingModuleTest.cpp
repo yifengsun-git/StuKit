@@ -8,6 +8,7 @@
 #include "AccountListModel.h"
 #include "CategoryListModel.h"
 #include "CreateTransactionViewModel.h"
+#include "MonthlyBudgetViewModel.h"
 #include "DataMaintenanceViewModel.h"
 #include "TaskModule.h"
 #include "TasksViewModel.h"
@@ -56,6 +57,7 @@ private slots:
     void defaultsInvalidTimeZoneToUtcPlusEight();
     void persistsSelectedFixedTimeZone();
     void persistsTaskWorkflowAcrossRestart();
+    void persistsMonthlyBudgetAndTracksSpending();
     void rejectsEmptyApplicationDataDirectory();
 };
 
@@ -83,6 +85,7 @@ void AccountingModuleTest::initializesDatabaseAndViewModel()
     QVERIFY(module.setupViewModel() != nullptr);
     QVERIFY(module.transactionEditorViewModel() != nullptr);
     QVERIFY(module.transferEditorViewModel() != nullptr);
+    QVERIFY(module.budgetViewModel() != nullptr);
     QVERIFY(QFileInfo::exists(module.databasePath()));
     QVERIFY(module.databasePath().startsWith(directory.path()));
     QCOMPARE(module.overviewViewModel()->monthLabel(),
@@ -112,8 +115,8 @@ void AccountingModuleTest::initializesDatabaseAndViewModel()
                      "SELECT COUNT(*), MAX(version) FROM schema_migrations")),
                  qPrintable(query.lastError().text()));
         QVERIFY(query.next());
-    QCOMPARE(query.value(0).toInt(), 10);
-    QCOMPARE(query.value(1).toInt(), 10);
+    QCOMPARE(query.value(0).toInt(), 11);
+    QCOMPARE(query.value(1).toInt(), 11);
         database.close();
     }
     QSqlDatabase::removeDatabase(connectionName);
@@ -256,6 +259,64 @@ void AccountingModuleTest::createsEditsDeletesAndRestoresTransaction()
         QCOMPARE(restored.overviewViewModel()->transactions()->rowCount(), 0);
         QCOMPARE(restored.balancesViewModel()->activeTotalText(),
                  QStringLiteral("100.00"));
+    }
+}
+
+void AccountingModuleTest::persistsMonthlyBudgetAndTracksSpending()
+{
+    QTemporaryDir directory(QDir(QCoreApplication::applicationDirPath()).filePath(
+        QStringLiteral("stukit-module-budget-test-XXXXXX")));
+    QVERIFY(directory.isValid());
+    QSettings settings(directory.filePath(QStringLiteral("settings.ini")),
+                       QSettings::IniFormat);
+    const QString appDataDirectory = directory.filePath(
+        QStringLiteral("app-data"));
+    QString categoryId;
+
+    {
+        AccountingModule module(appDataDirectory, settings);
+        QVERIFY2(module.initialize(QDate(2026, 11, 1)),
+                 qPrintable(module.lastError()));
+        auto *setup = module.setupViewModel();
+        QVERIFY(setup->createAccount(
+            QStringLiteral("银行卡"), QStringLiteral("1000.00")));
+        QVERIFY(setup->createCategory(QStringLiteral("餐饮"), false));
+        categoryId = setup->categories()->data(
+            setup->categories()->index(0, 0),
+            stukit::accounting::presentation::
+                CategoryListModel::CategoryIdRole).toString();
+
+        auto *budget = module.budgetViewModel();
+        QVERIFY(budget->hasCategories());
+        QVERIFY(budget->saveBudget(categoryId, QStringLiteral("500.00")));
+        QVERIFY(budget->hasBudgets());
+
+        auto *editor = module.transactionEditorViewModel();
+        editor->resetForNewTransaction();
+        editor->setAmountText(QStringLiteral("600.00"));
+        editor->setOccurredDateText(QStringLiteral("2026-11-10"));
+        editor->setOccurredTimeText(QStringLiteral("12:00"));
+        QVERIFY2(editor->submit(), qPrintable(editor->errorMessage()));
+
+        const QVariantMap progress = budget->categories().front().toMap();
+        QCOMPARE(progress.value(QStringLiteral("spentText")).toString(),
+                 QStringLiteral("600.00"));
+        QVERIFY(progress.value(QStringLiteral("overBudget")).toBool());
+    }
+
+    {
+        AccountingModule restored(appDataDirectory, settings);
+        QVERIFY2(restored.initialize(QDate(2026, 11, 1)),
+                 qPrintable(restored.lastError()));
+        auto *budget = restored.budgetViewModel();
+        QVERIFY(budget->hasBudgets());
+        const QVariantMap progress = budget->categories().front().toMap();
+        QCOMPARE(progress.value(QStringLiteral("limitText")).toString(),
+                 QStringLiteral("500.00"));
+        QCOMPARE(progress.value(QStringLiteral("spentText")).toString(),
+                 QStringLiteral("600.00"));
+        QVERIFY(budget->removeBudget(categoryId));
+        QVERIFY(!budget->hasBudgets());
     }
 }
 

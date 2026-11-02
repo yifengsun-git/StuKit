@@ -11,6 +11,7 @@ ApplicationWindow {
     required property var accountingSetup
     required property var accountingTransactionEditor
     required property var accountingTransferEditor
+    required property var accountingBudget
     required property var appearanceSettings
     required property var dataMaintenance
     required property var scheduleOverview
@@ -27,6 +28,9 @@ ApplicationWindow {
     readonly property bool shortLayout: height < 520
     readonly property bool compactLayout:
         width < AppTheme.breakpointCompact || shortLayout
+    readonly property bool desktopLayout:
+        width >= AppTheme.breakpointDesktop && !shortLayout
+    readonly property bool navigationExpanded: false
     readonly property string currentPageTitle: {
         switch (currentPage) {
         case 1:
@@ -155,19 +159,36 @@ ApplicationWindow {
                 elide: Text.ElideRight
             }
 
-            Label {
-                visible: !window.compactLayout
-                text: qsTr("个人工具箱")
-                color: AppTheme.textSecondaryColor
-                font.pixelSize: AppTheme.fontSizeBody
-            }
-
             AppButton {
                 objectName: "appearanceHeaderButton"
-                text: qsTr("外观")
+                text: window.compactLayout
+                    ? qsTr("外观") : qsTr("工具箱")
                 flat: true
                 highlighted: window.currentPage === 6
-                onClicked: window.navigateTo(6)
+                onClicked: {
+                    if (window.compactLayout)
+                        window.navigateTo(6)
+                    else
+                        utilityMenu.open()
+                }
+
+                Menu {
+                    id: utilityMenu
+
+                    y: parent.height
+
+                    MenuItem {
+                        text: qsTr("外观与主题")
+                        onTriggered: window.navigateTo(6)
+                    }
+
+                    MenuItem {
+                        visible: window.updateViewModel !== null
+                            && window.updateViewModel.supported
+                        text: qsTr("检查更新")
+                        onTriggered: window.navigateTo(5)
+                    }
+                }
             }
         }
     }
@@ -267,14 +288,16 @@ ApplicationWindow {
             id: navigationRail
 
             visible: !window.compactLayout
-            Layout.preferredWidth: AppTheme.navigationRailWidth
+            Layout.preferredWidth: window.navigationExpanded
+                ? AppTheme.navigationRailWidth
+                : AppTheme.navigationRailCollapsedWidth
             Layout.fillHeight: true
             topPadding: AppTheme.spacingLarge
             bottomPadding: AppTheme.spacingLarge
             leftPadding: Math.max(
-                AppTheme.spacingMedium,
-                window.SafeArea.margins.left + AppTheme.spacingMedium)
-            rightPadding: AppTheme.spacingMedium
+                AppTheme.spacingSmall,
+                window.SafeArea.margins.left + AppTheme.spacingSmall)
+            rightPadding: AppTheme.spacingSmall
 
             background: Rectangle {
                 color: AppTheme.surfaceColor
@@ -287,8 +310,8 @@ ApplicationWindow {
 
                 Image {
                     visible: source.toString().length > 0
-                    Layout.preferredWidth: 56
-                    Layout.preferredHeight: 56
+                    Layout.preferredWidth: window.navigationExpanded ? 56 : 40
+                    Layout.preferredHeight: window.navigationExpanded ? 56 : 40
                     Layout.alignment: Qt.AlignHCenter
                     source: AppTheme.navigationLogoUrl
                     fillMode: Image.PreserveAspectFit
@@ -296,6 +319,7 @@ ApplicationWindow {
                 }
 
                 Label {
+                    visible: window.navigationExpanded
                     Layout.fillWidth: true
                     text: qsTr("StuKit")
                     color: AppTheme.primaryColor
@@ -304,6 +328,7 @@ ApplicationWindow {
                 }
 
                 Label {
+                    visible: window.navigationExpanded
                     Layout.fillWidth: true
                     Layout.bottomMargin: AppTheme.spacingMedium
                     text: qsTr("学习与生活工具箱")
@@ -314,32 +339,40 @@ ApplicationWindow {
 
                 AppNavigationButton {
                     Layout.fillWidth: true
+                    iconOnly: !window.navigationExpanded
                     selected: window.currentPage === 0
                     text: qsTr("首页")
+                    fallbackIcon: "⌂"
                     iconSource: AppTheme.navigationIcon("home")
                     onClicked: window.navigateTo(0)
                 }
 
                 AppNavigationButton {
                     Layout.fillWidth: true
+                    iconOnly: !window.navigationExpanded
                     selected: window.currentPage === 1
                     text: qsTr("记账本")
+                    fallbackIcon: "￥"
                     iconSource: AppTheme.navigationIcon("accounting")
                     onClicked: window.navigateTo(1)
                 }
 
                 AppNavigationButton {
                     Layout.fillWidth: true
+                    iconOnly: !window.navigationExpanded
                     selected: window.currentPage === 2
                     text: qsTr("课表")
+                    fallbackIcon: "▦"
                     iconSource: AppTheme.navigationIcon("schedule")
                     onClicked: window.navigateTo(2)
                 }
 
                 AppNavigationButton {
                     Layout.fillWidth: true
+                    iconOnly: !window.navigationExpanded
                     selected: window.currentPage === 4
                     text: qsTr("待办")
+                    fallbackIcon: "✓"
                     iconSource: AppTheme.navigationIcon("tasks")
                     onClicked: window.navigateTo(4)
                 }
@@ -347,8 +380,10 @@ ApplicationWindow {
                 AppNavigationButton {
                     visible: window.weatherFeatureEnabled
                     Layout.fillWidth: true
+                    iconOnly: !window.navigationExpanded
                     selected: window.currentPage === 3
                     text: qsTr("天气")
+                    fallbackIcon: "☼"
                     iconSource: AppTheme.navigationIcon("weather")
                     onClicked: window.navigateTo(3)
                 }
@@ -360,8 +395,10 @@ ApplicationWindow {
                 AppNavigationButton {
                     objectName: "appearanceSideNavigation"
                     Layout.fillWidth: true
+                    iconOnly: !window.navigationExpanded
                     selected: window.currentPage === 6
                     text: qsTr("外观与主题")
+                    fallbackIcon: "⚙"
                     iconSource: AppTheme.navigationIcon("appearance")
                     onClicked: window.navigateTo(6)
                 }
@@ -370,13 +407,16 @@ ApplicationWindow {
                     visible: window.updateViewModel !== null
                         && window.updateViewModel.supported
                     Layout.fillWidth: true
+                    iconOnly: !window.navigationExpanded
                     selected: window.currentPage === 5
                     text: qsTr("检查更新")
+                    fallbackIcon: "↻"
                     iconSource: AppTheme.navigationIcon("update")
                     onClicked: window.navigateTo(5)
                 }
 
                 Label {
+                    visible: window.navigationExpanded
                     Layout.fillWidth: true
                     text: qsTr("数据仅保存在本机")
                     color: AppTheme.textSecondaryColor
@@ -405,6 +445,9 @@ ApplicationWindow {
                 }
 
                 HomePage {
+                    accountingViewModel: window.accountingOverview
+                    scheduleViewModel: window.scheduleOverview
+                    tasksViewModel: window.tasksViewModel
                     weatherFeatureVisible: window.weatherFeatureEnabled
                     onAccountingRequested: window.navigateTo(1)
                     onScheduleRequested: window.navigateTo(2)
@@ -424,6 +467,7 @@ ApplicationWindow {
                         setupViewModel: window.accountingSetup
                         transactionViewModel: window.accountingTransactionEditor
                         transferViewModel: window.accountingTransferEditor
+                        budgetViewModel: window.accountingBudget
                         maintenanceViewModel: window.dataMaintenance
                         startupError: window.accountingStartupError
                         onAnalyticsRequested:
@@ -441,7 +485,14 @@ ApplicationWindow {
                 ScheduleHomePage {
                     viewModel: window.scheduleOverview
                     managementViewModel: window.scheduleManagement
+                    tasksViewModel: window.tasksViewModel
                     startupError: window.scheduleStartupError
+                    onTasksRequested: window.navigateTo(4)
+                    onTaskCreateRequested: courseId => {
+                        window.navigateTo(4)
+                        Qt.callLater(() =>
+                            tasksPage.openEditorForCourse(courseId))
+                    }
                 }
 
                 WeatherHomePage {
@@ -449,6 +500,8 @@ ApplicationWindow {
                 }
 
                 TasksHomePage {
+                    id: tasksPage
+
                     viewModel: window.tasksViewModel
                 }
 

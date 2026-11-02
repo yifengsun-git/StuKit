@@ -10,21 +10,53 @@ Page {
     required property var viewModel
     required property var managementViewModel
     required property string startupError
+    property var tasksViewModel: null
+
+    signal tasksRequested()
+    signal taskCreateRequested(string courseId)
 
     readonly property bool compactLayout:
         width < AppTheme.breakpointCompact
+    readonly property bool wideLayout:
+        width >= AppTheme.breakpointDesktop
     readonly property int pagePadding: AppTheme.pagePadding(width)
     readonly property string layoutMode: editingSchedule
         ? "editor"
         : compactLayout ? "daily" : "grid"
     property bool editingSchedule: false
+    property bool detailsPanelExpanded: true
     property int schedulePeriodCount: 12
+    property string detailCourseId: ""
     property string detailCourseName: ""
     property string detailTeacher: ""
     property string detailLocation: ""
     property string detailWeekday: ""
     property string detailPeriod: ""
     property color detailColor: AppTheme.primaryColor
+    readonly property var detailTasks: {
+        const result = []
+        if (!tasksViewModel || !tasksViewModel.tasks
+                || detailCourseId.length === 0)
+            return result
+        const tasks = tasksViewModel.tasks
+        for (let index = 0; index < tasks.length; ++index) {
+            const task = tasks[index]
+            if (task.courseId === detailCourseId
+                    && !task.completed && !task.archived)
+                result.push(task)
+        }
+        return result
+    }
+    readonly property int weeklyCourseCount: {
+        if (!viewModel || !viewModel.meetings
+                || !viewModel.meetings.weekdayCounts)
+            return 0
+        let total = 0
+        const counts = viewModel.meetings.weekdayCounts
+        for (let index = 0; index < counts.length; ++index)
+            total += Number(counts[index])
+        return total
+    }
 
     readonly property string activeError: startupError.length > 0
         ? startupError
@@ -34,15 +66,20 @@ Page {
 
     objectName: "scheduleHomePage"
 
-    function showCourseDetails(courseName, teacher, location,
+    function showCourseDetails(courseId, courseName, teacher, location,
                                weekdayText, periodText, courseColor) {
+        detailCourseId = courseId
         detailCourseName = courseName
         detailTeacher = teacher
         detailLocation = location
         detailWeekday = weekdayText
         detailPeriod = periodText
         detailColor = courseColor
-        courseDetailDialog.open()
+        if (root.wideLayout && !root.editingSchedule) {
+            root.detailsPanelExpanded = true
+        } else {
+            courseDetailDialog.open()
+        }
     }
 
     function selectTerm(termId) {
@@ -202,6 +239,15 @@ Page {
                             && root.viewModel.canShowNextWeek
                         onClicked: root.viewModel.showNextWeek()
                     }
+
+                    AppButton {
+                        visible: root.wideLayout
+                            && !root.editingSchedule
+                        text: root.detailsPanelExpanded
+                            ? qsTr("收起详情") : qsTr("本周详情")
+                        onClicked: root.detailsPanelExpanded
+                            = !root.detailsPanelExpanded
+                    }
                 }
 
                 GridLayout {
@@ -327,26 +373,186 @@ Page {
                 }
             }
 
-            Loader {
-                id: scheduleLayoutLoader
-
-                property Item loadedLayout: item as Item
-
-                objectName: "scheduleLayoutLoader"
+            ColumnLayout {
                 Layout.fillWidth: true
                 Layout.leftMargin: root.pagePadding
                 Layout.rightMargin: root.pagePadding
                 Layout.bottomMargin: root.pagePadding
-                Layout.preferredHeight: loadedLayout
-                    ? loadedLayout.implicitHeight : 0
-                visible: root.viewModel
-                    && root.viewModel.hasTerms
-                    && root.activeError.length === 0
-                sourceComponent: root.editingSchedule
-                    ? scheduleEditorComponent
-                    : root.compactLayout
-                        ? dailyScheduleComponent
-                        : weeklyGridComponent
+                spacing: AppTheme.spacingMedium
+
+                Item {
+                    Layout.fillWidth: true
+                    Layout.preferredWidth: scheduleLayoutLoader.width
+                    Layout.preferredHeight: detailsPanel.implicitHeight
+                    visible: root.wideLayout
+                        && !root.editingSchedule
+                        && root.detailsPanelExpanded
+                        && root.viewModel
+                        && root.viewModel.hasTerms
+                        && root.activeError.length === 0
+
+                    AppSectionCard {
+                        id: detailsPanel
+
+                        width: scheduleLayoutLoader.width
+                        height: implicitHeight
+                        objectName: "scheduleDetailsPanel"
+                        title: root.detailCourseName.length > 0
+                            ? root.detailCourseName : qsTr("本周详情")
+                        description: root.detailCourseName.length > 0
+                            ? qsTr("%1 · %2").arg(
+                                root.detailWeekday).arg(root.detailPeriod)
+                            : qsTr("选择课表中的课程查看详细信息。")
+                        accentColor: root.detailCourseName.length > 0
+                            ? root.detailColor : AppTheme.primaryColor
+
+                        GridLayout {
+                            Layout.fillWidth: true
+                            columns: 4
+                            columnSpacing: AppTheme.spacingSmall
+                            rowSpacing: AppTheme.spacingSmall
+
+                            Label {
+                                text: qsTr("本周课程")
+                                color: AppTheme.textSecondaryColor
+                            }
+                            Label {
+                                text: qsTr("%1 节").arg(
+                                    root.weeklyCourseCount)
+                                color: AppTheme.textPrimaryColor
+                                font.bold: true
+                            }
+                            Label {
+                                text: qsTr("教学周")
+                                color: AppTheme.textSecondaryColor
+                            }
+                            Label {
+                                text: root.viewModel
+                                    ? root.viewModel.weekLabel : ""
+                                color: AppTheme.textPrimaryColor
+                                font.bold: true
+                            }
+                        }
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 1
+                            color: AppTheme.borderColor
+                        }
+
+                        Label {
+                            Layout.fillWidth: true
+                            visible: root.detailTeacher.length > 0
+                            text: qsTr("教师：%1").arg(root.detailTeacher)
+                            color: AppTheme.textSecondaryColor
+                            wrapMode: Text.WordWrap
+                        }
+
+                        Label {
+                            Layout.fillWidth: true
+                            visible: root.detailLocation.length > 0
+                            text: qsTr("地点：%1").arg(root.detailLocation)
+                            color: AppTheme.textSecondaryColor
+                            wrapMode: Text.WordWrap
+                        }
+
+                        Label {
+                            Layout.fillWidth: true
+                            text: qsTr("课程待办联动")
+                            color: AppTheme.textPrimaryColor
+                            font.bold: true
+                        }
+
+                        Label {
+                            Layout.fillWidth: true
+                            objectName: "scheduleLinkedTaskCount"
+                            text: root.detailCourseId.length === 0
+                                ? qsTr("选择一门课程后查看关联任务")
+                                : root.detailTasks.length > 0
+                                    ? qsTr("%1 项待完成").arg(
+                                        root.detailTasks.length)
+                                    : qsTr("这门课程暂无待完成任务")
+                            color: AppTheme.textSecondaryColor
+                            wrapMode: Text.WordWrap
+                        }
+
+                        Repeater {
+                            model: root.detailTasks.slice(0, 3)
+
+                            delegate: RowLayout {
+                                id: linkedTaskRow
+                                required property var modelData
+
+                                Layout.fillWidth: true
+                                spacing: AppTheme.spacingSmall
+
+                                Rectangle {
+                                    Layout.preferredWidth: 6
+                                    Layout.preferredHeight: 6
+                                    radius: 3
+                                    color: root.detailColor
+                                }
+
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: linkedTaskRow.modelData.title
+                                    color: AppTheme.textPrimaryColor
+                                    elide: Text.ElideRight
+                                }
+
+                                Label {
+                                    visible: linkedTaskRow.modelData.dueText.length > 0
+                                    text: linkedTaskRow.modelData.dueText
+                                    color: linkedTaskRow.modelData.overdue
+                                        ? AppTheme.errorColor
+                                        : AppTheme.textSecondaryColor
+                                    font.pixelSize: AppTheme.fontSizeCaption
+                                }
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: AppTheme.spacingSmall
+
+                            AppButton {
+                                objectName: "scheduleCreateLinkedTaskButton"
+                                enabled: root.detailCourseId.length > 0
+                                text: qsTr("新建课程待办")
+                                highlighted: true
+                                onClicked: root.taskCreateRequested(
+                                    root.detailCourseId)
+                            }
+
+                            AppButton {
+                                objectName: "scheduleOpenTasksButton"
+                                text: qsTr("查看全部待办")
+                                onClicked: root.tasksRequested()
+                            }
+
+                            Item { Layout.fillWidth: true }
+                        }
+                    }
+                }
+
+                Loader {
+                    id: scheduleLayoutLoader
+
+                    property Item loadedLayout: item as Item
+
+                    objectName: "scheduleLayoutLoader"
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: loadedLayout
+                        ? loadedLayout.implicitHeight : 0
+                    visible: root.viewModel
+                        && root.viewModel.hasTerms
+                        && root.activeError.length === 0
+                    sourceComponent: root.editingSchedule
+                        ? scheduleEditorComponent
+                        : root.compactLayout
+                            ? dailyScheduleComponent
+                            : weeklyGridComponent
+                }
             }
         }
     }
@@ -376,6 +582,7 @@ Page {
                         ? root.managementViewModel.periodDefinitions : []
                     onCourseActivated: details =>
                         root.showCourseDetails(
+                            details.courseId,
                             details.courseName,
                             details.teacher,
                             details.location,
@@ -401,6 +608,7 @@ Page {
             weekDays: root.viewModel ? root.viewModel.weekDays : []
             onCourseActivated: details =>
                 root.showCourseDetails(
+                    details.courseId,
                     details.courseName,
                     details.teacher,
                     details.location,

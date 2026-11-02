@@ -90,3 +90,18 @@ add_test(
     NAME accounting.sqlite_transaction_repository
     COMMAND StuKitSqliteTransactionRepositoryTest
 )
+
+add_executable(StuKitSqliteMonthlyBudgetRepositoryTest
+    SqliteMonthlyBudgetRepositoryTest.cpp
+)
+
+target_link_libraries(StuKitSqliteMonthlyBudgetRepositoryTest
+    PRIVATE
+        Qt6::Test
+        StuKitAccountingInfrastructure
+)
+
+add_test(
+    NAME accounting.sqlite_monthly_budget_repository
+    COMMAND StuKitSqliteMonthlyBudgetRepositoryTest
+)

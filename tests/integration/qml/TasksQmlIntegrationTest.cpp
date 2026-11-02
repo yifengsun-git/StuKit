@@ -108,6 +108,7 @@ class TasksQmlIntegrationTest final : public QObject
 
 private slots:
     void rendersTaskAndResponsiveLayout();
+    void switchesTimeViews();
     void rendersAndDismissesReminder();
     void usesScrollableDateTimePicker();
     void constrainsTaskEditorToTheViewport();
@@ -127,11 +128,18 @@ void TasksQmlIntegrationTest::rendersTaskAndResponsiveLayout()
         QStringLiteral("taskPrimaryCard"));
     QObject *filterContent = page->findChild<QObject *>(
         QStringLiteral("taskFilterContent"));
+    QObject *sidebar = page->findChild<QObject *>(
+        QStringLiteral("taskSidebar"));
+    QObject *timeViewRepeater = page->findChild<QObject *>(
+        QStringLiteral("taskTimeViewRepeater"));
     QVERIFY(stats);
     QVERIFY(empty);
     QVERIFY(tasks);
     QVERIFY(primaryCard);
     QVERIFY(filterContent);
+    QVERIFY(sidebar);
+    QVERIFY(timeViewRepeater);
+    QCOMPARE(timeViewRepeater->property("count").toInt(), 5);
     QVERIFY(page->property("compact").toBool());
     QCOMPARE(stats->property("columns").toInt(), 2);
     QCOMPARE(filterContent->property("visible").toBool(), false);
@@ -160,8 +168,83 @@ void TasksQmlIntegrationTest::rendersTaskAndResponsiveLayout()
 
     page->setProperty("width", 960.0);
     QTRY_VERIFY(!page->property("compact").toBool());
-    QTRY_COMPARE(stats->property("columns").toInt(), 4);
+    QTRY_COMPARE(stats->property("columns").toInt(), 2);
     QTRY_COMPARE(filterContent->property("visible").toBool(), true);
+    QTRY_VERIFY2(sidebar->property("width").toReal() <= 336.0,
+                 qPrintable(QStringLiteral("sidebar width: %1")
+                                .arg(sidebar->property("width").toReal())));
+}
+
+void TasksQmlIntegrationTest::switchesTimeViews()
+{
+    Fixture fixture;
+    QQmlEngine engine;
+    auto page = createTasksPage(engine, fixture.viewModel, 960);
+    QVERIFY(page);
+
+    const QTimeZone displayTimeZone(QByteArrayLiteral("UTC+08:00"));
+    const QDate today = QDateTime::currentDateTimeUtc()
+        .toTimeZone(displayTimeZone).date();
+    const auto localText = [](const QDate &date, const QTime &time) {
+        return QDateTime(date, time).toString(
+            QStringLiteral("yyyy-MM-dd HH:mm"));
+    };
+    const auto saveTask = [&fixture](
+                              const QString &title,
+                              const QString &dueText,
+                              int priority = 1) {
+        return fixture.viewModel.save(
+            {}, title, {}, dueText, {}, priority,
+            QStringLiteral("作业"), {});
+    };
+
+    QVERIFY(saveTask(
+        QStringLiteral("今天提交"), localText(today, QTime(23, 59))));
+    QVERIFY(saveTask(
+        QStringLiteral("今天紧急提交"),
+        localText(today, QTime(23, 59)), 3));
+    QVERIFY(saveTask(
+        QStringLiteral("三天后提交"),
+        localText(today.addDays(3), QTime(18, 0))));
+    QVERIFY(saveTask(
+        QStringLiteral("已经逾期"),
+        localText(today.addDays(-1), QTime(18, 0))));
+    QVERIFY(saveTask(QStringLiteral("以后再安排"), {}));
+
+    QObject *taskRepeater = page->findChild<QObject *>(
+        QStringLiteral("taskListRepeater"));
+    QObject *emptyState = page->findChild<QObject *>(
+        QStringLiteral("taskEmptyState"));
+    QVERIFY(taskRepeater);
+    QVERIFY(emptyState);
+    QCOMPARE(taskRepeater->property("count").toInt(), 5);
+
+    fixture.viewModel.setTimeView(1);
+    QTRY_COMPARE(fixture.viewModel.timeView(), 1);
+    QTRY_COMPARE(taskRepeater->property("count").toInt(), 2);
+    QCOMPARE(fixture.viewModel.tasks().constFirst().toMap()
+                 .value(QStringLiteral("title")).toString(),
+             QStringLiteral("今天紧急提交"));
+
+    fixture.viewModel.setTimeView(2);
+    QTRY_COMPARE(taskRepeater->property("count").toInt(), 3);
+
+    fixture.viewModel.setTimeView(3);
+    QTRY_COMPARE(taskRepeater->property("count").toInt(), 1);
+    QCOMPARE(fixture.viewModel.tasks().constFirst().toMap()
+                 .value(QStringLiteral("title")).toString(),
+             QStringLiteral("已经逾期"));
+
+    fixture.viewModel.setTimeView(4);
+    QTRY_COMPARE(taskRepeater->property("count").toInt(), 1);
+    QCOMPARE(fixture.viewModel.tasks().constFirst().toMap()
+                 .value(QStringLiteral("title")).toString(),
+             QStringLiteral("以后再安排"));
+
+    fixture.viewModel.setTimeView(99);
+    QTRY_COMPARE(fixture.viewModel.timeView(), 0);
+    QTRY_COMPARE(taskRepeater->property("count").toInt(), 5);
+    QVERIFY(!emptyState->property("visible").toBool());
 }
 
 void TasksQmlIntegrationTest::rendersAndDismissesReminder()

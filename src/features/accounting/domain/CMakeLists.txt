@@ -1,6 +1,8 @@
 add_library(StuKitAccountingDomain STATIC
     Money.cpp
     Money.h
+    MonthlyBudget.cpp
+    MonthlyBudget.h
     Transaction.h
     Transaction.cpp
     Account.h
@@ -11,6 +13,7 @@ add_library(StuKitAccountingDomain STATIC
     IAccountRepository.h
     ICategoryRepository.h
     ITransactionRepository.h
+    IMonthlyBudgetRepository.h
 )
 
 target_include_directories(StuKitAccountingDomain

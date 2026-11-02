@@ -14,6 +14,29 @@ Page {
     property string dueValue: ""
     property string reminderValue: ""
     property bool filtersExpanded: false
+    readonly property var timeViewOptions: [
+        qsTr("全部"),
+        qsTr("今天"),
+        qsTr("未来 7 天"),
+        qsTr("已逾期"),
+        qsTr("无截止时间")
+    ]
+    readonly property string emptyStateText: {
+        if (!root.viewModel)
+            return qsTr("还没有任务")
+        switch (root.viewModel.timeView) {
+        case 1:
+            return qsTr("今天没有截止任务\n可以提前处理之后的安排。")
+        case 2:
+            return qsTr("未来七天没有截止任务\n这一周的安排比较轻松。")
+        case 3:
+            return qsTr("没有逾期任务\n保持得很好。")
+        case 4:
+            return qsTr("没有无截止时间的任务")
+        default:
+            return qsTr("还没有匹配的任务\n新建一项任务，开始安排今天。")
+        }
+    }
 
     background: Rectangle { color: AppTheme.backgroundColor }
 
@@ -37,6 +60,19 @@ Page {
             }
         }
         editorDialog.open()
+    }
+
+    function openEditorForCourse(courseId) {
+        openEditor(null)
+        if (!root.viewModel || !root.viewModel.courseOptions)
+            return
+        for (let index = 0; index < root.viewModel.courseOptions.length;
+                ++index) {
+            if (root.viewModel.courseOptions[index].id === courseId) {
+                courseBox.currentIndex = index
+                break
+            }
+        }
     }
 
     ScrollView {
@@ -78,7 +114,7 @@ Page {
                             color: AppTheme.textPrimaryColor
                             font.pixelSize: root.compact
                                 ? AppTheme.fontSizeHeading
-                                : AppTheme.fontSizeDisplay
+                                : AppTheme.fontSizeHeading
                             font.bold: true
                         }
 
@@ -131,178 +167,249 @@ Page {
             }
 
             GridLayout {
-                objectName: "taskStatsGrid"
                 Layout.fillWidth: true
                 Layout.leftMargin: root.pagePadding
                 Layout.rightMargin: root.pagePadding
-                columns: root.compact ? 2 : 4
-                columnSpacing: AppTheme.spacingSmall
-                rowSpacing: AppTheme.spacingSmall
+                columns: root.compact ? 1 : 2
+                columnSpacing: AppTheme.spacingMedium
+                rowSpacing: AppTheme.spacingMedium
 
-                Repeater {
-                    model: [
-                        { label: qsTr("待完成"), value: root.viewModel ? root.viewModel.pendingCount : 0 },
-                        { label: qsTr("已完成"), value: root.viewModel ? root.viewModel.completedCount : 0 },
-                        { label: qsTr("已逾期"), value: root.viewModel ? root.viewModel.overdueCount : 0 },
-                        { label: qsTr("完成率"), value: root.viewModel ? root.viewModel.completionRateText : "0%" }
-                    ]
-                    delegate: Rectangle {
-                        id: statCard
-                        required property var modelData
+                ColumnLayout {
+                    objectName: "taskSidebar"
+                    Layout.fillWidth: root.compact
+                    Layout.preferredWidth: root.compact ? 1 : 296
+                    Layout.minimumWidth: root.compact ? 0 : 296
+                    Layout.maximumWidth: root.compact ? 10000 : 296
+                    Layout.alignment: Qt.AlignTop
+                    spacing: AppTheme.spacingMedium
+
+                    GridLayout {
+                        objectName: "taskStatsGrid"
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 82
-                        radius: AppTheme.radiusMedium
-                        color: AppTheme.surfaceColor
-                        border.color: AppTheme.borderColor
-                        Column {
-                            anchors.centerIn: parent
-                            spacing: 4
-                            Label { anchors.horizontalCenter: parent.horizontalCenter; text: statCard.modelData.value; color: AppTheme.textPrimaryColor; font.pixelSize: 22; font.bold: true }
-                            Label { anchors.horizontalCenter: parent.horizontalCenter; text: statCard.modelData.label; color: AppTheme.textSecondaryColor }
+                        Layout.minimumWidth: 0
+                        columns: 2
+                        columnSpacing: AppTheme.spacingSmall
+                        rowSpacing: AppTheme.spacingSmall
+
+                        Repeater {
+                            model: [
+                                { label: qsTr("待完成"), value: root.viewModel ? root.viewModel.pendingCount : 0, accent: AppTheme.successColor },
+                                { label: qsTr("已完成"), value: root.viewModel ? root.viewModel.completedCount : 0, accent: AppTheme.primaryColor },
+                                { label: qsTr("已逾期"), value: root.viewModel ? root.viewModel.overdueCount : 0, accent: AppTheme.errorColor },
+                                { label: qsTr("完成率"), value: root.viewModel ? root.viewModel.completionRateText : "0%", accent: AppTheme.warningColor }
+                            ]
+                            delegate: Rectangle {
+                                id: statCard
+                                required property var modelData
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 96
+                                radius: AppTheme.radiusMedium
+                                color: AppTheme.surfaceColor
+                                border.color: AppTheme.borderColor
+                                Column {
+                                    anchors.fill: parent
+                                    anchors.margins: AppTheme.spacingMedium
+                                    spacing: AppTheme.spacingExtraSmall
+                                    Rectangle { width: 28; height: 4; radius: 2; color: statCard.modelData.accent }
+                                    Label { text: statCard.modelData.value; color: AppTheme.textPrimaryColor; font.pixelSize: 22; font.bold: true }
+                                    Label { text: statCard.modelData.label; color: AppTheme.textSecondaryColor }
+                                }
+                            }
+                        }
+                    }
+
+                    AppSectionCard {
+                        objectName: "taskFilterCard"
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        contentPadding: AppTheme.spacingMedium
+                        title: qsTr("筛选与分类")
+                        description: root.compact
+                            ? qsTr("搜索、分类筛选和归档显示集中在这里。")
+                            : qsTr("快速缩小右侧任务范围。")
+
+                        AppButton {
+                            visible: root.compact
+                            flat: true
+                            text: root.filtersExpanded
+                                ? qsTr("收起筛选") : qsTr("展开筛选")
+                            onClicked: root.filtersExpanded = !root.filtersExpanded
+                        }
+
+                        GridLayout {
+                            objectName: "taskFilterContent"
+                            Layout.fillWidth: true
+                            columns: 1
+                            columnSpacing: AppTheme.spacingSmall
+                            rowSpacing: AppTheme.spacingSmall
+                            visible: !root.compact || root.filtersExpanded
+
+                            AppTextField {
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 0
+                                placeholderText: qsTr("搜索任务")
+                                onAccepted: root.viewModel.setKeyword(text)
+                            }
+
+                            AppComboBox {
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 0
+                                model: [qsTr("全部分类")].concat(
+                                    root.viewModel ? root.viewModel.categoryOptions : [])
+                                onActivated: root.viewModel.setCategoryFilter(
+                                    currentIndex - 1)
+                            }
+
+                            CheckBox {
+                                Layout.fillWidth: true
+                                text: qsTr("显示已归档")
+                                checked: root.viewModel
+                                    ? root.viewModel.includeArchived : false
+                                onToggled: root.viewModel.setIncludeArchived(checked)
+                            }
+
+                            AppButton {
+                                Layout.fillWidth: true
+                                text: qsTr("新增分类")
+                                onClicked: {
+                                    categoryNameField.text = ""
+                                    categoryDialog.open()
+                                    categoryNameField.forceActiveFocus()
+                                }
+                            }
                         }
                     }
                 }
-            }
 
-            AppSectionCard {
-                objectName: "taskFilterCard"
-                Layout.fillWidth: true
-                Layout.leftMargin: root.pagePadding
-                Layout.rightMargin: root.pagePadding
-                title: qsTr("筛选与分类")
-                description: root.compact
-                    ? qsTr("搜索、分类筛选和归档显示集中在这里。")
-                    : qsTr("按关键字或分类缩小任务范围。")
-
-                AppButton {
-                    visible: root.compact
-                    flat: true
-                    text: root.filtersExpanded
-                        ? qsTr("收起筛选") : qsTr("展开筛选")
-                    onClicked: root.filtersExpanded = !root.filtersExpanded
-                }
-
-                GridLayout {
-                    objectName: "taskFilterContent"
+                ColumnLayout {
                     Layout.fillWidth: true
-                    columns: root.compact ? 1 : 3
-                    columnSpacing: AppTheme.spacingSmall
-                    rowSpacing: AppTheme.spacingSmall
-                    visible: !root.compact || root.filtersExpanded
-
-                    AppTextField {
-                        Layout.fillWidth: true
-                        placeholderText: qsTr("搜索标题、说明或课程")
-                        onAccepted: root.viewModel.setKeyword(text)
-                    }
-
-                    AppComboBox {
-                        Layout.fillWidth: true
-                        model: [qsTr("全部分类")].concat(
-                            root.viewModel ? root.viewModel.categoryOptions : [])
-                        onActivated: root.viewModel.setCategoryFilter(
-                            currentIndex - 1)
-                    }
-
-                    CheckBox {
-                        Layout.fillWidth: true
-                        text: qsTr("显示已归档")
-                        checked: root.viewModel
-                            ? root.viewModel.includeArchived : false
-                        onToggled: root.viewModel.setIncludeArchived(checked)
-                    }
-
-                    AppButton {
-                        Layout.fillWidth: root.compact
-                        text: qsTr("新增分类")
-                        onClicked: {
-                            categoryNameField.text = ""
-                            categoryDialog.open()
-                            categoryNameField.forceActiveFocus()
-                        }
-                    }
-                }
-            }
-
-            Label {
-                Layout.fillWidth: true
-                Layout.leftMargin: root.pagePadding
-                Layout.rightMargin: root.pagePadding
-                visible: root.viewModel && root.viewModel.hasError
-                text: root.viewModel ? root.viewModel.errorMessage : ""
-                color: AppTheme.errorColor
-                wrapMode: Text.WordWrap
-            }
-
-            Label {
-                objectName: "taskEmptyState"
-                Layout.alignment: Qt.AlignHCenter
-                Layout.topMargin: AppTheme.spacingLarge
-                visible: root.viewModel && root.viewModel.tasks.length === 0
-                text: qsTr("还没有匹配的任务")
-                color: AppTheme.textSecondaryColor
-            }
-
-            Repeater {
-                objectName: "taskListRepeater"
-                model: root.viewModel ? root.viewModel.tasks : []
-                delegate: ColumnLayout {
-                    id: taskDelegate
-                    required property var modelData
-                    required property int index
-                    readonly property bool startsGroup: taskDelegate.index === 0
-                        || root.viewModel.tasks[taskDelegate.index - 1].groupLabel
-                            !== taskDelegate.modelData.groupLabel
-                    Layout.fillWidth: true
-                    Layout.leftMargin: root.pagePadding
-                    Layout.rightMargin: root.pagePadding
+                    Layout.alignment: Qt.AlignTop
                     spacing: AppTheme.spacingSmall
 
-                    Label {
-                        visible: taskDelegate.startsGroup
-                        text: taskDelegate.modelData.groupLabel
-                        color: taskDelegate.modelData.overdue
-                            ? AppTheme.errorColor : AppTheme.textSecondaryColor
-                        font.bold: true
-                        font.pixelSize: AppTheme.fontSizeSubtitle
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Label {
+                            Layout.fillWidth: true
+                            text: qsTr("任务清单")
+                            color: AppTheme.textPrimaryColor
+                            font.pixelSize: AppTheme.fontSizeTitle
+                            font.bold: true
+                        }
+                        Label {
+                            text: root.viewModel
+                                ? qsTr("%1 项").arg(root.viewModel.tasks.length)
+                                : ""
+                            color: AppTheme.textSecondaryColor
+                        }
                     }
 
-                    Rectangle {
-                        id: taskCard
-                        property var task: taskDelegate.modelData
+                    GridLayout {
+                        objectName: "taskTimeViewBar"
                         Layout.fillWidth: true
-                        Layout.preferredHeight: cardContent.implicitHeight
-                            + AppTheme.spacingMedium * 2
-                        radius: AppTheme.radiusMedium
-                        color: AppTheme.surfaceColor
-                        border.color: taskCard.task.overdue
-                            ? AppTheme.errorColor : AppTheme.borderColor
+                        columns: root.compact ? 2
+                            : root.width >= 1100 ? 5 : 3
+                        columnSpacing: AppTheme.spacingSmall
+                        rowSpacing: AppTheme.spacingSmall
 
-                        ColumnLayout {
-                            id: cardContent
-                            anchors.fill: parent
-                            anchors.margins: AppTheme.spacingMedium
-                            RowLayout {
+                        Repeater {
+                            objectName: "taskTimeViewRepeater"
+                            model: root.timeViewOptions
+
+                            delegate: AppButton {
+                                id: timeViewButton
+                                required property int index
+                                required property string modelData
+
+                                objectName: "taskTimeViewButton" + index
                                 Layout.fillWidth: true
-                                Label { Layout.fillWidth: true; text: taskCard.task.title; color: AppTheme.textPrimaryColor; font.bold: true; font.pixelSize: AppTheme.fontSizeSubtitle; wrapMode: Text.WordWrap }
-                                Label { text: taskCard.task.statusText; color: taskCard.task.overdue ? AppTheme.errorColor : AppTheme.primaryColor }
+                                text: modelData
+                                flat: true
+                                highlighted: root.viewModel
+                                    && root.viewModel.timeView === index
+                                onClicked: root.viewModel.setTimeView(index)
                             }
-                            Label { Layout.fillWidth: true; visible: text.length > 0; text: taskCard.task.description; color: AppTheme.textSecondaryColor; wrapMode: Text.WordWrap }
+                        }
+                    }
+
+                    Label {
+                        Layout.fillWidth: true
+                        visible: root.viewModel && root.viewModel.hasError
+                        text: root.viewModel ? root.viewModel.errorMessage : ""
+                        color: AppTheme.errorColor
+                        wrapMode: Text.WordWrap
+                    }
+
+                    Label {
+                        objectName: "taskEmptyState"
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.topMargin: AppTheme.spacingExtraLarge
+                        Layout.bottomMargin: AppTheme.spacingExtraLarge
+                        visible: root.viewModel && root.viewModel.tasks.length === 0
+                        text: root.emptyStateText
+                        horizontalAlignment: Text.AlignHCenter
+                        color: AppTheme.textSecondaryColor
+                    }
+
+                    Repeater {
+                        objectName: "taskListRepeater"
+                        model: root.viewModel ? root.viewModel.tasks : []
+                        delegate: ColumnLayout {
+                            id: taskDelegate
+                            required property var modelData
+                            required property int index
+                            readonly property bool startsGroup: taskDelegate.index === 0
+                                || root.viewModel.tasks[taskDelegate.index - 1].groupLabel
+                                    !== taskDelegate.modelData.groupLabel
+                            Layout.fillWidth: true
+                            spacing: AppTheme.spacingSmall
+
                             Label {
-                                Layout.fillWidth: true
-                                text: [taskCard.task.categoryText, taskCard.task.priorityText + qsTr("优先级"), taskCard.task.courseName, taskCard.task.dueText.length ? qsTr("截止 %1").arg(taskCard.task.dueText) : ""].filter(value => value.length > 0).join(" · ")
-                                color: AppTheme.textSecondaryColor
-                                wrapMode: Text.WordWrap
+                                visible: taskDelegate.startsGroup
+                                text: taskDelegate.modelData.groupLabel
+                                color: taskDelegate.modelData.overdue
+                                    ? AppTheme.errorColor : AppTheme.textSecondaryColor
+                                font.bold: true
+                                font.pixelSize: AppTheme.fontSizeSubtitle
                             }
-                            Flow {
+
+                            Rectangle {
+                                id: taskCard
+                                property var task: taskDelegate.modelData
                                 Layout.fillWidth: true
-                                spacing: AppTheme.spacingSmall
-                                AppButton { visible: taskCard.task.status === 0; text: qsTr("完成"); onClicked: root.viewModel.complete(taskCard.task.id) }
-                                AppButton { visible: taskCard.task.status === 1; text: qsTr("重新打开"); onClicked: root.viewModel.reopen(taskCard.task.id) }
-                                AppButton { visible: taskCard.task.status === 1; text: qsTr("归档"); onClicked: root.viewModel.archive(taskCard.task.id) }
-                                AppButton { visible: taskCard.task.status === 2; text: qsTr("恢复归档"); onClicked: root.viewModel.restore(taskCard.task.id) }
-                                AppButton { text: qsTr("编辑"); onClicked: root.openEditor(taskCard.task) }
-                                AppButton { text: qsTr("删除"); onClicked: { root.deletingId = taskCard.task.id; deleteDialog.open() } }
+                                Layout.preferredHeight: cardContent.implicitHeight
+                                    + AppTheme.spacingMedium * 2
+                                radius: AppTheme.radiusMedium
+                                color: AppTheme.surfaceColor
+                                border.color: taskCard.task.overdue
+                                    ? AppTheme.errorColor : AppTheme.borderColor
+
+                                ColumnLayout {
+                                    id: cardContent
+                                    anchors.fill: parent
+                                    anchors.margins: AppTheme.spacingMedium
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        Label { Layout.fillWidth: true; text: taskCard.task.title; color: AppTheme.textPrimaryColor; font.bold: true; font.pixelSize: AppTheme.fontSizeSubtitle; wrapMode: Text.WordWrap }
+                                        Label { text: taskCard.task.statusText; color: taskCard.task.overdue ? AppTheme.errorColor : AppTheme.primaryColor }
+                                    }
+                                    Label { Layout.fillWidth: true; visible: text.length > 0; text: taskCard.task.description; color: AppTheme.textSecondaryColor; wrapMode: Text.WordWrap }
+                                    Label {
+                                        Layout.fillWidth: true
+                                        text: [taskCard.task.categoryText, taskCard.task.priorityText + qsTr("优先级"), taskCard.task.courseName, taskCard.task.dueText.length ? qsTr("截止 %1").arg(taskCard.task.dueText) : ""].filter(value => value.length > 0).join(" · ")
+                                        color: AppTheme.textSecondaryColor
+                                        wrapMode: Text.WordWrap
+                                    }
+                                    Flow {
+                                        Layout.fillWidth: true
+                                        spacing: AppTheme.spacingSmall
+                                        AppButton { visible: taskCard.task.status === 0; text: qsTr("完成"); onClicked: root.viewModel.complete(taskCard.task.id) }
+                                        AppButton { visible: taskCard.task.status === 1; text: qsTr("重新打开"); onClicked: root.viewModel.reopen(taskCard.task.id) }
+                                        AppButton { visible: taskCard.task.status === 1; text: qsTr("归档"); onClicked: root.viewModel.archive(taskCard.task.id) }
+                                        AppButton { visible: taskCard.task.status === 2; text: qsTr("恢复归档"); onClicked: root.viewModel.restore(taskCard.task.id) }
+                                        AppButton { text: qsTr("编辑"); onClicked: root.openEditor(taskCard.task) }
+                                        AppButton { text: qsTr("删除"); onClicked: { root.deletingId = taskCard.task.id; deleteDialog.open() } }
+                                    }
+                                }
                             }
                         }
                     }

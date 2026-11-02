@@ -242,9 +242,9 @@ Infrastructure ------------------> Domain
 
 1. 创建应用数据目录并打开 `stukit.sqlite`。
 2. 执行数据库迁移。
-3. 创建备份服务和三个 SQLite Repository。
-4. 创建账户、分类、账单 CRUD 与月度查询用例。
-5. 创建五个记账 ViewModel 并连接基础数据、时区和账单变更信号。
+3. 创建备份服务和四个 SQLite Repository。
+4. 创建账户、分类、账单 CRUD、月度查询与分类预算用例。
+5. 创建七个记账 ViewModel 并连接基础数据、时区、月份、账单和预算变更信号。
 6. 加载初始数据并保存后续时区变化。
 7. 编排数据库备份、恢复前安全快照、连接释放、替换、重新初始化和失败回退。
 8. 组合导出查询与 CSV 写入器，使用当前用户记账时区导出全部流水。
@@ -689,7 +689,11 @@ Infrastructure。
 迁移 7 创建 `schedule_period_definitions` 并写入 12 节默认作息。名称和 `HH:mm`
 起止时间有数据库约束；节次编号作为稳定主键，用户修改时使用 UPSERT 更新。
 
-每版迁移都在独立事务中完成；全新数据库会依次执行迁移 1～7，旧数据库只执行缺失
+迁移 8～10 创建待办、提醒交付记录和自定义任务分类。迁移 11 创建
+`monthly_category_budgets`，以“支出分类 + 年 + 月”为联合主键保存正数整数分预算；
+删除分类时预算通过外键级联删除。
+
+每版迁移都在独立事务中完成；全新数据库会依次执行迁移 1～11，旧数据库只执行缺失
 版本。版本高于 `CurrentSchemaVersion` 时会拒绝打开，避免旧程序误读未来结构。
 
 迁移具有幂等性：同一个数据库多次调用 `migrate()` 不会重复创建表。
@@ -701,7 +705,7 @@ Infrastructure。
 - 使用 `VACUUM INTO` 从活动连接创建一致快照。
 - 验证 SQLite 完整性、连续迁移历史、关键表和受支持版本。
 - 版本 4～5 备份必须包含三张课表表，版本 6 还必须包含明确周次表，版本 7 还必须
-  包含节次定义表；旧备份仍可恢复
+  包含节次定义表，版本 11 必须包含月度分类预算表；旧备份仍可恢复
   后按顺序升级。
 - 拒绝活动数据库与目标文件为同一路径。
 - 先验证临时快照，再通过 `QSaveFile` 原子提交。
@@ -961,6 +965,8 @@ CreateCategory 保存输入，并通过 UpdateAccount、UpdateCategory 完成重
 - 通过 `GetTransaction` 回填原账单，并在记账时区中还原日期和时间。
 - 按模式调用 `CreateTransaction` 或 `UpdateTransaction`，并转换稳定错误。
 - 调用 `DeleteTransaction`，成功时发出删除信号。
+- 可把当前类型、金额、备注、账户和分类保存为快速记账模板；模板使用 `QSettings`
+  持久化，但不保存日期和时间，套用时会检查关联账户与分类是否仍然可用。
 - 创建、更新和删除分别发出信号，失败时保留用户输入。
 
 它不直接访问 SQLite。账户、分类和账单的最终业务校验仍由 Application 用例及
@@ -1193,19 +1199,19 @@ StuKitAccountingApplication
 
 它编译账户、分类和账单的创建/更新用例，以及 GetMonthlyOverview、
 GetAccountingAnalytics、GetAccountingSetup、GetAccountBalances 和
-GetTransactionExportData，并链接
+GetTransactionExportData、ManageMonthlyBudgets，并链接
 `StuKitAccountingDomain`。依赖不能反过来。
 
 ### `src/features/accounting/infrastructure/CMakeLists.txt`
 
 创建 `StuKitAccountingInfrastructure`，编译 `SqliteDatabase`、`SqliteBackupService`、
-`CsvTransactionWriter` 和三个 SQLite Repository，并链接 `Qt6::Sql`、
+`CsvTransactionWriter` 和四个 SQLite Repository，并链接 `Qt6::Sql`、
 `StuKitAccountingApplication` 和 `StuKitAccountingDomain`。
 
 ### `src/features/accounting/presentation/CMakeLists.txt`
 
 创建 `StuKitAccountingPresentation`，编译金额格式化与解析、七个记账列表模型、一个
-筛选代理模型和五个 ViewModel，并链接 `Qt6::Core`、
+筛选代理模型和七个 ViewModel，并链接 `Qt6::Core`、
 `StuKitAccountingApplication` 与 `StuKitAnalyticsPresentation`。它不链接 Qt SQL。
 
 ### `src/features/analytics/presentation/CMakeLists.txt`

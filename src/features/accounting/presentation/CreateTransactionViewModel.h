@@ -12,8 +12,11 @@
 #include <QObject>
 #include <QString>
 #include <QTimeZone>
+#include <QVariantList>
 
 #include <vector>
+
+class QSettings;
 
 namespace stukit::accounting::presentation {
 
@@ -36,6 +39,7 @@ class CreateTransactionViewModel final : public QObject
     Q_PROPERTY(bool editing READ isEditing NOTIFY editingChanged)
     Q_PROPERTY(QString editingTransactionId READ editingTransactionId NOTIFY editingChanged)
     Q_PROPERTY(QString submitButtonText READ submitButtonText NOTIFY editingChanged)
+    Q_PROPERTY(QVariantList templates READ templates NOTIFY templatesChanged)
 
 public:
     CreateTransactionViewModel(
@@ -45,6 +49,7 @@ public:
         GetTransaction &getTransaction,
         GetAccountingSetup &getAccountingSetup,
         QTimeZone timeZone,
+        QSettings *settings = nullptr,
         QObject *parent = nullptr);
 
     [[nodiscard]] QAbstractItemModel *availableAccounts() noexcept;
@@ -63,6 +68,7 @@ public:
     [[nodiscard]] bool isEditing() const noexcept;
     [[nodiscard]] QString editingTransactionId() const;
     [[nodiscard]] QString submitButtonText() const;
+    [[nodiscard]] const QVariantList &templates() const noexcept;
     [[nodiscard]] const QTimeZone &timeZone() const noexcept;
 
     void setIncome(bool income);
@@ -79,6 +85,9 @@ public:
     Q_INVOKABLE bool beginEditing(const QString &transactionId);
     Q_INVOKABLE bool deleteTransaction(const QString &transactionId);
     Q_INVOKABLE bool submit();
+    Q_INVOKABLE bool saveTemplate(const QString &name);
+    Q_INVOKABLE bool applyTemplate(int index);
+    Q_INVOKABLE bool removeTemplate(int index);
 
 signals:
     void transactionTypeChanged();
@@ -89,6 +98,7 @@ signals:
     void transactionCreated();
     void transactionUpdated();
     void transactionDeleted();
+    void templatesChanged();
 
 private:
     void filterCategories();
@@ -96,6 +106,8 @@ private:
     void clearError();
     [[nodiscard]] bool containsAccountId(const QUuid &id) const;
     [[nodiscard]] bool containsCategoryId(const QUuid &id) const;
+    void loadTemplates();
+    void persistTemplates() const;
 
     CreateTransaction &m_createTransaction;
     UpdateTransaction &m_updateTransaction;
@@ -103,6 +115,7 @@ private:
     GetTransaction &m_getTransaction;
     GetAccountingSetup &m_getAccountingSetup;
     QTimeZone m_timeZone;
+    QSettings *m_settings{nullptr};
     AccountListModel m_accounts;
     CategoryListModel m_categories;
     std::vector<Account> m_activeAccounts;
@@ -117,6 +130,7 @@ private:
     QString m_occurredTimeText;
     QString m_errorMessage;
     QUuid m_editingTransactionId;
+    QVariantList m_templates;
 };
 
 } // namespace stukit::accounting::presentation

@@ -75,7 +75,7 @@ void SqliteTaskRepositoryTest::migrationCreatesVersionEightSchema()
     QVERIFY2(database.open(directory.filePath(QStringLiteral("stukit.sqlite"))),
              qPrintable(database.lastError()));
     QVERIFY2(database.migrate(), qPrintable(database.lastError()));
-    QCOMPARE(SqliteDatabase::CurrentSchemaVersion, 10);
+    QCOMPARE(SqliteDatabase::CurrentSchemaVersion, 11);
 
     QSqlQuery query(database.connection());
     QVERIFY(query.exec(QStringLiteral(
