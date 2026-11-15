@@ -9,6 +9,7 @@ Page {
     signal scheduleRequested()
     signal weatherRequested()
     signal tasksRequested()
+    signal planningRequested()
 
     property bool weatherFeatureVisible: false
     property var accountingViewModel: null
@@ -294,6 +295,17 @@ Page {
                     description: qsTr("安排作业、考试和日常任务，不遗漏截止时间。")
                     accentColor: AppTheme.warningColor
                     onClicked: root.tasksRequested()
+                }
+
+                FeatureCard {
+                    objectName: "planningFeatureCard"
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    Layout.preferredHeight: root.compactLayout ? 148 : 176
+                    title: qsTr("规划助手")
+                    description: qsTr("整理培养方案与活动资料，形成可追踪的成长规划。")
+                    accentColor: AppTheme.primaryColor
+                    onClicked: root.planningRequested()
                 }
 
                 FeatureCard {

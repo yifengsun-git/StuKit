@@ -157,6 +157,7 @@ void ShellQmlIntegrationTest::featureCardsForwardNavigationRequests()
         {"accountingFeatureCard", SIGNAL(accountingRequested())},
         {"scheduleFeatureCard", SIGNAL(scheduleRequested())},
         {"tasksFeatureCard", SIGNAL(tasksRequested())},
+        {"planningFeatureCard", SIGNAL(planningRequested())},
     };
 
     for (const RequestCase &requestCase : cases) {

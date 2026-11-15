@@ -66,6 +66,11 @@ tasks::presentation::TasksViewModel *TaskModule::viewModel() const noexcept
     return m_viewModel.get();
 }
 
+tasks::SaveTask *TaskModule::saveTask() const noexcept
+{
+    return m_saveTask.get();
+}
+
 const QString &TaskModule::lastError() const noexcept { return m_lastError; }
 
 void TaskModule::reset()

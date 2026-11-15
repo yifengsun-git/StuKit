@@ -18,6 +18,7 @@ ApplicationWindow {
     required property var scheduleManagement
     required property var weatherViewModel
     required property var tasksViewModel
+    required property var planningViewModel
     required property var updateViewModel
     required property string accountingStartupError
     required property string scheduleStartupError
@@ -46,6 +47,8 @@ ApplicationWindow {
             return qsTr("更新")
         case 6:
             return qsTr("外观与主题")
+        case 7:
+            return qsTr("规划助手")
         default:
             return qsTr("首页")
         }
@@ -256,6 +259,17 @@ ApplicationWindow {
             }
 
             AppNavigationButton {
+                objectName: "planningBottomNavigation"
+                Layout.fillWidth: true
+                compact: true
+                selected: window.currentPage === 7
+                text: qsTr("规划")
+                fallbackIcon: "✦"
+                iconSource: AppTheme.navigationIcon("planning")
+                onClicked: window.navigateTo(7)
+            }
+
+            AppNavigationButton {
                 objectName: "weatherBottomNavigation"
                 visible: window.weatherFeatureEnabled
                 Layout.fillWidth: true
@@ -378,6 +392,17 @@ ApplicationWindow {
                 }
 
                 AppNavigationButton {
+                    objectName: "planningSideNavigation"
+                    Layout.fillWidth: true
+                    iconOnly: !window.navigationExpanded
+                    selected: window.currentPage === 7
+                    text: qsTr("规划助手")
+                    fallbackIcon: "✦"
+                    iconSource: AppTheme.navigationIcon("planning")
+                    onClicked: window.navigateTo(7)
+                }
+
+                AppNavigationButton {
                     visible: window.weatherFeatureEnabled
                     Layout.fillWidth: true
                     iconOnly: !window.navigationExpanded
@@ -453,6 +478,7 @@ ApplicationWindow {
                     onScheduleRequested: window.navigateTo(2)
                     onWeatherRequested: window.navigateTo(3)
                     onTasksRequested: window.navigateTo(4)
+                    onPlanningRequested: window.navigateTo(7)
                 }
 
                 StackLayout {
@@ -511,6 +537,10 @@ ApplicationWindow {
 
                 AppearancePage {
                     viewModel: window.appearanceSettings
+                }
+
+                PlanningHomePage {
+                    viewModel: window.planningViewModel
                 }
             }
 

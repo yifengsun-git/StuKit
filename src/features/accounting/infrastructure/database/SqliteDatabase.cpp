@@ -107,6 +107,10 @@ bool SqliteDatabase::migrate() {
     return false;
   }
 
+  if (version < 12 && !applyMigration12()) {
+    return false;
+  }
+
   return true;
 }
 
@@ -757,6 +761,102 @@ bool SqliteDatabase::applyMigration11() {
       return false;
     }
   }
+  query.prepare(QStringLiteral(
+      "INSERT INTO schema_migrations(version, applied_at) "
+      "VALUES(:version, :appliedAt)"));
+  query.bindValue(QStringLiteral(":version"), 11);
+  query.bindValue(QStringLiteral(":appliedAt"),
+                  QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs));
+  if (!query.exec() || !m_database.commit()) {
+    m_lastError = query.lastError().text().isEmpty()
+        ? m_database.lastError().text() : query.lastError().text();
+    m_database.rollback();
+    return false;
+  }
+  return true;
+}
+
+bool SqliteDatabase::applyMigration12() {
+  if (!m_database.transaction()) {
+    m_lastError = m_database.lastError().text();
+    return false;
+  }
+
+  QSqlQuery query(m_database);
+  const QStringList statements{
+      QStringLiteral(
+          "CREATE TABLE planning_projects ("
+          "id TEXT PRIMARY KEY NOT NULL, "
+          "title TEXT NOT NULL "
+          "CHECK (length(trim(title)) BETWEEN 1 AND 120), "
+          "objective TEXT NOT NULL "
+          "CHECK (length(trim(objective)) BETWEEN 1 AND 4000), "
+          "constraints_text TEXT NOT NULL DEFAULT '' "
+          "CHECK (length(constraints_text) <= 8000), "
+          "status INTEGER NOT NULL CHECK (status BETWEEN 0 AND 2), "
+          "created_at TEXT NOT NULL "
+          "CHECK (datetime(created_at) IS NOT NULL "
+          "AND substr(created_at, -1) = 'Z'), "
+          "updated_at TEXT NOT NULL "
+          "CHECK (datetime(updated_at) IS NOT NULL "
+          "AND substr(updated_at, -1) = 'Z' "
+          "AND updated_at >= created_at))"),
+      QStringLiteral(
+          "CREATE TABLE planning_source_documents ("
+          "id TEXT PRIMARY KEY NOT NULL, "
+          "project_id TEXT NOT NULL, "
+          "title TEXT NOT NULL "
+          "CHECK (length(trim(title)) BETWEEN 1 AND 160), "
+          "kind INTEGER NOT NULL CHECK (kind BETWEEN 0 AND 3), "
+          "format INTEGER NOT NULL CHECK (format BETWEEN 0 AND 2), "
+          "original_file_name TEXT NOT NULL DEFAULT '' "
+          "CHECK (length(original_file_name) <= 255), "
+          "content TEXT NOT NULL "
+          "CHECK (length(trim(content)) >= 1 "
+          "AND length(content) <= 2097152), "
+          "content_sha256 TEXT NOT NULL "
+          "CHECK (length(content_sha256) = 64), "
+          "imported_at TEXT NOT NULL "
+          "CHECK (datetime(imported_at) IS NOT NULL "
+          "AND substr(imported_at, -1) = 'Z'), "
+          "UNIQUE (project_id, content_sha256), "
+          "FOREIGN KEY (project_id) REFERENCES planning_projects(id) "
+          "ON UPDATE CASCADE ON DELETE CASCADE)"),
+      QStringLiteral(
+          "CREATE INDEX idx_planning_sources_project_imported "
+          "ON planning_source_documents(project_id, imported_at DESC)"),
+      QStringLiteral(
+          "CREATE TABLE planning_plan_revisions ("
+          "id TEXT PRIMARY KEY NOT NULL, "
+          "project_id TEXT NOT NULL, "
+          "revision_number INTEGER NOT NULL "
+          "CHECK (revision_number >= 1), "
+          "markdown_content TEXT NOT NULL "
+          "CHECK (length(markdown_content) <= 2097152), "
+          "provider_id TEXT NOT NULL DEFAULT '' "
+          "CHECK (length(provider_id) <= 80), "
+          "model_id TEXT NOT NULL DEFAULT '' "
+          "CHECK (length(model_id) <= 160), "
+          "source_ids_json TEXT NOT NULL DEFAULT '[]', "
+          "created_at TEXT NOT NULL "
+          "CHECK (datetime(created_at) IS NOT NULL "
+          "AND substr(created_at, -1) = 'Z'), "
+          "UNIQUE (project_id, revision_number), "
+          "FOREIGN KEY (project_id) REFERENCES planning_projects(id) "
+          "ON UPDATE CASCADE ON DELETE CASCADE)"),
+      QStringLiteral(
+          "CREATE INDEX idx_planning_revisions_project_number "
+          "ON planning_plan_revisions(project_id, revision_number DESC)"),
+  };
+
+  for (const QString &statement : statements) {
+    if (!query.exec(statement)) {
+      m_lastError = query.lastError().text();
+      m_database.rollback();
+      return false;
+    }
+  }
+
   query.prepare(QStringLiteral(
       "INSERT INTO schema_migrations(version, applied_at) "
       "VALUES(:version, :appliedAt)"));

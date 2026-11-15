@@ -8,11 +8,14 @@
 #include "CreateTransactionViewModel.h"
 #include "TransferFundsViewModel.h"
 #include "MonthlyBudgetViewModel.h"
+#include "PlanningModule.h"
+#include "PlanningViewModel.h"
 #include "DataMaintenanceViewModel.h"
 #include "ScheduleManagementViewModel.h"
 #include "ScheduleModule.h"
 #include "ScheduleViewModel.h"
 #include "TaskModule.h"
+#include "TaskPlanningActionPublisher.h"
 #include "TasksViewModel.h"
 #include "UpdateModule.h"
 #include "WeatherModule.h"
@@ -33,6 +36,8 @@
 #include <QVariant>
 #include <QVariantMap>
 #include <QWindow>
+
+#include <memory>
 
 int main(int argc, char *argv[])
 {
@@ -83,6 +88,7 @@ int main(int argc, char *argv[])
         QDir(appDataDirectory).filePath(QStringLiteral("themes")));
     stukit::app::AccountingModule accountingModule(appDataDirectory, settings);
     stukit::app::WeatherModule weatherModule(appDataDirectory, settings);
+    stukit::app::PlanningModule planningModule;
     stukit::app::UpdateModule updateModule(
         accountingModule,
         appDataDirectory,
@@ -95,6 +101,24 @@ int main(int argc, char *argv[])
             << "Accounting module initialization failed:"
             << accountingModule.lastError();
         accountingStartupError = QStringLiteral("记账数据暂时无法打开");
+    }
+    std::unique_ptr<stukit::app::TaskPlanningActionPublisher>
+        planningActionPublisher;
+    if (accountingModule.taskModule() != nullptr
+        && accountingModule.taskModule()->saveTask() != nullptr
+        && accountingModule.taskModule()->viewModel() != nullptr) {
+        planningActionPublisher =
+            std::make_unique<stukit::app::TaskPlanningActionPublisher>(
+                *accountingModule.taskModule()->saveTask(),
+                *accountingModule.taskModule()->viewModel());
+    }
+    if (!planningModule.initialize(
+            accountingModule.databaseConnection(),
+            settings,
+            planningActionPublisher.get())) {
+        qWarning().noquote()
+            << "Planning module persistence unavailable:"
+            << planningModule.lastError();
     }
     if (!weatherModule.initialize()) {
         qCritical().noquote()
@@ -169,6 +193,9 @@ int main(int argc, char *argv[])
     initialProperties.insert(
         QStringLiteral("weatherViewModel"),
         QVariant::fromValue(static_cast<QObject *>(weatherModule.viewModel())));
+    initialProperties.insert(
+        QStringLiteral("planningViewModel"),
+        QVariant::fromValue(static_cast<QObject *>(planningModule.viewModel())));
     initialProperties.insert(
         QStringLiteral("tasksViewModel"),
         QVariant::fromValue(static_cast<QObject *>(

@@ -574,6 +574,11 @@ const QString &AccountingModule::databasePath() const noexcept
     return m_databasePath;
 }
 
+QSqlDatabase AccountingModule::databaseConnection() const
+{
+    return m_database ? m_database->connection() : QSqlDatabase{};
+}
+
 const QString &AccountingModule::lastSafetyBackupPath() const noexcept
 {
     return m_lastSafetyBackupPath;

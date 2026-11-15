@@ -15,6 +15,7 @@
 #include "TransactionListModel.h"
 #include "UserSettings.h"
 #include "backup/SqliteBackupService.h"
+#include "database/SqliteDatabase.h"
 
 #include <QDir>
 #include <QCoreApplication>
@@ -115,8 +116,10 @@ void AccountingModuleTest::initializesDatabaseAndViewModel()
                      "SELECT COUNT(*), MAX(version) FROM schema_migrations")),
                  qPrintable(query.lastError().text()));
         QVERIFY(query.next());
-    QCOMPARE(query.value(0).toInt(), 11);
-    QCOMPARE(query.value(1).toInt(), 11);
+        QCOMPARE(query.value(0).toInt(),
+                 stukit::accounting::SqliteDatabase::CurrentSchemaVersion);
+        QCOMPARE(query.value(1).toInt(),
+                 stukit::accounting::SqliteDatabase::CurrentSchemaVersion);
         database.close();
     }
     QSqlDatabase::removeDatabase(connectionName);

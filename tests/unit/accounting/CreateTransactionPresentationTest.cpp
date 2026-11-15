@@ -5,6 +5,7 @@
 #include "support/InMemoryTransactionRepository.h"
 
 #include <QSignalSpy>
+#include <QDir>
 #include <QSettings>
 #include <QTemporaryDir>
 #include <QTest>
@@ -322,7 +323,8 @@ void CreateTransactionPresentationTest::managesQuickTransactionTemplates()
 
 void CreateTransactionPresentationTest::persistsQuickTransactionTemplates()
 {
-    QTemporaryDir directory;
+    QTemporaryDir directory(QDir::current().filePath(
+        QStringLiteral("quick-template-test-XXXXXX")));
     QVERIFY(directory.isValid());
     QSettings settings(
         directory.filePath(QStringLiteral("settings.ini")),

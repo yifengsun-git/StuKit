@@ -34,6 +34,7 @@ public:
 
     [[nodiscard]] bool initialize();
     [[nodiscard]] tasks::presentation::TasksViewModel *viewModel() const noexcept;
+    [[nodiscard]] tasks::SaveTask *saveTask() const noexcept;
     [[nodiscard]] const QString &lastError() const noexcept;
 
 private:

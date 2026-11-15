@@ -15,8 +15,12 @@ add_library(StuKitAppCore STATIC
     DataMaintenanceViewModel.h
     ScheduleModule.cpp
     ScheduleModule.h
+    PlanningModule.cpp
+    PlanningModule.h
     TaskModule.cpp
     TaskModule.h
+    TaskPlanningActionPublisher.cpp
+    TaskPlanningActionPublisher.h
     UpdateModule.cpp
     UpdateModule.h
     UserSettings.cpp
@@ -41,6 +45,8 @@ target_link_libraries(StuKitAppCore
         StuKitSchedulePresentation
         StuKitTasksInfrastructure
         StuKitTasksPresentation
+        StuKitPlanningInfrastructure
+        StuKitPlanningPresentation
         StuKitUpdateInfrastructure
         StuKitUpdatePresentation
         StuKitWeatherInfrastructure

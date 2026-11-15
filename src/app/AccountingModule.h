@@ -3,6 +3,7 @@
 #include "UserSettings.h"
 
 #include <QDate>
+#include <QSqlDatabase>
 #include <QString>
 
 #include <memory>
@@ -88,6 +89,7 @@ public:
     [[nodiscard]] ScheduleModule *scheduleModule() const noexcept;
     [[nodiscard]] TaskModule *taskModule() const noexcept;
     [[nodiscard]] const QString &databasePath() const noexcept;
+    [[nodiscard]] QSqlDatabase databaseConnection() const;
     [[nodiscard]] const QString &lastSafetyBackupPath() const noexcept;
     [[nodiscard]] const QString &lastError() const noexcept;
 

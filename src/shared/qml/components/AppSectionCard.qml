@@ -16,13 +16,28 @@ Control {
         for (const child of body.children) {
             if (!child.visible)
                 continue
-            height += child.implicitHeight
+
+            let itemHeight = child.implicitHeight
+            if (child.Layout.preferredHeight >= 0) {
+                itemHeight = Math.max(
+                    itemHeight, child.Layout.preferredHeight)
+            }
+            if (child.Layout.minimumHeight >= 0) {
+                itemHeight = Math.max(
+                    itemHeight, child.Layout.minimumHeight)
+            }
+            height += itemHeight
+                + Math.max(0, child.Layout.topMargin)
+                + Math.max(0, child.Layout.bottomMargin)
             visibleItemCount += 1
         }
         return height + Math.max(0, visibleItemCount - 1) * body.spacing
     }
 
     padding: contentPadding
+    // Include attached layout hints. TextArea and SplitView commonly express
+    // their intended height through Layout.preferredHeight instead of
+    // implicitHeight, while expandable panels also rely on minimumHeight.
     implicitHeight: visibleContentHeight + topPadding + bottomPadding
 
     contentItem: ColumnLayout {

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(StuKit VERSION 0.3.0 LANGUAGES CXX)
+project(StuKit VERSION 0.4.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -20,6 +20,10 @@ add_subdirectory(src/features/tasks/domain)
 add_subdirectory(src/features/tasks/application)
 add_subdirectory(src/features/tasks/infrastructure)
 add_subdirectory(src/features/tasks/presentation)
+add_subdirectory(src/features/planning/domain)
+add_subdirectory(src/features/planning/application)
+add_subdirectory(src/features/planning/infrastructure)
+add_subdirectory(src/features/planning/presentation)
 add_subdirectory(src/features/schedule/domain)
 add_subdirectory(src/features/schedule/application)
 add_subdirectory(src/features/schedule/infrastructure)
@@ -94,6 +98,7 @@ set(STUKIT_QML_FILES
     src/features/weather/qml/components/CurrentWeatherCard.qml
     src/features/weather/qml/components/DailyForecastGrid.qml
     src/features/tasks/qml/TasksHomePage.qml
+    src/features/planning/qml/PlanningHomePage.qml
     src/features/update/qml/UpdatePage.qml
     src/shared/qml/theme/AppTheme.qml
     src/shared/qml/components/AppButton.qml
@@ -226,6 +231,11 @@ set_source_files_properties(
 set_source_files_properties(
     src/features/tasks/qml/TasksHomePage.qml
     PROPERTIES QT_RESOURCE_ALIAS TasksHomePage.qml
+)
+
+set_source_files_properties(
+    src/features/planning/qml/PlanningHomePage.qml
+    PROPERTIES QT_RESOURCE_ALIAS PlanningHomePage.qml
 )
 
 set_source_files_properties(
